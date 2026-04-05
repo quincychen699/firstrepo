@@ -1,0 +1,1970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SAP Fiori Launchpad</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "72", "72full", Arial, Helvetica, sans-serif;
+      background: #f5f6f7;
+      color: #32363a;
+      min-height: 100vh;
+    }
+
+    /* ─── Shell Header ─── */
+    .shell-header {
+      background: #354a5e;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      box-shadow: 0 2px 4px rgba(0,0,0,.2);
+    }
+    .shell-header-left { display: flex; align-items: center; gap: 12px; }
+    .shell-logo { color: #fff; font-size: 18px; font-weight: 700; letter-spacing: 1px; }
+    .shell-logo span { color: #fabd01; }
+    .shell-title {
+      color: rgba(255,255,255,.85);
+      font-size: 14px;
+      border-left: 1px solid rgba(255,255,255,.3);
+      padding-left: 12px;
+    }
+    .shell-header-right { display: flex; align-items: center; gap: 6px; }
+    .shell-btn {
+      background: none; border: none; color: #fff; cursor: pointer;
+      width: 36px; height: 36px; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; transition: background .15s;
+    }
+    .shell-btn:hover { background: rgba(255,255,255,.15); }
+    .avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: #0a6ed1; color: #fff; font-size: 13px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      transition: box-shadow .15s;
+      position: relative;
+    }
+    .avatar:hover { box-shadow: 0 0 0 3px rgba(255,255,255,.3); }
+
+    /* ─── Profile Dropdown ─── */
+    .profile-wrap { position: relative; }
+    .profile-panel {
+      display: none; position: absolute; top: calc(100% + 10px); right: 0;
+      width: 280px; background: #fff; border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.18); z-index: 200;
+      overflow: hidden;
+    }
+    .profile-panel.open { display: block; }
+    .profile-panel-header {
+      background: #354a5e; padding: 20px 16px 16px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .profile-avatar-lg {
+      width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 700; color: #fff;
+      border: 2px solid rgba(255,255,255,.4);
+    }
+    .profile-info { flex: 1; min-width: 0; }
+    .profile-name {
+      color: #fff; font-size: 15px; font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .profile-email {
+      color: rgba(255,255,255,.7); font-size: 12px; margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .profile-body { padding: 12px 16px; }
+    .profile-field { margin-bottom: 10px; }
+    .profile-field label {
+      display: block; font-size: 11px; color: #6a6d70;
+      text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px;
+    }
+    .profile-field input {
+      width: 100%; border: 1px solid #d9dbdd; border-radius: 4px;
+      padding: 6px 8px; font-size: 13px; color: #32363a; outline: none;
+    }
+    .profile-field input:focus { border-color: #0a6ed1; }
+    .profile-colors { display: flex; gap: 6px; flex-wrap: wrap; }
+    .profile-color-opt {
+      width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
+      border: 2px solid transparent; transition: border-color .12s;
+    }
+    .profile-color-opt.selected { border-color: #32363a; }
+    .profile-divider { height: 1px; background: #e8e9ea; margin: 4px 0 8px; }
+    .profile-actions { display: flex; gap: 8px; }
+    .profile-btn {
+      flex: 1; padding: 7px 0; border-radius: 4px; font-size: 13px;
+      cursor: pointer; border: 1px solid #d9dbdd; background: #fff; color: #32363a;
+      transition: background .12s;
+    }
+    .profile-btn:hover { background: #f5f6f7; }
+    .profile-btn.danger { color: #bb0000; border-color: #e8a0a0; }
+    .profile-btn.danger:hover { background: #fbe6e6; }
+    .profile-save-btn {
+      width: 100%; padding: 8px 0; border-radius: 4px; font-size: 13px;
+      cursor: pointer; border: none; background: #0a6ed1; color: #fff;
+      margin-top: 10px; transition: background .12s;
+    }
+    .profile-save-btn:hover { background: #085caf; }
+
+    /* ─── Settings Drawer ─── */
+    .settings-overlay {
+      display: none; position: fixed; inset: 0; z-index: 300;
+      background: rgba(0,0,0,.35);
+    }
+    .settings-overlay.open { display: block; }
+    .settings-drawer {
+      position: fixed; top: 0; right: -360px; width: 340px; height: 100vh;
+      background: #fff; z-index: 301; display: flex; flex-direction: column;
+      box-shadow: -4px 0 24px rgba(0,0,0,.15);
+      transition: right .25s cubic-bezier(.4,0,.2,1);
+    }
+    .settings-overlay.open .settings-drawer { right: 0; }
+    .settings-drawer-header {
+      background: #354a5e; padding: 0 16px; height: 52px;
+      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    }
+    .settings-drawer-title { color: #fff; font-size: 15px; font-weight: 600; }
+    .settings-close {
+      background: none; border: none; color: rgba(255,255,255,.8); cursor: pointer;
+      font-size: 20px; line-height: 1; padding: 4px;
+    }
+    .settings-close:hover { color: #fff; }
+    .settings-body { flex: 1; overflow-y: auto; padding: 0; }
+    .settings-section { padding: 16px 20px 0; }
+    .settings-section-title {
+      font-size: 11px; font-weight: 700; color: #6a6d70;
+      text-transform: uppercase; letter-spacing: .07em;
+      padding-bottom: 10px; border-bottom: 1px solid #e8e9ea; margin-bottom: 12px;
+    }
+    .settings-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 0; min-height: 40px;
+    }
+    .settings-row-label { font-size: 13px; color: #32363a; }
+    .settings-row-sub { font-size: 11px; color: #a0a4a8; margin-top: 1px; }
+    /* toggle switch */
+    .s-toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+    .s-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .s-toggle-track {
+      position: absolute; inset: 0; background: #c5c8ca; border-radius: 10px;
+      cursor: pointer; transition: background .2s;
+    }
+    .s-toggle input:checked + .s-toggle-track { background: #0a6ed1; }
+    .s-toggle-track::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 16px; height: 16px; border-radius: 50%; background: #fff;
+      transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    }
+    .s-toggle input:checked + .s-toggle-track::after { transform: translateX(16px); }
+    /* segmented control */
+    .s-segment { display: flex; border: 1px solid #d9dbdd; border-radius: 4px; overflow: hidden; }
+    .s-segment button {
+      flex: 1; padding: 5px 0; font-size: 12px; cursor: pointer;
+      border: none; background: #fff; color: #6a6d70; transition: background .12s, color .12s;
+    }
+    .s-segment button.active { background: #0a6ed1; color: #fff; }
+    /* color swatches for theme */
+    .s-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+    .s-swatch {
+      width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+      border: 2px solid transparent; transition: border-color .12s, transform .1s;
+    }
+    .s-swatch:hover { transform: scale(1.15); }
+    .s-swatch.selected { border-color: #32363a; }
+    .settings-footer {
+      padding: 14px 20px; border-top: 1px solid #e8e9ea; flex-shrink: 0;
+    }
+    .settings-apply-btn {
+      width: 100%; padding: 9px 0; border-radius: 4px; font-size: 14px;
+      cursor: pointer; border: none; background: #0a6ed1; color: #fff;
+      transition: background .12s;
+    }
+    .settings-apply-btn:hover { background: #085caf; }
+    .search-bar-wrap {
+      background: #354a5e; padding: 8px 16px 10px;
+      position: fixed; top: 44px; left: 0; right: 0; z-index: 99;
+      display: flex; justify-content: center;
+    }
+    .search-bar {
+      background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25);
+      border-radius: 4px; display: flex; align-items: center;
+      width: 100%; max-width: 600px; padding: 0 10px; height: 34px; gap: 8px;
+    }
+    .search-bar input {
+      background: none; border: none; outline: none; color: #fff; font-size: 14px; flex: 1;
+    }
+    .search-bar input::placeholder { color: rgba(255,255,255,.6); }
+    .search-bar svg { color: rgba(255,255,255,.7); flex-shrink: 0; }
+    .search-clear {
+      background: none; border: none; color: rgba(255,255,255,.6); cursor: pointer;
+      font-size: 16px; line-height: 1; padding: 0 2px; display: none; flex-shrink: 0;
+    }
+    .search-clear:hover { color: #fff; }
+    .search-bar.has-value .search-clear { display: block; }
+    .tile-hidden { display: none !important; }
+    .section-hidden { display: none !important; }
+    mark.search-hl { background: #fabd01; color: #32363a; border-radius: 2px; padding: 0 1px; }
+    .search-no-results {
+      text-align: center; padding: 60px 20px; color: #6a6d70; font-size: 14px; display: none;
+    }
+    .search-no-results svg { display: block; margin: 0 auto 12px; opacity: .4; }
+
+    /* ─── Main Content ─── */
+    .main { padding-top: 100px; padding-bottom: 40px; }
+
+    /* ─── Section ─── */
+    .section { padding: 24px 32px 0; }
+    .section-header {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+    }
+    .section-title {
+      font-size: 13px; font-weight: 700; color: #6a6d70;
+      text-transform: uppercase; letter-spacing: .05em;
+    }
+    .section-actions {
+      display: flex; gap: 4px; opacity: 0; transition: opacity .15s;
+    }
+    .section:hover .section-actions { opacity: 1; }
+    .section-action-btn {
+      background: none; border: 1px solid transparent; border-radius: 4px;
+      width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: #a0a4a8; transition: background .12s, color .12s, border-color .12s;
+    }
+    .section-action-btn:hover       { background: #e8f1fb; color: #0a6ed1; border-color: #0a6ed1; }
+    .section-action-btn.add:hover   { background: #e8f5ec; color: #107e3e; border-color: #107e3e; }
+    .section-action-btn.del:hover   { background: #fbe6e6; color: #bb0000; border-color: #bb0000; }
+
+    /* ─── Add Section Button ─── */
+    .add-section-wrap { padding: 24px 32px 0; }
+    .add-section-btn {
+      display: flex; align-items: center; gap: 8px;
+      background: none; border: 2px dashed #c5c8ca; border-radius: 6px;
+      padding: 10px 20px; cursor: pointer; color: #a0a4a8; font-size: 13px;
+      font-family: inherit; transition: border-color .15s, color .15s, background .15s;
+    }
+    .add-section-btn:hover { border-color: #0a6ed1; color: #0a6ed1; background: #f0f6fd; }
+
+    /* ─── Tile Grid ─── */
+    .tile-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+
+    /* ─── Tile Base ─── */
+    .tile {
+      background: #fff; border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.1); cursor: pointer;
+      transition: box-shadow .2s, transform .15s;
+      display: flex; flex-direction: column;
+      position: relative; overflow: hidden;
+    }
+    .tile:hover { box-shadow: 0 4px 12px rgba(0,0,0,.18); transform: translateY(-2px); }
+    .tile-std  { width: 176px; height: 176px; padding: 14px; justify-content: space-between; }
+    .tile-wide { width: 364px; height: 176px; padding: 14px 16px; }
+    .tile-kpi  { width: 176px; height: 176px; padding: 14px; }
+
+    .tile-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+    }
+    .tile-icon {
+      width: 40px; height: 40px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .tile-badge {
+      background: #bb0000; color: #fff; font-size: 11px; font-weight: 700;
+      min-width: 18px; height: 18px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center; padding: 0 5px;
+    }
+    .tile-title { font-size: 13px; font-weight: 600; color: #32363a; line-height: 1.3; margin-top: 10px; }
+    .tile-subtitle { font-size: 12px; color: #6a6d70; margin-top: 4px; }
+
+    /* tile link indicator */
+    .tile-link-badge {
+      position: absolute; bottom: 8px; right: 8px;
+      font-size: 11px; color: #0a6ed1; opacity: 0;
+      transition: opacity .2s;
+      display: flex; align-items: center; gap: 3px;
+    }
+    .tile:hover .tile-link-badge { opacity: 1; }
+    .tile-link-badge svg { width: 11px; height: 11px; }
+
+    /* KPI */
+    .kpi-value { font-size: 36px; font-weight: 300; color: #32363a; line-height: 1; margin-top: 14px; }
+    .kpi-unit  { font-size: 13px; color: #6a6d70; }
+    .kpi-trend { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 3px; margin-top: 6px; }
+    .kpi-trend.up      { color: #107e3e; }
+    .kpi-trend.down    { color: #bb0000; }
+    .kpi-trend.neutral { color: #0a6ed1; }
+
+    /* Chart */
+    .tile-chart { display: flex; align-items: flex-end; gap: 6px; margin-top: 16px; height: 70px; }
+    .bar { background: #0a6ed1; border-radius: 2px 2px 0 0; flex: 1; opacity: .8; transition: opacity .15s; }
+    .bar:hover { opacity: 1; }
+    .bar.accent { background: #fabd01; }
+
+    /* Progress */
+    .progress-row { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .progress-label { font-size: 11px; color: #6a6d70; margin-bottom: 3px; display: flex; justify-content: space-between; }
+    .progress-track { background: #e5e5e5; border-radius: 2px; height: 6px; width: 100%; }
+    .progress-fill  { height: 6px; border-radius: 2px; }
+
+    /* Icon themes */
+    .ic-blue   { background: #e8f1fb; color: #0a6ed1; }
+    .ic-green  { background: #e8f5ec; color: #107e3e; }
+    .ic-orange { background: #fef3e1; color: #e9730c; }
+    .ic-red    { background: #fbe6e6; color: #bb0000; }
+    .ic-purple { background: #f0eaf8; color: #6c32a0; }
+    .ic-teal   { background: #e5f5f6; color: #0f7888; }
+    .ic-gold   { background: #fdf6da; color: #c87b00; }
+    .ic-gray   { background: #f2f2f2; color: #6a6d70; }
+
+    /* Top bar */
+    .tile-bar { height: 4px; width: 100%; position: absolute; top: 0; left: 0; }
+    .bar-blue   { background: #0a6ed1; }
+    .bar-green  { background: #107e3e; }
+    .bar-orange { background: #e9730c; }
+    .bar-red    { background: #bb0000; }
+    .bar-gold   { background: #fabd01; }
+
+    /* ─── Tile Action Buttons ─── */
+    .tile-actions {
+      position: absolute; top: 6px; right: 6px;
+      display: flex; gap: 4px;
+      opacity: 0; transition: opacity .15s; z-index: 10;
+    }
+    .tile:hover .tile-actions { opacity: 1; }
+    .tile-action-btn {
+      background: rgba(255,255,255,.9);
+      border: 1px solid #d1d3d4; border-radius: 4px;
+      width: 26px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: background .15s, border-color .15s;
+      color: #6a6d70;
+    }
+    .tile-action-btn:hover { background: #0a6ed1; color: #fff; border-color: #0a6ed1; }
+    .tile-action-btn.del:hover { background: #bb0000; border-color: #bb0000; color: #fff; }
+
+    /* ─── Add Tile Button ─── */
+    .tile-add-btn {
+      height: 32px;
+      border: 1.5px dashed #c5c8ca; border-radius: 6px;
+      background: none; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 5px; color: #a0a4a8; font-size: 12px; font-family: inherit;
+      padding: 0 14px; align-self: center;
+      transition: border-color .15s, color .15s, background .15s;
+      white-space: nowrap;
+    }
+    .tile-add-btn:hover { border-color: #0a6ed1; color: #0a6ed1; background: #f0f6fd; }
+    .tile-add-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+    /* ─── Divider ─── */
+    .divider { height: 1px; background: #e5e5e5; margin: 28px 32px 0; }
+
+    /* ─── Footer ─── */
+    .footer {
+      text-align: center; padding: 20px; font-size: 12px;
+      color: #a0a4a8; border-top: 1px solid #e5e5e5; margin-top: 32px;
+    }
+
+    /* ─── Modal Overlay ─── */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(0,0,0,.45);
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 8px;
+      width: 460px;
+      max-width: 94vw;
+      box-shadow: 0 8px 32px rgba(0,0,0,.22);
+      overflow: hidden;
+      animation: modalIn .18s ease;
+    }
+    @keyframes modalIn {
+      from { transform: translateY(-12px); opacity: 0; }
+      to   { transform: translateY(0);     opacity: 1; }
+    }
+
+    .modal-header {
+      background: #354a5e; color: #fff;
+      padding: 14px 18px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-header h3 { font-size: 15px; font-weight: 600; }
+    .modal-close {
+      background: none; border: none; color: #fff; cursor: pointer;
+      font-size: 20px; line-height: 1; padding: 0 2px;
+      opacity: .8; transition: opacity .15s;
+    }
+    .modal-close:hover { opacity: 1; }
+
+    .modal-body { padding: 20px 18px; display: flex; flex-direction: column; gap: 14px; }
+
+    .form-field { display: flex; flex-direction: column; gap: 5px; }
+    .form-field label { font-size: 12px; font-weight: 600; color: #6a6d70; text-transform: uppercase; letter-spacing: .03em; }
+    .form-field input, .form-field textarea {
+      border: 1px solid #d1d3d4; border-radius: 4px;
+      padding: 8px 10px; font-size: 13px; color: #32363a;
+      font-family: inherit; transition: border-color .15s;
+      outline: none;
+    }
+    .form-field input:focus, .form-field textarea:focus { border-color: #0a6ed1; box-shadow: 0 0 0 2px rgba(10,110,209,.15); }
+    .form-field textarea { resize: vertical; min-height: 60px; }
+
+    .form-field .url-row {
+      display: flex; gap: 8px; align-items: center;
+    }
+    .form-field .url-row input { flex: 1; }
+    .url-test-btn {
+      background: #f5f6f7; border: 1px solid #d1d3d4; border-radius: 4px;
+      padding: 8px 12px; font-size: 12px; cursor: pointer; white-space: nowrap;
+      color: #32363a; transition: background .15s;
+    }
+    .url-test-btn:hover { background: #e8f1fb; border-color: #0a6ed1; color: #0a6ed1; }
+
+    .url-hint { font-size: 11px; color: #a0a4a8; margin-top: 2px; }
+
+    /* ─── Icon Picker ─── */
+    .icon-picker { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+    .icon-opt {
+      width: 32px; height: 32px; border-radius: 5px; border: 2px solid transparent;
+      background: #f5f6f7; font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color .1s, background .1s;
+    }
+    .icon-opt:hover { background: #e8f1fb; }
+    .icon-opt.selected { border-color: #0a6ed1; background: #e8f1fb; }
+
+    /* ─── Color Picker ─── */
+    .color-picker { display: flex; gap: 7px; margin-top: 4px; flex-wrap: wrap; }
+    .color-opt {
+      width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
+      border: 3px solid transparent; transition: border-color .1s, transform .1s;
+      flex-shrink: 0;
+    }
+    .color-opt:hover { transform: scale(1.18); }
+    .color-opt.selected { border-color: #32363a; }
+
+    /* ─── Two-column modal form ─── */
+    .form-row { display: flex; gap: 12px; }
+    .form-row .form-field { flex: 1; }
+
+    /* ─── Confirm Delete ─── */
+    .confirm-msg { font-size: 14px; color: #32363a; line-height: 1.5; padding: 20px 18px; }
+    .btn-danger { background: #bb0000; color: #fff; }
+    .btn-danger:hover { background: #960000; }
+
+    .modal-footer {
+      padding: 12px 18px;
+      display: flex; justify-content: flex-end; gap: 8px;
+      border-top: 1px solid #e5e5e5;
+    }
+    .btn {
+      padding: 8px 18px; border-radius: 4px; font-size: 13px;
+      font-weight: 600; cursor: pointer; border: none; transition: background .15s;
+    }
+    .btn-cancel { background: #fff; border: 1px solid #d1d3d4; color: #32363a; }
+    .btn-cancel:hover { background: #f5f6f7; }
+    .btn-save { background: #0a6ed1; color: #fff; }
+    .btn-save:hover { background: #0854a0; }
+  </style>
+</head>
+<body>
+
+  <!-- Shell Header -->
+  <header class="shell-header">
+    <div class="shell-header-left">
+      <div class="shell-logo">S<span>A</span>P</div>
+      <div class="shell-title">Fiori Launchpad</div>
+    </div>
+    <div class="shell-header-right">
+      <button class="shell-btn" title="Notifications">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
+        </svg>
+      </button>
+      <button class="shell-btn" title="Settings" onclick="openSettings()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41M20 12h2M2 12h2M12 20v2M12 2v2"/>
+        </svg>
+      </button>
+      <button class="shell-btn" title="Help">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"/>
+        </svg>
+      </button>
+      <div class="profile-wrap">
+        <div class="avatar" id="avatarBtn" title="User Profile" onclick="toggleProfile()">ZW</div>
+        <div class="profile-panel" id="profilePanel">
+          <div class="profile-panel-header">
+            <div class="profile-avatar-lg" id="profileAvatarLg" style="background:#0a6ed1">ZW</div>
+            <div class="profile-info">
+              <div class="profile-name" id="profileNameDisplay">Zhang Wei</div>
+              <div class="profile-email" id="profileEmailDisplay">zhang.wei@company.com</div>
+            </div>
+          </div>
+          <div class="profile-body">
+            <div class="profile-field">
+              <label>Display Name</label>
+              <input type="text" id="profileNameInput" value="Zhang Wei" />
+            </div>
+            <div class="profile-field">
+              <label>Email</label>
+              <input type="email" id="profileEmailInput" value="zhang.wei@company.com" />
+            </div>
+            <div class="profile-field">
+              <label>Avatar Color</label>
+              <div class="profile-colors">
+                <div class="profile-color-opt selected" data-color="#0a6ed1" style="background:#0a6ed1" onclick="selectProfileColor(this)"></div>
+                <div class="profile-color-opt" data-color="#107e3e" style="background:#107e3e" onclick="selectProfileColor(this)"></div>
+                <div class="profile-color-opt" data-color="#c35500" style="background:#c35500" onclick="selectProfileColor(this)"></div>
+                <div class="profile-color-opt" data-color="#6a2c8c" style="background:#6a2c8c" onclick="selectProfileColor(this)"></div>
+                <div class="profile-color-opt" data-color="#bb0000" style="background:#bb0000" onclick="selectProfileColor(this)"></div>
+                <div class="profile-color-opt" data-color="#354a5e" style="background:#354a5e" onclick="selectProfileColor(this)"></div>
+              </div>
+            </div>
+            <button class="profile-save-btn" onclick="saveProfile()">Save Changes</button>
+            <div class="profile-divider"></div>
+            <div class="profile-actions">
+              <button class="profile-btn danger" onclick="if(confirm('Reset all changes and restore defaults?')){localStorage.removeItem('fiori_launchpad_v1');location.reload();}">Reset Dashboard</button>
+              <button class="profile-btn" onclick="alert('Sign out not connected in this demo.')">Sign Out</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Search Bar -->
+  <div class="search-bar-wrap">
+    <div class="search-bar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+      </svg>
+      <input type="text" id="searchInput" placeholder="Search apps, tasks..." oninput="handleSearch(this)" />
+      <button class="search-clear" id="searchClear" onclick="clearSearch()" title="Clear search">&#x2715;</button>
+    </div>
+  </div>
+
+  <!-- Search: no results -->
+  <div class="search-no-results" id="searchNoResults">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+    </svg>
+    No tiles found
+  </div>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Section: My Tasks -->
+    <div class="section" style="margin-top:20px">
+      <div class="section-header">
+        <div class="section-title">My Tasks</div>
+        <div class="section-actions">
+          <button class="section-action-btn" onclick="openSectionEdit(event,this)" title="Rename section">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="section-action-btn add" onclick="openAddSectionAbove(event,this)" title="Add section above">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <button class="section-action-btn del" onclick="openSectionDelete(event,this)" title="Remove section">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="tile-grid">
+
+        <!-- KPI: Pending Approvals -->
+        <div class="tile tile-kpi" onclick="handleTileClick(this)">
+          <div class="tile-bar bar-red"></div>
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header" style="margin-top:4px">
+            <div class="tile-icon ic-red">📋</div>
+            <div class="tile-badge">12</div>
+          </div>
+          <div class="kpi-value">12</div>
+          <div class="kpi-unit">Pending Approvals</div>
+          <div class="kpi-trend down">▼ 3 vs. yesterday</div>
+          <div class="tile-link-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+          </div>
+        </div>
+
+        <!-- KPI: Purchase Orders -->
+        <div class="tile tile-kpi" onclick="handleTileClick(this)">
+          <div class="tile-bar bar-blue"></div>
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header" style="margin-top:4px">
+            <div class="tile-icon ic-blue">🛒</div>
+            <div class="tile-badge">5</div>
+          </div>
+          <div class="kpi-value">5</div>
+          <div class="kpi-unit">Open Purchase Orders</div>
+          <div class="kpi-trend neutral">→ No change</div>
+          <div class="tile-link-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+          </div>
+        </div>
+
+        <!-- KPI: Overdue Tasks -->
+        <div class="tile tile-kpi" onclick="handleTileClick(this)">
+          <div class="tile-bar bar-orange"></div>
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header" style="margin-top:4px">
+            <div class="tile-icon ic-orange">⏰</div>
+            <div class="tile-badge">3</div>
+          </div>
+          <div class="kpi-value">3</div>
+          <div class="kpi-unit">Overdue Tasks</div>
+          <div class="kpi-trend down">▲ 1 vs. yesterday</div>
+          <div class="tile-link-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+          </div>
+        </div>
+
+        <!-- Wide: Monthly Spend Trend -->
+        <div class="tile tile-wide" onclick="handleTileClick(this)">
+          <div class="tile-bar bar-blue"></div>
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header" style="margin-top:4px">
+            <div class="tile-icon ic-blue">📊</div>
+          </div>
+          <div class="tile-title">Monthly Spend Trend</div>
+          <div class="tile-subtitle">Jan–Jun 2024 (in 10K USD)</div>
+          <div class="tile-chart">
+            <div class="bar" style="height:40%"></div>
+            <div class="bar" style="height:55%"></div>
+            <div class="bar" style="height:70%"></div>
+            <div class="bar" style="height:50%"></div>
+            <div class="bar" style="height:85%"></div>
+            <div class="bar accent" style="height:100%"></div>
+          </div>
+          <div class="tile-link-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+          </div>
+        </div>
+
+        <!-- Standard: Leave Request -->
+        <div class="tile tile-std" onclick="handleTileClick(this)">
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header">
+            <div class="tile-icon ic-green">🌿</div>
+          </div>
+          <div>
+            <div class="tile-title">Leave Request</div>
+            <div class="tile-subtitle">Submit time-off request</div>
+          </div>
+          <div class="tile-link-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+          </div>
+        </div>
+
+        <!-- Standard: Travel Expense -->
+        <div class="tile tile-std" onclick="handleTileClick(this)">
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header">
+            <div class="tile-icon ic-orange">✈️</div>
+            <div class="tile-badge">3</div>
+          </div>
+          <div>
+            <div class="tile-title">Travel Expense</div>
+            <div class="tile-subtitle">2 submitted · 1 approved</div>
+          </div>
+          <div class="tile-link-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+          </div>
+        </div>
+
+        <button class="tile-add-btn" onclick="openAdd(this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Tile
+        </button>
+
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Section: Finance & Procurement -->
+    <div class="section" style="margin-top:24px">
+      <div class="section-header">
+        <div class="section-title">Finance &amp; Procurement</div>
+        <div class="section-actions">
+          <button class="section-action-btn" onclick="openSectionEdit(event,this)" title="Rename section">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="section-action-btn add" onclick="openAddSectionAbove(event,this)" title="Add section above">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <button class="section-action-btn del" onclick="openSectionDelete(event,this)" title="Remove section">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="tile-grid">
+
+        <div class="tile tile-std" onclick="handleTileClick(this)">
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header">
+            <div class="tile-icon ic-blue">🧾</div>
+            <div class="tile-badge">8</div>
+          </div>
+          <div>
+            <div class="tile-title">Invoice Management</div>
+            <div class="tile-subtitle">8 items pending</div>
+          </div>
+          <div class="tile-link-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></div>
+        </div>
+
+        <div class="tile tile-std" onclick="handleTileClick(this)">
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header">
+            <div class="tile-icon ic-purple">📄</div>
+          </div>
+          <div>
+            <div class="tile-title">Contract Management</div>
+            <div class="tile-subtitle">View &amp; renew contracts</div>
+          </div>
+          <div class="tile-link-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></div>
+        </div>
+
+        <div class="tile tile-std" onclick="handleTileClick(this)">
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header">
+            <div class="tile-icon ic-teal">🏭</div>
+          </div>
+          <div>
+            <div class="tile-title">Supplier Portal</div>
+            <div class="tile-subtitle">Manage supplier data</div>
+          </div>
+          <div class="tile-link-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></div>
+        </div>
+
+        <!-- Wide: Budget Execution -->
+        <div class="tile tile-wide" onclick="handleTileClick(this)">
+          <div class="tile-bar bar-green"></div>
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header" style="margin-top:4px">
+            <div class="tile-icon ic-green">💰</div>
+          </div>
+          <div class="tile-title">Budget Execution</div>
+          <div class="tile-subtitle">Q2 utilization by department</div>
+          <div class="progress-row">
+            <div class="progress-item">
+              <div class="progress-label"><span>R&amp;D</span><span>82%</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width:82%;background:#0a6ed1"></div></div>
+            </div>
+            <div class="progress-item">
+              <div class="progress-label"><span>Marketing</span><span>67%</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width:67%;background:#107e3e"></div></div>
+            </div>
+            <div class="progress-item">
+              <div class="progress-label"><span>Operations</span><span>95%</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width:95%;background:#e9730c"></div></div>
+            </div>
+          </div>
+          <div class="tile-link-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></div>
+        </div>
+
+        <div class="tile tile-std" onclick="handleTileClick(this)">
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header">
+            <div class="tile-icon ic-gold">📈</div>
+          </div>
+          <div>
+            <div class="tile-title">Cost Analysis</div>
+            <div class="tile-subtitle">View cost reports</div>
+          </div>
+          <div class="tile-link-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></div>
+        </div>
+
+        <div class="tile tile-std" onclick="handleTileClick(this)">
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header">
+            <div class="tile-icon ic-green">💳</div>
+            <div class="tile-badge">4</div>
+          </div>
+          <div>
+            <div class="tile-title">Payment Processing</div>
+            <div class="tile-subtitle">4 payments due</div>
+          </div>
+          <div class="tile-link-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></div>
+        </div>
+
+        <button class="tile-add-btn" onclick="openAdd(this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Tile
+        </button>
+
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Section: Human Resources -->
+    <div class="section" style="margin-top:24px">
+      <div class="section-header">
+        <div class="section-title">Human Resources</div>
+        <div class="section-actions">
+          <button class="section-action-btn" onclick="openSectionEdit(event,this)" title="Rename section">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="section-action-btn add" onclick="openAddSectionAbove(event,this)" title="Add section above">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <button class="section-action-btn del" onclick="openSectionDelete(event,this)" title="Remove section">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="tile-grid">
+
+        <div class="tile tile-std" onclick="handleTileClick(this)">
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header"><div class="tile-icon ic-blue">👥</div></div>
+          <div>
+            <div class="tile-title">Employee Directory</div>
+            <div class="tile-subtitle">Find colleagues</div>
+          </div>
+          <div class="tile-link-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></div>
+        </div>
+
+        <div class="tile tile-std" onclick="handleTileClick(this)">
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header"><div class="tile-icon ic-purple">⭐</div></div>
+          <div>
+            <div class="tile-title">Performance</div>
+            <div class="tile-subtitle">Goals &amp; evaluations</div>
+          </div>
+          <div class="tile-link-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></div>
+        </div>
+
+        <div class="tile tile-std" onclick="handleTileClick(this)">
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header"><div class="tile-icon ic-teal">📚</div></div>
+          <div>
+            <div class="tile-title">Learning &amp; Training</div>
+            <div class="tile-subtitle">Online course catalog</div>
+          </div>
+          <div class="tile-link-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></div>
+        </div>
+
+        <div class="tile tile-std" onclick="handleTileClick(this)">
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header"><div class="tile-icon ic-green">💼</div></div>
+          <div>
+            <div class="tile-title">Payroll</div>
+            <div class="tile-subtitle">View pay statements</div>
+          </div>
+          <div class="tile-link-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></div>
+        </div>
+
+        <div class="tile tile-std" onclick="handleTileClick(this)">
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header">
+            <div class="tile-icon ic-orange">🎯</div>
+            <div class="tile-badge">6</div>
+          </div>
+          <div>
+            <div class="tile-title">Recruitment</div>
+            <div class="tile-subtitle">6 open positions</div>
+          </div>
+          <div class="tile-link-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></div>
+        </div>
+
+        <div class="tile tile-std" onclick="handleTileClick(this)">
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header"><div class="tile-icon ic-gray">🏢</div></div>
+          <div>
+            <div class="tile-title">Org Chart</div>
+            <div class="tile-subtitle">View hierarchy</div>
+          </div>
+          <div class="tile-link-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></div>
+        </div>
+
+        <button class="tile-add-btn" onclick="openAdd(this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Tile
+        </button>
+
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Section: System Administration -->
+    <div class="section" style="margin-top:24px">
+      <div class="section-header">
+        <div class="section-title">System Administration</div>
+        <div class="section-actions">
+          <button class="section-action-btn" onclick="openSectionEdit(event,this)" title="Rename section">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="section-action-btn add" onclick="openAddSectionAbove(event,this)" title="Add section above">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <button class="section-action-btn del" onclick="openSectionDelete(event,this)" title="Remove section">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="tile-grid">
+
+        <div class="tile tile-std" onclick="handleTileClick(this)">
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header"><div class="tile-icon ic-red">🔐</div></div>
+          <div>
+            <div class="tile-title">User Authorization</div>
+            <div class="tile-subtitle">Roles &amp; access control</div>
+          </div>
+          <div class="tile-link-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></div>
+        </div>
+
+        <div class="tile tile-std" onclick="handleTileClick(this)">
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header"><div class="tile-icon ic-blue">🖥️</div></div>
+          <div>
+            <div class="tile-title">System Monitoring</div>
+            <div class="tile-subtitle">Performance &amp; logs</div>
+          </div>
+          <div class="tile-link-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></div>
+        </div>
+
+        <div class="tile tile-std" onclick="handleTileClick(this)">
+          <div class="tile-actions">
+            <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+          <div class="tile-header"><div class="tile-icon ic-teal">📥</div></div>
+          <div>
+            <div class="tile-title">Data Export</div>
+            <div class="tile-subtitle">Reports &amp; downloads</div>
+          </div>
+          <div class="tile-link-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></div>
+        </div>
+
+        <button class="tile-add-btn" onclick="openAdd(this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Tile
+        </button>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Add Section button at bottom -->
+  <div class="add-section-wrap">
+    <button class="add-section-btn" onclick="openAddSectionAtEnd()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Section
+    </button>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    © 2024 SAP SE. All rights reserved. &nbsp;|&nbsp; Version 1.128.0 &nbsp;|&nbsp;
+    <a href="#" style="color:#0a6ed1;text-decoration:none">Privacy</a> &nbsp;|&nbsp;
+    <a href="#" style="color:#0a6ed1;text-decoration:none">Terms of Use</a>
+  </footer>
+
+  <!-- ─── Section Rename Modal ─── -->
+  <div class="modal-overlay" id="sectionEditModal" onclick="overlayClick(event,'sectionEditModal')">
+    <div class="modal" style="width:380px">
+      <div class="modal-header">
+        <h3>Rename Section</h3>
+        <button class="modal-close" onclick="closeModal('sectionEditModal')">&#x2715;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field">
+          <label>Section Name</label>
+          <input type="text" id="sectionNameInput" placeholder="Enter section name" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel" onclick="closeModal('sectionEditModal')">Cancel</button>
+        <button class="btn btn-save" onclick="saveSectionEdit()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Add Section Modal ─── -->
+  <div class="modal-overlay" id="addSectionModal" onclick="overlayClick(event,'addSectionModal')">
+    <div class="modal" style="width:380px">
+      <div class="modal-header">
+        <h3>Add New Section</h3>
+        <button class="modal-close" onclick="closeModal('addSectionModal')">&#x2715;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field">
+          <label>Section Name</label>
+          <input type="text" id="newSectionNameInput" placeholder="e.g. Analytics, Reports…" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel" onclick="closeModal('addSectionModal')">Cancel</button>
+        <button class="btn btn-save" onclick="saveAddSection()">Add Section</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Delete Section Confirm Modal ─── -->
+  <div class="modal-overlay" id="deleteSectionModal" onclick="overlayClick(event,'deleteSectionModal')">
+    <div class="modal" style="width:400px">
+      <div class="modal-header" style="background:#bb0000">
+        <h3>Remove Section</h3>
+        <button class="modal-close" onclick="closeModal('deleteSectionModal')">&#x2715;</button>
+      </div>
+      <div class="confirm-msg">
+        Remove section <strong id="deleteSectionName"></strong> and all its tiles? This cannot be undone.
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel" onclick="closeModal('deleteSectionModal')">Cancel</button>
+        <button class="btn btn-danger" onclick="confirmSectionDelete()">Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ───────────────────────────────────────────────────
+       PERSISTENCE
+    ─────────────────────────────────────────────────── */
+    const STORAGE_KEY = 'fiori_launchpad_v1';
+
+    function persist() {
+      try {
+        localStorage.setItem(STORAGE_KEY, document.querySelector('.main').innerHTML);
+      } catch(e) {}
+    }
+
+    function restore() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) document.querySelector('.main').innerHTML = saved;
+      } catch(e) {}
+    }
+
+    /* ───────────────────────────────────────────────────
+       SHARED STATE
+    ─────────────────────────────────────────────────── */
+    let currentTile      = null;
+    let targetGrid       = null;
+    let addBtn           = null;
+    let currentSection   = null;   // for section rename/delete
+    let insertBeforeSection = null; // for add-section positioning
+    let selectedIcon  = '📋';
+    let selectedColor = 'ic-blue';
+
+    /* ───────────────────────────────────────────────────
+       HELPERS
+    ─────────────────────────────────────────────────── */
+    const getTitleEl    = t => t.querySelector('.tile-title')    || t.querySelector('.kpi-unit');
+    const getSubtitleEl = t => t.querySelector('.tile-subtitle') || t.querySelector('.kpi-trend');
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('open');
+    }
+    function overlayClick(e, id) {
+      if (e.target === document.getElementById(id)) closeModal(id);
+    }
+    function testUrl(inputId) {
+      const url = document.getElementById(inputId).value.trim();
+      if (url) window.open(url, '_blank', 'noopener');
+    }
+    function escHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    /* ───────────────────────────────────────────────────
+       TILE — EDIT
+    ─────────────────────────────────────────────────── */
+    function openEdit(event, btn) {
+      event.stopPropagation();
+      currentTile = btn.closest('.tile');
+      document.getElementById('editTitle').value    = (getTitleEl(currentTile)    || {}).textContent?.trim() || '';
+      document.getElementById('editSubtitle').value = (getSubtitleEl(currentTile) || {}).textContent?.trim() || '';
+      document.getElementById('editUrl').value      = currentTile.dataset.url || '';
+      document.getElementById('editModal').classList.add('open');
+      setTimeout(() => document.getElementById('editTitle').focus(), 50);
+    }
+    function saveEdit() {
+      if (!currentTile) return;
+      const title    = document.getElementById('editTitle').value.trim();
+      const subtitle = document.getElementById('editSubtitle').value.trim();
+      const url      = document.getElementById('editUrl').value.trim();
+      const tEl = getTitleEl(currentTile);
+      const sEl = getSubtitleEl(currentTile);
+      if (tEl && title)    tEl.textContent = title;
+      if (sEl && subtitle) sEl.textContent = subtitle;
+      if (url) {
+        currentTile.dataset.url = url;
+        currentTile.querySelector('.tile-link-badge').style.opacity = '1';
+      } else {
+        delete currentTile.dataset.url;
+        currentTile.querySelector('.tile-link-badge').style.opacity = '';
+      }
+      closeModal('editModal');
+      persist();
+    }
+    /* ───────────────────────────────────────────────────
+       TILE — DELETE
+    ─────────────────────────────────────────────────── */
+    function openDelete(event, btn) {
+      event.stopPropagation();
+      currentTile = btn.closest('.tile');
+      const name = (getTitleEl(currentTile) || {}).textContent?.trim() || 'this tile';
+      document.getElementById('deleteTileName').textContent = '"' + name + '"';
+      document.getElementById('deleteModal').classList.add('open');
+    }
+    function confirmDelete() {
+      if (!currentTile) return;
+      currentTile.style.transition = 'opacity .2s, transform .2s';
+      currentTile.style.opacity = '0';
+      currentTile.style.transform = 'scale(.9)';
+      setTimeout(() => { currentTile.remove(); currentTile = null; persist(); }, 200);
+      closeModal('deleteModal');
+    }
+
+    /* ───────────────────────────────────────────────────
+       TILE — ADD
+    ─────────────────────────────────────────────────── */
+    function openAdd(btn) {
+      targetGrid = btn.closest('.tile-grid');
+      addBtn     = btn;
+      document.getElementById('addTitle').value    = '';
+      document.getElementById('addSubtitle').value = '';
+      document.getElementById('addUrl').value      = '';
+      selectedIcon  = '📋'; selectedColor = 'ic-blue';
+      document.querySelectorAll('.icon-opt').forEach(el => el.classList.toggle('selected', el.dataset.icon === selectedIcon));
+      document.querySelectorAll('.color-opt').forEach(el => el.classList.toggle('selected', el.dataset.color === selectedColor));
+      document.getElementById('addModal').classList.add('open');
+      setTimeout(() => document.getElementById('addTitle').focus(), 50);
+    }
+    function selectIcon(el) {
+      document.querySelectorAll('.icon-opt').forEach(e => e.classList.remove('selected'));
+      el.classList.add('selected');
+      selectedIcon = el.dataset.icon;
+    }
+    function selectColor(el) {
+      document.querySelectorAll('.color-opt').forEach(e => e.classList.remove('selected'));
+      el.classList.add('selected');
+      selectedColor = el.dataset.color;
+    }
+    function saveAdd() {
+      const title    = document.getElementById('addTitle').value.trim();
+      const subtitle = document.getElementById('addSubtitle').value.trim();
+      const url      = document.getElementById('addUrl').value.trim();
+      if (!title) { document.getElementById('addTitle').focus(); return; }
+      const tile = buildTile(selectedIcon, selectedColor, title, subtitle, url);
+      targetGrid.insertBefore(tile, addBtn);
+      animateIn(tile);
+      closeModal('addModal');
+      persist();
+    }
+
+    function buildTile(icon, color, title, subtitle, url) {
+      const linkSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>`;
+      const actionsSvg = `<div class="tile-actions">
+          <button class="tile-action-btn" onclick="openEdit(event,this)" title="Edit tile">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="tile-action-btn del" onclick="openDelete(event,this)" title="Delete tile">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+          </button>
+        </div>`;
+      const tile = document.createElement('div');
+      tile.className = 'tile tile-std';
+      tile.setAttribute('onclick', 'handleTileClick(this)');
+      if (url) tile.dataset.url = url;
+      tile.innerHTML = `${actionsSvg}
+        <div class="tile-header"><div class="tile-icon ${escHtml(color)}">${icon}</div></div>
+        <div>
+          <div class="tile-title">${escHtml(title)}</div>
+          <div class="tile-subtitle">${escHtml(subtitle)}</div>
+        </div>
+        <div class="tile-link-badge" style="${url?'opacity:1':''}">${linkSvg}</div>`;
+      return tile;
+    }
+
+    function animateIn(el) {
+      el.style.opacity = '0'; el.style.transform = 'scale(.9)';
+      requestAnimationFrame(() => {
+        el.style.transition = 'opacity .2s, transform .2s';
+        el.style.opacity = '1'; el.style.transform = 'scale(1)';
+      });
+    }
+
+    /* ───────────────────────────────────────────────────
+       TILE — CLICK
+    ─────────────────────────────────────────────────── */
+    function handleTileClick(tile) {
+      if (tile.dataset.url) window.open(tile.dataset.url, '_blank', 'noopener');
+    }
+
+    /* ───────────────────────────────────────────────────
+       SECTION — RENAME
+    ─────────────────────────────────────────────────── */
+    function openSectionEdit(event, btn) {
+      event.stopPropagation();
+      currentSection = btn.closest('.section');
+      const titleEl  = currentSection.querySelector('.section-title');
+      document.getElementById('sectionNameInput').value = titleEl ? titleEl.textContent.trim() : '';
+      document.getElementById('sectionEditModal').classList.add('open');
+      setTimeout(() => document.getElementById('sectionNameInput').focus(), 50);
+    }
+    function saveSectionEdit() {
+      if (!currentSection) return;
+      const name = document.getElementById('sectionNameInput').value.trim();
+      if (!name) return;
+      currentSection.querySelector('.section-title').textContent = name;
+      closeModal('sectionEditModal');
+      persist();
+    }
+
+    /* ───────────────────────────────────────────────────
+       SECTION — DELETE
+    ─────────────────────────────────────────────────── */
+    function openSectionDelete(event, btn) {
+      event.stopPropagation();
+      currentSection = btn.closest('.section');
+      const name = currentSection.querySelector('.section-title')?.textContent.trim() || 'this section';
+      document.getElementById('deleteSectionName').textContent = '"' + name + '"';
+      document.getElementById('deleteSectionModal').classList.add('open');
+    }
+    function confirmSectionDelete() {
+      if (!currentSection) return;
+      // also remove adjacent divider before this section
+      const prev = currentSection.previousElementSibling;
+      if (prev && prev.classList.contains('divider')) prev.remove();
+      currentSection.style.transition = 'opacity .2s';
+      currentSection.style.opacity = '0';
+      setTimeout(() => { currentSection.remove(); currentSection = null; persist(); }, 200);
+      closeModal('deleteSectionModal');
+    }
+
+    /* ───────────────────────────────────────────────────
+       SECTION — ADD
+    ─────────────────────────────────────────────────── */
+    function openAddSectionAbove(event, btn) {
+      event.stopPropagation();
+      // We'll insert the new section AFTER the current one (below it in UI order)
+      insertBeforeSection = btn.closest('.section').nextElementSibling; // may be .divider or next .section
+      document.getElementById('newSectionNameInput').value = '';
+      document.getElementById('addSectionModal').classList.add('open');
+      setTimeout(() => document.getElementById('newSectionNameInput').focus(), 50);
+    }
+    function openAddSectionAtEnd() {
+      insertBeforeSection = null; // append before the add-section-wrap footer
+      document.getElementById('newSectionNameInput').value = '';
+      document.getElementById('addSectionModal').classList.add('open');
+      setTimeout(() => document.getElementById('newSectionNameInput').focus(), 50);
+    }
+    function saveAddSection() {
+      const name = document.getElementById('newSectionNameInput').value.trim();
+      if (!name) { document.getElementById('newSectionNameInput').focus(); return; }
+
+      const sectionHtml = buildSectionEl(name);
+      const divider = document.createElement('div');
+      divider.className = 'divider';
+      const main = document.querySelector('.main');
+      const addSectionWrap = document.querySelector('.add-section-wrap');
+
+      if (insertBeforeSection) {
+        main.insertBefore(divider, insertBeforeSection);
+        main.insertBefore(sectionHtml, insertBeforeSection);
+      } else {
+        // append at end of main
+        main.appendChild(divider);
+        main.appendChild(sectionHtml);
+      }
+      animateIn(sectionHtml);
+      closeModal('addSectionModal');
+      persist();
+    }
+
+    function buildSectionEl(name) {
+      const section = document.createElement('div');
+      section.className = 'section';
+      section.style.marginTop = '24px';
+      section.innerHTML = `
+        <div class="section-header">
+          <div class="section-title">${escHtml(name)}</div>
+          <div class="section-actions">
+            <button class="section-action-btn" onclick="openSectionEdit(event,this)" title="Rename section">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="section-action-btn add" onclick="openAddSectionAbove(event,this)" title="Add section below">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <button class="section-action-btn del" onclick="openSectionDelete(event,this)" title="Remove section">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="tile-grid">
+          <button class="tile-add-btn" onclick="openAdd(this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Tile
+          </button>
+        </div>`;
+      return section;
+    }
+
+    /* ───────────────────────────────────────────────────
+       KEYBOARD
+    ─────────────────────────────────────────────────── */
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        ['editModal','addModal','deleteModal',
+         'sectionEditModal','addSectionModal','deleteSectionModal'].forEach(closeModal);
+      }
+    });
+
+    /* ───────────────────────────────────────────────────
+       USER PROFILE
+    ─────────────────────────────────────────────────── */
+    const PROFILE_KEY = 'fiori_profile_v1';
+
+    function loadProfile() {
+      try {
+        const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}');
+        const name  = p.name  || 'Zhang Wei';
+        const email = p.email || 'zhang.wei@company.com';
+        const color = p.color || '#0a6ed1';
+        const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+        document.getElementById('profileNameInput').value  = name;
+        document.getElementById('profileEmailInput').value = email;
+        document.getElementById('profileNameDisplay').textContent  = name;
+        document.getElementById('profileEmailDisplay').textContent = email;
+        document.getElementById('avatarBtn').textContent        = initials;
+        document.getElementById('avatarBtn').style.background   = color;
+        document.getElementById('profileAvatarLg').textContent  = initials;
+        document.getElementById('profileAvatarLg').style.background = color;
+        document.querySelectorAll('.profile-color-opt').forEach(el => {
+          el.classList.toggle('selected', el.dataset.color === color);
+        });
+      } catch(e) {}
+    }
+
+    function toggleProfile() {
+      document.getElementById('profilePanel').classList.toggle('open');
+    }
+
+    function selectProfileColor(el) {
+      document.querySelectorAll('.profile-color-opt').forEach(e => e.classList.remove('selected'));
+      el.classList.add('selected');
+      const color = el.dataset.color;
+      document.getElementById('profileAvatarLg').style.background = color;
+    }
+
+    function saveProfile() {
+      const name  = document.getElementById('profileNameInput').value.trim() || 'User';
+      const email = document.getElementById('profileEmailInput').value.trim();
+      const colorEl = document.querySelector('.profile-color-opt.selected');
+      const color = colorEl ? colorEl.dataset.color : '#0a6ed1';
+      const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+      localStorage.setItem(PROFILE_KEY, JSON.stringify({ name, email, color }));
+      document.getElementById('profileNameDisplay').textContent  = name;
+      document.getElementById('profileEmailDisplay').textContent = email;
+      document.getElementById('avatarBtn').textContent       = initials;
+      document.getElementById('avatarBtn').style.background  = color;
+      document.getElementById('profileAvatarLg').textContent = initials;
+      document.getElementById('profileAvatarLg').style.background = color;
+      document.getElementById('profilePanel').classList.remove('open');
+    }
+
+    // close panel when clicking outside
+    document.addEventListener('click', e => {
+      const wrap = document.getElementById('avatarBtn')?.closest('.profile-wrap');
+      if (wrap && !wrap.contains(e.target)) {
+        document.getElementById('profilePanel').classList.remove('open');
+      }
+    });
+
+    /* ───────────────────────────────────────────────────
+       SETTINGS
+    ─────────────────────────────────────────────────── */
+    const SETTINGS_KEY = 'fiori_settings_v1';
+    let _settings = { theme:'#354a5e', bg:'#f5f6f7', density:'normal', fontSize:'medium',
+                      subtitles:true, animations:true, dividers:true };
+
+    function openSettings() {
+      loadSettingsUI();
+      document.getElementById('settingsOverlay').classList.add('open');
+    }
+    function closeSettings() {
+      document.getElementById('settingsOverlay').classList.remove('open');
+    }
+    function settingsOverlayClick(e) {
+      if (e.target === document.getElementById('settingsOverlay')) closeSettings();
+    }
+
+    function loadSettingsUI() {
+      try { Object.assign(_settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch(e) {}
+      // theme swatches
+      document.querySelectorAll('.s-swatch[data-theme]').forEach(el =>
+        el.classList.toggle('selected', el.dataset.theme === _settings.theme));
+      // bg swatches
+      document.querySelectorAll('.s-swatch[data-bg]').forEach(el =>
+        el.classList.toggle('selected', el.dataset.bg === _settings.bg));
+      // density
+      document.querySelectorAll('#densitySegment button').forEach((btn,i) => {
+        const vals = ['compact','normal','comfortable'];
+        btn.classList.toggle('active', vals[i] === _settings.density);
+      });
+      // font size
+      document.querySelectorAll('#fontSegment button').forEach((btn,i) => {
+        const vals = ['small','medium','large'];
+        btn.classList.toggle('active', vals[i] === _settings.fontSize);
+      });
+      document.getElementById('toggleSubtitles').checked  = _settings.subtitles;
+      document.getElementById('toggleAnimations').checked = _settings.animations;
+      document.getElementById('toggleDividers').checked   = _settings.dividers;
+    }
+
+    function selectTheme(el) {
+      document.querySelectorAll('.s-swatch[data-theme]').forEach(e => e.classList.remove('selected'));
+      el.classList.add('selected');
+      _settings.theme = el.dataset.theme;
+      applySettings();
+    }
+    function selectBg(el) {
+      document.querySelectorAll('.s-swatch[data-bg]').forEach(e => e.classList.remove('selected'));
+      el.classList.add('selected');
+      _settings.bg = el.dataset.bg;
+      applySettings();
+    }
+    function setDensity(val, btn) {
+      document.querySelectorAll('#densitySegment button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _settings.density = val;
+      applySettings();
+    }
+    function setFontSize(val, btn) {
+      document.querySelectorAll('#fontSegment button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _settings.fontSize = val;
+      applySettings();
+    }
+
+    function applySettings() {
+      _settings.subtitles  = document.getElementById('toggleSubtitles').checked;
+      _settings.animations = document.getElementById('toggleAnimations').checked;
+      _settings.dividers   = document.getElementById('toggleDividers').checked;
+      const colorSel = document.querySelector('.s-swatch[data-theme].selected');
+      if (colorSel) _settings.theme = colorSel.dataset.theme;
+      const bgSel = document.querySelector('.s-swatch[data-bg].selected');
+      if (bgSel) _settings.bg = bgSel.dataset.bg;
+
+      // apply theme color
+      document.querySelectorAll('.shell-header, .search-bar-wrap, .profile-panel-header, .settings-drawer-header')
+        .forEach(el => el.style.background = _settings.theme);
+
+      // apply bg
+      const isDark = _settings.bg === '#1e1e2e';
+      document.body.style.background = _settings.bg;
+      document.body.style.color = isDark ? '#e8e9ea' : '';
+      document.querySelectorAll('.section-title').forEach(el =>
+        el.style.color = isDark ? '#a0a4a8' : '');
+      document.querySelectorAll('.tile').forEach(el => {
+        el.style.background = isDark ? '#2a2a3e' : '';
+        el.style.boxShadow  = isDark ? '0 1px 4px rgba(0,0,0,.4)' : '';
+      });
+
+      // density → tile gap
+      const gapMap = { compact:'8px', normal:'16px', comfortable:'24px' };
+      document.querySelectorAll('.tile-grid').forEach(g => g.style.gap = gapMap[_settings.density]);
+
+      // font size → tile title
+      const fontMap = { small:'12px', medium:'14px', large:'16px' };
+      document.querySelectorAll('.tile-title').forEach(el => el.style.fontSize = fontMap[_settings.fontSize]);
+
+      // subtitles
+      document.querySelectorAll('.tile-subtitle').forEach(el =>
+        el.style.display = _settings.subtitles ? '' : 'none');
+
+      // animations
+      document.querySelectorAll('.tile').forEach(el =>
+        el.style.transition = _settings.animations ? '' : 'none');
+
+      // dividers
+      document.querySelectorAll('.divider').forEach(el =>
+        el.style.display = _settings.dividers ? '' : 'none');
+
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(_settings));
+    }
+
+    function initSettings() {
+      try { Object.assign(_settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch(e) {}
+      // silently apply without opening drawer
+      const colorSel = _settings.theme;
+      const bgSel    = _settings.bg;
+      document.querySelectorAll('.shell-header, .search-bar-wrap, .profile-panel-header, .settings-drawer-header')
+        .forEach(el => el.style.background = colorSel);
+      const isDark = bgSel === '#1e1e2e';
+      document.body.style.background = bgSel;
+      document.body.style.color = isDark ? '#e8e9ea' : '';
+      const gapMap  = { compact:'8px', normal:'16px', comfortable:'24px' };
+      const fontMap = { small:'12px', medium:'14px', large:'16px' };
+      document.querySelectorAll('.tile-grid').forEach(g => g.style.gap = gapMap[_settings.density]);
+      document.querySelectorAll('.tile-title').forEach(el => el.style.fontSize = fontMap[_settings.fontSize]);
+      document.querySelectorAll('.tile-subtitle').forEach(el =>
+        el.style.display = _settings.subtitles ? '' : 'none');
+      document.querySelectorAll('.divider').forEach(el =>
+        el.style.display = _settings.dividers ? '' : 'none');
+    }
+
+    /* ───────────────────────────────────────────────────
+       SEARCH
+    ─────────────────────────────────────────────────── */
+    function handleSearch(input) {
+      const q = input.value.trim().toLowerCase();
+      const bar = input.closest('.search-bar');
+      bar.classList.toggle('has-value', q.length > 0);
+
+      const tiles = document.querySelectorAll('.main .tile');
+      let anyVisible = false;
+
+      tiles.forEach(tile => {
+        const titleEl    = getTitleEl(tile);
+        const subtitleEl = getSubtitleEl(tile);
+        const titleText    = titleEl    ? titleEl.textContent    : '';
+        const subtitleText = subtitleEl ? subtitleEl.textContent : '';
+        const matches = !q ||
+          titleText.toLowerCase().includes(q) ||
+          subtitleText.toLowerCase().includes(q);
+
+        tile.classList.toggle('tile-hidden', !matches);
+        if (matches) anyVisible = true;
+
+        // highlight
+        if (titleEl)    titleEl.innerHTML    = q ? highlight(titleText,    q) : escHtml(titleText);
+        if (subtitleEl) subtitleEl.innerHTML = q ? highlight(subtitleText, q) : escHtml(subtitleText);
+      });
+
+      // hide sections where all tiles are hidden (only tile children, ignore add-btn)
+      document.querySelectorAll('.main .section').forEach(section => {
+        const sectionTiles = section.querySelectorAll('.tile');
+        const allHidden = sectionTiles.length > 0 &&
+          [...sectionTiles].every(t => t.classList.contains('tile-hidden'));
+        section.classList.toggle('section-hidden', allHidden);
+      });
+
+      document.getElementById('searchNoResults').style.display =
+        (q && !anyVisible) ? 'block' : 'none';
+    }
+
+    function highlight(text, q) {
+      const safe = escHtml(text);
+      const safeQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return safe.replace(new RegExp(escHtml(safeQ), 'gi'),
+        m => `<mark class="search-hl">${m}</mark>`);
+    }
+
+    function clearSearch() {
+      const input = document.getElementById('searchInput');
+      input.value = '';
+      handleSearch(input);
+      input.focus();
+    }
+
+    /* ───────────────────────────────────────────────────
+       INIT — restore on load
+    ─────────────────────────────────────────────────── */
+    restore();
+    loadProfile();
+    initSettings();
+  </script>
+  <div class="modal-overlay" id="editModal" onclick="overlayClick(event,'editModal')">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Edit Tile</h3>
+        <button class="modal-close" onclick="closeModal('editModal')">&#x2715;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field">
+          <label>Title</label>
+          <input type="text" id="editTitle" placeholder="Tile title" />
+        </div>
+        <div class="form-field">
+          <label>Subtitle / Description</label>
+          <textarea id="editSubtitle" placeholder="Short description shown below the title"></textarea>
+        </div>
+        <div class="form-field">
+          <label>Link URL</label>
+          <div class="url-row">
+            <input type="url" id="editUrl" placeholder="https://example.com" />
+            <button class="url-test-btn" onclick="testUrl('editUrl')">Test ↗</button>
+          </div>
+          <div class="url-hint">Leave blank for no link. Tile click opens URL in a new tab.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel" onclick="closeModal('editModal')">Cancel</button>
+        <button class="btn btn-save" onclick="saveEdit()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Add Tile Modal ─── -->
+  <div class="modal-overlay" id="addModal" onclick="overlayClick(event,'addModal')">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Add New Tile</h3>
+        <button class="modal-close" onclick="closeModal('addModal')">&#x2715;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-field">
+            <label>Title</label>
+            <input type="text" id="addTitle" placeholder="Tile title" />
+          </div>
+          <div class="form-field">
+            <label>Subtitle</label>
+            <input type="text" id="addSubtitle" placeholder="Short description" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Icon</label>
+            <div class="icon-picker" id="iconPicker">
+              <div class="icon-opt selected" data-icon="📋" onclick="selectIcon(this)">📋</div>
+              <div class="icon-opt" data-icon="📊" onclick="selectIcon(this)">📊</div>
+              <div class="icon-opt" data-icon="📈" onclick="selectIcon(this)">📈</div>
+              <div class="icon-opt" data-icon="💰" onclick="selectIcon(this)">💰</div>
+              <div class="icon-opt" data-icon="💳" onclick="selectIcon(this)">💳</div>
+              <div class="icon-opt" data-icon="🧾" onclick="selectIcon(this)">🧾</div>
+              <div class="icon-opt" data-icon="📄" onclick="selectIcon(this)">📄</div>
+              <div class="icon-opt" data-icon="🏭" onclick="selectIcon(this)">🏭</div>
+              <div class="icon-opt" data-icon="👥" onclick="selectIcon(this)">👥</div>
+              <div class="icon-opt" data-icon="💼" onclick="selectIcon(this)">💼</div>
+              <div class="icon-opt" data-icon="🎯" onclick="selectIcon(this)">🎯</div>
+              <div class="icon-opt" data-icon="📚" onclick="selectIcon(this)">📚</div>
+              <div class="icon-opt" data-icon="🔐" onclick="selectIcon(this)">🔐</div>
+              <div class="icon-opt" data-icon="🖥️" onclick="selectIcon(this)">🖥️</div>
+              <div class="icon-opt" data-icon="✈️" onclick="selectIcon(this)">✈️</div>
+              <div class="icon-opt" data-icon="🌿" onclick="selectIcon(this)">🌿</div>
+              <div class="icon-opt" data-icon="⭐" onclick="selectIcon(this)">⭐</div>
+              <div class="icon-opt" data-icon="🏢" onclick="selectIcon(this)">🏢</div>
+              <div class="icon-opt" data-icon="⚙️" onclick="selectIcon(this)">⚙️</div>
+              <div class="icon-opt" data-icon="🔔" onclick="selectIcon(this)">🔔</div>
+            </div>
+          </div>
+          <div class="form-field" style="max-width:120px">
+            <label>Color</label>
+            <div class="color-picker">
+              <div class="color-opt selected" data-color="ic-blue"   style="background:#0a6ed1" onclick="selectColor(this)" title="Blue"></div>
+              <div class="color-opt" data-color="ic-green"  style="background:#107e3e" onclick="selectColor(this)" title="Green"></div>
+              <div class="color-opt" data-color="ic-orange" style="background:#e9730c" onclick="selectColor(this)" title="Orange"></div>
+              <div class="color-opt" data-color="ic-red"    style="background:#bb0000" onclick="selectColor(this)" title="Red"></div>
+              <div class="color-opt" data-color="ic-purple" style="background:#6c32a0" onclick="selectColor(this)" title="Purple"></div>
+              <div class="color-opt" data-color="ic-teal"   style="background:#0f7888" onclick="selectColor(this)" title="Teal"></div>
+              <div class="color-opt" data-color="ic-gold"   style="background:#c87b00" onclick="selectColor(this)" title="Gold"></div>
+              <div class="color-opt" data-color="ic-gray"   style="background:#6a6d70" onclick="selectColor(this)" title="Gray"></div>
+            </div>
+          </div>
+        </div>
+        <div class="form-field">
+          <label>Link URL <span style="font-weight:400;text-transform:none;color:#a0a4a8">(optional)</span></label>
+          <div class="url-row">
+            <input type="url" id="addUrl" placeholder="https://example.com" />
+            <button class="url-test-btn" onclick="testUrl('addUrl')">Test ↗</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel" onclick="closeModal('addModal')">Cancel</button>
+        <button class="btn btn-save" onclick="saveAdd()">Add Tile</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Delete Confirm Modal ─── -->
+  <div class="modal-overlay" id="deleteModal" onclick="overlayClick(event,'deleteModal')">
+    <div class="modal" style="width:380px">
+      <div class="modal-header" style="background:#bb0000">
+        <h3>Delete Tile</h3>
+        <button class="modal-close" onclick="closeModal('deleteModal')">&#x2715;</button>
+      </div>
+      <div class="confirm-msg">
+        Are you sure you want to delete the tile <strong id="deleteTileName"></strong>? This action cannot be undone.
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel" onclick="closeModal('deleteModal')">Cancel</button>
+        <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+      </div>
+    </div>
+  </div>
+  <!-- ─── Settings Drawer ─── -->
+  <div class="settings-overlay" id="settingsOverlay" onclick="settingsOverlayClick(event)">
+    <div class="settings-drawer">
+      <div class="settings-drawer-header">
+        <span class="settings-drawer-title">Settings</span>
+        <button class="settings-close" onclick="closeSettings()">&#x2715;</button>
+      </div>
+      <div class="settings-body">
+
+        <!-- Appearance -->
+        <div class="settings-section">
+          <div class="settings-section-title">Appearance</div>
+
+          <div class="settings-row">
+            <div>
+              <div class="settings-row-label">Header Theme</div>
+              <div class="settings-row-sub">Shell bar background color</div>
+            </div>
+            <div class="s-swatches">
+              <div class="s-swatch selected" data-theme="#354a5e" style="background:#354a5e" onclick="selectTheme(this)" title="SAP Blue-Grey"></div>
+              <div class="s-swatch" data-theme="#1a1a2e" style="background:#1a1a2e" onclick="selectTheme(this)" title="Dark Navy"></div>
+              <div class="s-swatch" data-theme="#0a6ed1" style="background:#0a6ed1" onclick="selectTheme(this)" title="SAP Blue"></div>
+              <div class="s-swatch" data-theme="#107e3e" style="background:#107e3e" onclick="selectTheme(this)" title="Green"></div>
+              <div class="s-swatch" data-theme="#6a2c8c" style="background:#6a2c8c" onclick="selectTheme(this)" title="Purple"></div>
+              <div class="s-swatch" data-theme="#c35500" style="background:#c35500" onclick="selectTheme(this)" title="Orange"></div>
+            </div>
+          </div>
+
+          <div class="settings-row">
+            <div>
+              <div class="settings-row-label">Background</div>
+              <div class="settings-row-sub">Page background color</div>
+            </div>
+            <div class="s-swatches">
+              <div class="s-swatch selected" data-bg="#f5f6f7" style="background:#f5f6f7;border:1px solid #d9dbdd" onclick="selectBg(this)" title="Light Grey"></div>
+              <div class="s-swatch" data-bg="#ffffff" style="background:#ffffff;border:1px solid #d9dbdd" onclick="selectBg(this)" title="White"></div>
+              <div class="s-swatch" data-bg="#eaf2fb" style="background:#eaf2fb" onclick="selectBg(this)" title="Blue Tint"></div>
+              <div class="s-swatch" data-bg="#f0f4f0" style="background:#f0f4f0" onclick="selectBg(this)" title="Green Tint"></div>
+              <div class="s-swatch" data-bg="#1e1e2e" style="background:#1e1e2e" onclick="selectBg(this)" title="Dark"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Layout -->
+        <div class="settings-section" style="margin-top:16px">
+          <div class="settings-section-title">Layout</div>
+
+          <div class="settings-row">
+            <div>
+              <div class="settings-row-label">Tile Density</div>
+              <div class="settings-row-sub">Space between tiles</div>
+            </div>
+            <div class="s-segment" id="densitySegment">
+              <button onclick="setDensity('compact',this)">Compact</button>
+              <button class="active" onclick="setDensity('normal',this)">Normal</button>
+              <button onclick="setDensity('comfortable',this)">Cozy</button>
+            </div>
+          </div>
+
+          <div class="settings-row">
+            <div>
+              <div class="settings-row-label">Font Size</div>
+              <div class="settings-row-sub">Tile text size</div>
+            </div>
+            <div class="s-segment" id="fontSegment">
+              <button onclick="setFontSize('small',this)">S</button>
+              <button class="active" onclick="setFontSize('medium',this)">M</button>
+              <button onclick="setFontSize('large',this)">L</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Behaviour -->
+        <div class="settings-section" style="margin-top:16px;padding-bottom:16px">
+          <div class="settings-section-title">Behaviour</div>
+
+          <div class="settings-row">
+            <div>
+              <div class="settings-row-label">Show tile subtitles</div>
+            </div>
+            <label class="s-toggle">
+              <input type="checkbox" id="toggleSubtitles" checked onchange="applySettings()">
+              <div class="s-toggle-track"></div>
+            </label>
+          </div>
+
+          <div class="settings-row">
+            <div>
+              <div class="settings-row-label">Animate tiles on load</div>
+            </div>
+            <label class="s-toggle">
+              <input type="checkbox" id="toggleAnimations" checked onchange="applySettings()">
+              <div class="s-toggle-track"></div>
+            </label>
+          </div>
+
+          <div class="settings-row">
+            <div>
+              <div class="settings-row-label">Show section dividers</div>
+            </div>
+            <label class="s-toggle">
+              <input type="checkbox" id="toggleDividers" checked onchange="applySettings()">
+              <div class="s-toggle-track"></div>
+            </label>
+          </div>
+        </div>
+
+      </div>
+      <div class="settings-footer">
+        <button class="settings-apply-btn" onclick="applySettings(); closeSettings()">Apply &amp; Close</button>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

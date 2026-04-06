@@ -1,0 +1,21 @@
+# Sensitive — never commit
+.claude.json
+~/.claude.json
+
+# Generated output (keep TPO_template.docx and skill assets)
+*_report.docx
+MiniCheck_Report.docx
+HANA_CACHE.txt
+
+# Python virtualenv
+sap-hana-mcp/.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# macOS
+.DS_Store
+
+# Temp / local files
+SQLStatements/
+~$*

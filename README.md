@@ -82,7 +82,49 @@ Then open the `.docx` in Word and press **Ctrl+A → F9** to update the table of
 | `generate_minicheck_report.py` | Word report generator |
 | `HANA_Configuration_MiniChecks.txt` | MiniCheck SQL (SAP Note 1969700) |
 | `TPO_template.docx` | TPO report template |
-| `.claude/skills/minicheck-report/SKILL.md` | Claude Code skill definition |
+| `.claude/skills/minicheck-report/SKILL.md` | Claude Code skill — generate MiniCheck report |
+| `.claude/skills/hana-report-update/SKILL.md` | Claude Code skill — update existing report with live data |
+
+---
+
+## Skill: hana-report-update
+
+Automates filling in a SAP HANA MiniCheck `.docx` report by replacing all cyan-highlighted placeholder blocks with real data queried live from the HANA system.
+
+### What it does
+
+1. Detects system SID, version, host, and OS from the live HANA instance
+2. Replaces every cyan placeholder block with the corresponding live SQL output (Courier New, fixed-width, sized to fit A4 width)
+3. Fills in all system identity fields (`Database: …`, SAP System ID, DB Version, OS) throughout the document
+4. Leaves intentionally unfilled blocks cyan (ABAP sections, customer-specific analysis, MDC data not accessible from tenant DB) so they are easy to identify
+5. Produces a change log file (`<report>_update_log.txt`) documenting every replacement and every block left for manual attention
+
+### Usage
+
+```
+/hana-report-update <input.docx> [output.docx]
+```
+
+Examples:
+```
+/hana-report-update HAN_report.docx
+/hana-report-update HAN_report.docx HAN_report_filled.docx
+```
+
+### Requirements
+
+- Live HANA system accessible via the `sap-hana-onprem` MCP server (see Setup above)
+- `SQLStatements/` folder containing the SAP Note 1969700 SQL files
+- Python 3.10+
+
+### Output
+
+| Output file | Description |
+|---|---|
+| `<output>.docx` | Updated report with cyan placeholders replaced |
+| `<output>_update_log.txt` | Change log listing every replacement and skipped block |
+
+---
 
 ## MCP Tools Available
 

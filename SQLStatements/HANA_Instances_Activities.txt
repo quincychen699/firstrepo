@@ -1,0 +1,224 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Instances_Activities
+
+[DESCRIPTION]
+
+- Displays instance activities like savepoints, merges or unloads
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2015/01/26:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- HOST_SAVEPOINTS
+- HOST_DELTA_MERGE_STATISTICS
+- M_CS_UNLOADS
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  TO_TIMESTAMP('2014/06/05 14:05:00', 'YYYY/MM/DD HH24:MI:SS') --> Set begin time to 5th of June 2014, 14:05 
+  ADD_DAYS(CURRENT_TIMESTAMP, -2)                              --> Set begin time to two days before current time 
+
+- END_TIME
+
+  End time
+
+  TO_TIMESTAMP('2014/06/08 14:05:00', 'YYYY/MM/DD HH24:MI:SS') --> Set end time to 8th of June 2014, 14:05 
+  CURRENT_TIMESTAMP                                            --> Set end time to current tim
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- DISPLAY_MERGES
+
+  Possiblity to configure the display of merge information
+
+  'X'             --> Merge operations are displayed
+  ' '             --> Merge operations are suppressed
+ 
+- DISPLAY_SAVEPOINTS
+
+  Possiblity to configure the display of savepoint information
+
+  'X'             --> Savepoints are displayed
+  ' '             --> Savepoints are not displayed
+ 
+- DISPLAY_UNLOADS
+
+  Possiblity to configure the display of unload information
+
+  'X'             --> Unload operations are displayed
+  ' '             --> Unload operations are suppressed
+
+- MIN_DURATION_MS
+
+  Minimum duration time in milli seconds
+
+  100             --> Minimum duration time of 100 ms
+  -1              --> No restriction of minimum duration time
+ 
+[OUTPUT PARAMETERS]
+
+- BEGIN_TIME:    Begin time
+- END_TIME:      End time
+- RUNTIME_S:     Runtime of activity (s)
+- HOST:          Host name
+- PORT:          Port
+- SERVICE:       Service name
+- ACTIVITY_TYPE: Type of activity (MERGE, SAVEPOINT, UNLOAD)
+- DETAIL_1:      Activity related detail:
+                 MERGE, UNLOAD:       Schema + table
+                 SAVEPOINT:           Write size (MB)
+- DETAIL_2:      Activity related detail:
+                 MERGE:               Merge type
+                 UNLOAD:              Column name
+                 SAVEPOINT:           Critical phase duration (s)       
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+|BEGIN_TIME             |END_TIME               |RUNTIME_S|HOST         |PORT |ACTIVITY_TYPE|DETAIL_1               |DETAIL_2           |
+-----------------------------------------------------------------------------------------------------------------------------------------
+|2015/01/21 06:18:51:625|2015/01/21 06:19:01:512|     9.88|saphanahost04|30003|MERGE        |SAPSR3./BIC/AZ4APD10200|MERGE (SMART)      |
+|2015/01/21 06:18:51:623|2015/01/21 06:19:00:880|     9.25|saphanahost03|30003|MERGE        |SAPSR3./BIC/AZ4APD10200|MERGE (SMART)      |
+|2015/01/21 06:18:51:622|2015/01/21 06:19:03:345|    11.72|saphanahost02|30003|MERGE        |SAPSR3./BIC/AZ4APD10200|MERGE (SMART)      |
+|2015/01/21 06:18:51:441|2015/01/21 06:18:54:190|     2.74|saphanahost03|30003|SAVEPOINT    |849.93 MB              |Crit. phase: 0.00 s|
+|2015/01/21 06:18:45:027|2015/01/21 06:18:48:144|     3.11|saphanahost04|30003|MERGE        |SAPSR3./BIC/B0006587001|MERGE (SMART)      |
+|2015/01/21 06:18:41:464|2015/01/21 06:18:43:551|     2.08|saphanahost04|30003|MERGE        |SAPSR3./BIC/B0002177000|MERGE (SMART)      |
+|2015/01/21 06:18:38:222|2015/01/21 06:18:46:133|     7.91|saphanahost04|30003|SAVEPOINT    |1774.14 MB             |Crit. phase: 0.03 s|
+|2015/01/21 06:18:30:123|2015/01/21 06:18:31:166|     1.04|saphanahost04|30003|MERGE        |SAPSR3./BIC/B0009010000|MERGE (SMART)      |
+|2015/01/21 06:16:18:471|2015/01/21 06:16:19:526|     1.05|saphanahost03|30003|MERGE        |SAPSR3./BIC/FZ5APD102  |MERGE (SMART)      |
+|2015/01/21 06:16:06:549|2015/01/21 06:16:08:643|     2.09|saphanahost02|30003|MERGE        |SAPSR3./BIC/FZ5APD103  |MERGE (SMART)      |
+|2015/01/21 06:16:03:290|2015/01/21 06:16:10:271|     6.98|saphanahost01|30003|SAVEPOINT    |624.29 MB              |Crit. phase: 0.89 s|
+|2015/01/21 06:15:55:102|2015/01/21 06:15:58:535|     3.43|saphanahost04|30003|MERGE        |SAPSR3./BIC/FZ5APD104  |MERGE (SMART)      |
+|2015/01/21 06:15:48:114|2015/01/21 06:15:49:190|     1.07|saphanahost04|30003|MERGE        |SAPSR3./BIC/B0005401000|MERGE (SMART)      |
+|2015/01/21 06:15:48:020|2015/01/21 06:15:51:749|     3.72|saphanahost02|30003|MERGE        |SAPSR3./BIC/AZRICRMM100|MERGE (SMART)      |
+|2015/01/21 06:15:38:613|2015/01/21 06:15:50:475|    11.86|saphanahost04|30003|MERGE        |SAPSR3./BIC/AZ2BOST0100|MERGE (SMART)      |
+|2015/01/21 06:15:38:610|2015/01/21 06:15:54:760|    16.15|saphanahost02|30003|MERGE        |SAPSR3./BIC/AZ2BOST0100|MERGE (SMART)      |
+|2015/01/21 06:15:38:608|2015/01/21 06:15:52:675|    14.06|saphanahost03|30003|MERGE        |SAPSR3./BIC/AZ2BOST0100|MERGE (SMART)      |
+|2015/01/21 06:15:36:882|2015/01/21 06:15:48:105|    11.22|saphanahost01|30003|SAVEPOINT    |1434.78 MB             |Crit. phase: 2.03 s|
+|2015/01/21 06:15:26:349|2015/01/21 06:15:29:525|     3.17|saphanahost02|30003|MERGE        |SAPSR3./BIC/AZ4APD10100|MERGE (SMART)      |
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  TO_VARCHAR(A.BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS:FF3') BEGIN_TIME,
+  TO_VARCHAR(A.END_TIME, 'YYYY/MM/DD HH24:MI:SS:FF3') END_TIME,
+  LPAD(TO_DECIMAL(A.RUNTIME_S, 10, 2), 9) RUNTIME_S,
+  A.HOST,
+  LPAD(A.PORT, 5) PORT,
+  S.SERVICE_NAME SERVICE,
+  A.ACTIVITY_TYPE,
+  A.DETAIL_1,
+  A.DETAIL_2
+FROM
+( SELECT                 /* Modification section */
+    TO_TIMESTAMP('1000/01/01 06:10:05', 'YYYY/MM/DD HH24:MI:SS') BEGIN_TIME,  
+    TO_TIMESTAMP('9999/12/31 06:20:00', 'YYYY/MM/DD HH24:MI:SS') END_TIME,
+    '%' HOST,
+    '%' PORT,
+    '%' SERVICE_NAME,
+    'X' DISPLAY_MERGES,
+    'X' DISPLAY_SAVEPOINTS,
+    'X' DISPLAY_UNLOADS,
+    -1 MIN_DURATION_MS
+  FROM
+    DUMMY
+) BI,
+  M_SERVICES S,
+( SELECT
+    'SAVEPOINT' ACTIVITY_TYPE,
+    HOST,
+    PORT,
+    START_TIME BEGIN_TIME,
+    ADD_SECONDS(START_TIME, DURATION / 1000000) END_TIME,
+    DURATION / 1000000 RUNTIME_S,
+    TO_VARCHAR(TO_DECIMAL(TOTAL_SIZE / 1024 / 1024, 10, 2)) || CHAR(32) || 'MB' DETAIL_1,
+    'Crit. phase:' || CHAR(32) || TO_VARCHAR(TO_DECIMAL(CRITICAL_PHASE_DURATION / 1000000, 10, 2)) || CHAR(32) || 's' DETAIL_2
+  FROM
+    _SYS_STATISTICS.HOST_SAVEPOINTS
+  UNION ALL
+  ( SELECT
+      'MERGE' ACTIVITY_TYPE,
+      HOST,
+      PORT,
+      START_TIME BEGIN_TIME,
+      ADD_SECONDS(START_TIME, EXECUTION_TIME / 1000) END_TIME,
+      EXECUTION_TIME / 1000 RUNTIME_S,
+      SCHEMA_NAME || '.' || TABLE_NAME DETAIL_1,
+      TYPE || CHAR(32) || '(' || MOTIVATION || ')' DETAIL_2
+    FROM
+      _SYS_STATISTICS.HOST_DELTA_MERGE_STATISTICS
+  )
+  UNION ALL
+  ( SELECT
+      'UNLOAD' ACTIVITY_TYPE,
+      HOST,
+      PORT,
+      UNLOAD_TIME BEGIN_TIME,
+      UNLOAD_TIME END_TIME,
+      0 RUNTIME_S,
+      SCHEMA_NAME || '.' || TABLE_NAME DETAIL_1,
+      COLUMN_NAME DETAIL_2
+    FROM
+      M_CS_UNLOADS
+  )      
+) A
+WHERE
+  S.HOST LIKE BI.HOST AND
+  TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+  S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+  A.HOST = S.HOST AND
+  A.PORT = S.PORT AND
+  ( A.END_TIME BETWEEN BI.BEGIN_TIME AND BI.END_TIME OR 
+    A.BEGIN_TIME BETWEEN BI.BEGIN_TIME AND BI.END_TIME 
+  ) AND
+  ( BI.MIN_DURATION_MS = -1 OR A.RUNTIME_S >= BI.MIN_DURATION_MS / 1000 ) AND
+  ( BI.DISPLAY_MERGES     = 'X' AND A.ACTIVITY_TYPE = 'MERGE'     OR
+    BI.DISPLAY_SAVEPOINTS = 'X' AND A.ACTIVITY_TYPE = 'SAVEPOINT' OR
+    BI.DISPLAY_UNLOADS    = 'X' AND A.ACTIVITY_TYPE = 'UNLOAD'
+  )
+ORDER BY
+  A.BEGIN_TIME DESC

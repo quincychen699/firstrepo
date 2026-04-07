@@ -1,0 +1,164 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Metadata_Cache_Internal_1.00.120+
+
+[DESCRIPTION]
+
+- Metadata cache information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Metadata cache available with SAP HANA 1.0 SPS 12 and higher
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+- SYS.M_DEV_METADATA_CACHE only available internally
+- Public view available starting with 1.00.122.14, 2.00.012.03 and 2.00.22 (bug 159661)
+- EMPTY_HITS are cache hits that indicate that the searched object does NOT exist, e.g.
+  if a procedure is searched, the following sequence of lookups is done:
+
+    table -> view -> synonym -> procedure
+
+  The first three objects (table, view, synonym) would be flagged with "not found" and
+  next time when the same procedure is queried, empty hits are recorded for these objects
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.120
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2017/11/02:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- SYS.M_DEV_METADATA_CACHE
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- OBJECT_NAME
+
+  Object name
+
+  'EDIDC'         --> Specific object name EDIDC
+  'A%'            --> All objects starting with 'A'
+  '%'             --> All objects
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'OBJECT'        --> Aggregation by object
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'OBJECT'        --> Sorting by object name
+  'REMOTE'        --> Sorting by metadata cache remote calls
+
+[OUTPUT PARAMETERS]
+
+- HOST:         Host name
+- PORT:         Port
+- OBJECT_NAME:  Object name
+- ACCESSES:     Cache accesses
+- HITS:         Cache hits
+- EMPTY_HITS:   Cache empty hits 
+- REMOTE_CALLS: Remote calls
+- RECORDS:      Cached records
+- MEM_MB:       Memory size (MB)
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------------------------------------------------
+|HOST|PORT |OBJECT_NAME                             |ACCESSES    |HITS        |EMPTY_HITS  |REMOTE_CALLS|RECORDS     |MEM_MB      |
+-----------------------------------------------------------------------------------------------------------------------------------
+|any |  any|getTable                                |      988062|      121673|      820607|       44437|          15|        0.14|
+|any |  any|getTopologyInfos                        |       56144|       26374|       12511|       16163|           6|        0.03|
+|any |  any|getExternalOwnership                    |       15872|        1556|           0|       14236|           0|        0.00|
+|any |  any|getProcedure                            |       55731|       46912|        4212|        4443|           0|        0.00|
+|any |  any|getSynonym                              |       10652|        3751|        2545|        3904|           0|        0.00|
+|any |  any|getPrivAvailabilityByPrivIdAndOid       |        3768|         104|         802|        2744|           0|        0.00|
+|any |  any|getPrivAvailabilityByOid                |        3501|           0|         845|        2656|           0|        0.00|
+|any |  any|getAuthDependency                       |        3454|         761|         299|        2207|           0|        0.00|
+|any |  any|getView                                 |      328892|       32224|      294624|        1758|           0|        0.00|
+|any |  any|getObjectByOid                          |      317226|      311422|        1163|        1446|         694|        3.31|
+|any |  any|getExternalObjectByName                 |       62585|       61491|           1|         776|           3|        0.00|
+|any |  any|getGrantedPriv                          |      187193|      185077|         994|         528|           1|        0.01|
+-----------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  OBJECT_NAME,
+  LPAD(ACCESSES, 12) ACCESSES,
+  LPAD(HITS, 12) HITS,
+  LPAD(EMPTY_HITS, 12) EMPTY_HITS,
+  LPAD(REMOTE_CALLS, 12) REMOTE_CALLS,
+  LPAD(RECORDS, 12) RECORDS,
+  LPAD(TO_DECIMAL(MEM_MB, 10, 2), 12) MEM_MB
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')   != 0 THEN M.HOST             ELSE MAP(BI.HOST,        '%', 'any', BI.HOST)        END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')   != 0 THEN TO_VARCHAR(M.PORT) ELSE MAP(BI.PORT,        '%', 'any', BI.PORT)        END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OBJECT') != 0 THEN M.OBJECT_NAME      ELSE MAP(BI.OBJECT_NAME, '%', 'any', BI.OBJECT_NAME) END OBJECT_NAME,
+    SUM(M.ACCESS_COUNT) ACCESSES,
+    SUM(M.HIT_COUNT) HITS,
+    SUM(M.EMPTY_HIT_COUNT) EMPTY_HITS,
+    SUM(M.MISS_COUNT + M.NOT_FOUND_COUNT + M.LATE_HIT_COUNT) REMOTE_CALLS,
+    SUM(M.RECORDS_COUNT) RECORDS,
+    SUM(M.MEM_USAGE / 1024 / 1024) MEM_MB,
+    BI.ORDER_BY
+  FROM
+  ( SELECT                /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      '%' OBJECT_NAME,
+      'OBJECT' AGGREGATE_BY,               /* HOST, PORT, OBJECT or comma separated combinations, NONE for no aggregation */
+      'REMOTE' ORDER_BY                    /* OBJECT, MEMORY, ACCESS, REMOTE */
+    FROM
+      DUMMY
+  ) BI,
+    SYS.M_DEV_METADATA_CACHE M
+  WHERE
+    M.HOST LIKE BI.HOST AND
+    TO_VARCHAR(M.PORT) LIKE BI.PORT AND
+    M.OBJECT_NAME LIKE BI.OBJECT_NAME
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')   != 0 THEN M.HOST             ELSE MAP(BI.HOST,        '%', 'any', BI.HOST)        END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')   != 0 THEN TO_VARCHAR(M.PORT) ELSE MAP(BI.PORT,        '%', 'any', BI.PORT)        END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OBJECT') != 0 THEN M.OBJECT_NAME      ELSE MAP(BI.OBJECT_NAME, '%', 'any', BI.OBJECT_NAME) END,
+    BI.ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'OBJECT', OBJECT_NAME),
+  MAP(ORDER_BY, 'MEMORY', MEM_MB, 'ACCESS', ACCESSES, 'REMOTE', REMOTE_CALLs) DESC

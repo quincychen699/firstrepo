@@ -1,0 +1,2858 @@
+WITH 
+
+/* 
+
+[NAME]
+
+- HANA_Multitenant_Overview_1.00.100+_MDC
+
+[DESCRIPTION]
+
+- Information about multitenant database containers (MDC)
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Multitenant database containers (MCD) available starting with Rev. 1.00.90
+- Command has to be executed in system database
+- Some details like largest tables per tenant are not available due to security aspects
+- M_DATABASES.OS_USER available as of Rev. 1.00.100
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.100
+- System type:            MDC system database
+
+[SQL COMMAND VERSION]
+
+- 2017/01/07:  1.0 (initial version)
+- 2017/02/03:  1.1 (dedicated version also working for SAP HANA 1.00)
+- 2018/06/19:  1.2 (maximum number of displayed tenants: 8 -> 20, TENANT_NAME input parameter added)
+
+[INVOLVED TABLES]
+
+- M_LOAD_HISTORY_SERVICE
+- SYS_DATABASES.M_BACKUP_CATALOG
+- SYS_DATABASES.M_BACKUP_CATALOG_FILES
+- SYS_DATABASES.M_DISK_USAGE
+- SYS_DATABASES.M_HEAP_MEMORY
+- SYS_DATABASES.M_INIFILE_CONTENTS
+- SYS_DATABASES.M_RS_MEMORY
+- SYS_DATABASES.M_SAVEPOINTS
+- SYS_DATABASES.M_SERVICE_MEMORY
+- SYS_DATABASES.M_SERVICE_STATISTICS
+- SYS_DATABASES.M_SERVICES
+- SYS_DATABASES.M_UNDO_CLEANUP_FILES
+- SYS_DATABASES.M_VOLUME_IO_TOTAL_STATISTICS
+- SYS_DATABASES.M_WORKLOAD
+
+[INPUT PARAMETERS]
+
+- TENANT_NAME
+
+  Name of considered tenants
+
+  'C11'         --> Consider tenant C11
+  'B%'          --> Consider all tenants with names starting with 'B'
+  '%'           --> No restriction related to tenant name
+
+[OUTPUT PARAMETERS]
+
+- KEY_FIGURE:   Key figure
+- SYSTEM_DB:    Information related to system database
+- TENANT_<num>: Information related to tenant <num> (where <num> is the number of the tenant sorted by the tenant names)
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------------------------
+|KEY_FIGURE                                                      |SYSTEM_DB          |TENANT_1           |TENANT_2|
+-------------------------------------------------------------------------------------------------------------------
+|MULTITENANT DATABASE CONTAINERS (MDC) OVERVIEW                  |                   |                   |        |
+|**********************************************                  |                   |                   |        |
+|                                                                |                   |                   |        |
+|Evaluation time                                                 |2017/01/08 16:47:32|                   |        |
+|SAP Note                                                        |2101244            |                   |        |
+|                                                                |                   |                   |        |
+|OVERVIEW                                                        |                   |                   |        |
+|********                                                        |                   |                   |        |
+|                                                                |                   |                   |        |
+|Database name                                                   |SYSTEMDB           |HA1                |HA2     |
+|Description                                                     |SystemDB-MDT-03    |                   |        |
+|Active                                                          |YES                |YES                |YES     |
+|OS user / group                                                 |                   |                   |        |
+|                                                                |                   |                   |        |
+|SERVICES                                                        |                   |                   |        |
+|********                                                        |                   |                   |        |
+|                                                                |                   |                   |        |
+|xsengine                                                        |0                  |1                  |0       |
+|indexserver                                                     |0                  |1                  |1       |
+|nameserver                                                      |1                  |0                  |0       |
+|                                                                |                   |                   |        |
+|PARAMETERS                                                      |                   |                   |        |
+|**********                                                      |                   |                   |        |
+|                                                                |                   |                   |        |
+|global.ini -> [execution] -> default_statement_concurrency_limit|0                  |0                  |0       |
+|global.ini -> [execution] -> max_concurrency                    |0                  |0                  |0       |
+|global.ini -> [execution] -> max_concurrency_hint               |0                  |0                  |0       |
+|global.ini -> [parallel] -> num_cores                           |4                  |8                  |4       |
+|global.ini -> [memorymanager] -> global_allocation_limit        |128000             |128000             |128000  |
+|global.ini -> [memorymanager] -> statement_memory_limit         |                   |20                 |        |
+|                                                                |                   |                   |        |
+...
+-------------------------------------------------------------------------------------------------------------------
+
+*/
+
+BASIS_INFO AS
+( SELECT                 /* Modification section */
+    '%' TENANT_NAME
+  FROM
+    DUMMY
+),
+DATABASES AS
+( SELECT
+    0 DB_NUM,
+    D.*
+  FROM
+    M_DATABASES D
+  WHERE
+    DATABASE_NAME = 'SYSTEMDB'
+  UNION ALL
+  SELECT
+    ROW_NUMBER () OVER (ORDER BY DATABASE_NAME),
+    D.*
+  FROM
+    BASIS_INFO BI,
+    M_DATABASES D
+  WHERE
+    DATABASE_NAME != 'SYSTEMDB' AND
+    DATABASE_NAME LIKE BI.TENANT_NAME
+),
+BACKUPS AS
+( SELECT
+    B.BACKUP_ID,
+    B.DATABASE_NAME,
+    B.SYS_START_TIME BACKUP_TIME,
+    B.ENTRY_TYPE_NAME BACKUP_TYPE,
+    BF.TOTAL_BACKUP_SIZE BACKUP_SIZE,
+    BF.CATALOG_SIZE
+  FROM
+    SYS_DATABASES.M_BACKUP_CATALOG B,
+  ( SELECT
+      DATABASE_NAME,
+      BACKUP_ID,
+      SUM(CASE WHEN SOURCE_TYPE_NAME = 'catalog' THEN BACKUP_SIZE ELSE 0 END) CATALOG_SIZE,
+      SUM(BACKUP_SIZE) TOTAL_BACKUP_SIZE
+    FROM
+      SYS_DATABASES.M_BACKUP_CATALOG_FILES
+    GROUP BY
+      DATABASE_NAME,
+      BACKUP_ID
+  ) BF
+  WHERE
+    B.DATABASE_NAME = BF.DATABASE_NAME AND
+    B.BACKUP_ID = BF.BACKUP_ID AND
+    B.STATE_NAME = 'successful'
+),
+PARAMETERS AS
+( SELECT
+    FILE_NAME,
+    SECTION,
+    KEY,
+    IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT) SYSTEMDB,
+    IFNULL(TENANT_01_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_01,
+    IFNULL(TENANT_02_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_02,
+    IFNULL(TENANT_03_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_03,
+    IFNULL(TENANT_04_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_04,
+    IFNULL(TENANT_05_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_05,
+    IFNULL(TENANT_06_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_06,
+    IFNULL(TENANT_07_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_07,
+    IFNULL(TENANT_08_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_08,
+    IFNULL(TENANT_09_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_09,
+    IFNULL(TENANT_10_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_10,
+    IFNULL(TENANT_11_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_11,
+    IFNULL(TENANT_12_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_12,
+    IFNULL(TENANT_13_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_13,
+    IFNULL(TENANT_14_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_14,
+    IFNULL(TENANT_15_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_15,
+    IFNULL(TENANT_16_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_16,
+    IFNULL(TENANT_17_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_17,
+    IFNULL(TENANT_18_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_18,
+    IFNULL(TENANT_19_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_19,
+    IFNULL(TENANT_20_MODIFIED, IFNULL(SYSTEMDB_MODIFIED, SYSTEMDB_DEFAULT)) TENANT_20
+  FROM
+  ( SELECT
+      P.FILE_NAME,
+      P.SECTION,
+      P.KEY,
+      MAX(CASE WHEN P.DATABASE_NAME = '' AND P.LAYER_NAME =  'DEFAULT' THEN P.VALUE END) SYSTEMDB_DEFAULT,
+      MAX(CASE WHEN P.DATABASE_NAME = '' AND P.LAYER_NAME != 'DEFAULT' THEN P.VALUE END) SYSTEMDB_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM =  1 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_01_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM =  2 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_02_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM =  3 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_03_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM =  4 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_04_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM =  5 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_05_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM =  6 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_06_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM =  7 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_07_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM =  8 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_08_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM =  9 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_09_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM = 10 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_10_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM = 11 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_11_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM = 12 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_12_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM = 13 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_13_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM = 14 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_14_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM = 15 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_15_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM = 16 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_16_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM = 17 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_17_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM = 18 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_18_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM = 19 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_19_MODIFIED,
+      MAX(CASE WHEN D.DB_NUM = 20 AND P.DATABASE_NAME = D.DATABASE_NAME THEN P.VALUE END) TENANT_20_MODIFIED
+    FROM
+      DATABASES D,
+      SYS_DATABASES.M_INIFILE_CONTENTS P
+    GROUP BY
+      P.FILE_NAME,
+      P.SECTION,
+      P.KEY
+  )
+)
+SELECT
+  IFNULL(KEY_FIGURE, '') KEY_FIGURE,
+  IFNULL(SYSTEM_DB, '') SYSTEM_DB,
+  CASE WHEN D.MAX_DB_NUM >=  1 THEN IFNULL(TENANT_01, '') ELSE '' END TENANT_01,
+  CASE WHEN D.MAX_DB_NUM >=  2 THEN IFNULL(TENANT_02, '') ELSE '' END TENANT_02,
+  CASE WHEN D.MAX_DB_NUM >=  3 THEN IFNULL(TENANT_03, '') ELSE '' END TENANT_03,
+  CASE WHEN D.MAX_DB_NUM >=  4 THEN IFNULL(TENANT_04, '') ELSE '' END TENANT_04,
+  CASE WHEN D.MAX_DB_NUM >=  5 THEN IFNULL(TENANT_05, '') ELSE '' END TENANT_05,
+  CASE WHEN D.MAX_DB_NUM >=  6 THEN IFNULL(TENANT_06, '') ELSE '' END TENANT_06,
+  CASE WHEN D.MAX_DB_NUM >=  7 THEN IFNULL(TENANT_07, '') ELSE '' END TENANT_07,
+  CASE WHEN D.MAX_DB_NUM >=  8 THEN IFNULL(TENANT_08, '') ELSE '' END TENANT_08,
+  CASE WHEN D.MAX_DB_NUM >=  9 THEN IFNULL(TENANT_09, '') ELSE '' END TENANT_09,
+  CASE WHEN D.MAX_DB_NUM >= 10 THEN IFNULL(TENANT_10, '') ELSE '' END TENANT_10,
+  CASE WHEN D.MAX_DB_NUM >= 11 THEN IFNULL(TENANT_11, '') ELSE '' END TENANT_11,
+  CASE WHEN D.MAX_DB_NUM >= 12 THEN IFNULL(TENANT_12, '') ELSE '' END TENANT_12,
+  CASE WHEN D.MAX_DB_NUM >= 13 THEN IFNULL(TENANT_13, '') ELSE '' END TENANT_13,
+  CASE WHEN D.MAX_DB_NUM >= 14 THEN IFNULL(TENANT_14, '') ELSE '' END TENANT_14,
+  CASE WHEN D.MAX_DB_NUM >= 15 THEN IFNULL(TENANT_15, '') ELSE '' END TENANT_15,
+  CASE WHEN D.MAX_DB_NUM >= 16 THEN IFNULL(TENANT_16, '') ELSE '' END TENANT_16,
+  CASE WHEN D.MAX_DB_NUM >= 17 THEN IFNULL(TENANT_17, '') ELSE '' END TENANT_17,
+  CASE WHEN D.MAX_DB_NUM >= 18 THEN IFNULL(TENANT_18, '') ELSE '' END TENANT_18,
+  CASE WHEN D.MAX_DB_NUM >= 19 THEN IFNULL(TENANT_19, '') ELSE '' END TENANT_19,
+  CASE WHEN D.MAX_DB_NUM >= 20 THEN IFNULL(TENANT_20, '') ELSE '' END TENANT_20
+FROM
+( SELECT MAX(DB_NUM) MAX_DB_NUM FROM DATABASES ) D,
+( SELECT 10 LINE_NO, 'MULTITENANT DATABASE CONTAINERS (MDC) OVERVIEW' KEY_FIGURE, '' SYSTEM_DB, 
+    '' TENANT_01, '' TENANT_02, '' TENANT_03, '' TENANT_04, '' TENANT_05, '' TENANT_06, '' TENANT_07, '' TENANT_08, '' TENANT_09, '' TENANT_10, 
+    '' TENANT_11, '' TENANT_12, '' TENANT_13, '' TENANT_14, '' TENANT_15, '' TENANT_16, '' TENANT_17, '' TENANT_18, '' TENANT_19, '' TENANT_20 FROM DUMMY
+  UNION ALL
+  SELECT 20, '**********************************************', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 30, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 40, 'Evaluation time', TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYY/MM/DD HH24:MI:SS'), '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 45, 'SAP Note', '2101244', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 50,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 60, 'OVERVIEW', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 70, '********', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 80,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT
+    100 + LN,
+    KEY_FIGURE,
+    MAX(CASE 
+      WHEN DB_NUM = 0 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 1 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 2 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 3 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 4 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 5 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 6 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 7 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 8 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 9 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 10 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 11 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 12 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 13 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 14 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 15 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 16 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 17 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 18 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 19 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END),
+    MAX(CASE 
+      WHEN DB_NUM = 20 THEN
+        CASE 
+          WHEN LN = 10 THEN DATABASE_NAME
+          WHEN LN = 20 THEN DESCRIPTION
+          WHEN LN = 30 THEN ACTIVE_STATUS
+          WHEN LN = 40 THEN OS_USER || MAP(OS_GROUP, NULL, '', '', '', CHAR(32) || '(' || OS_GROUP || ')')
+        END
+    END)
+  FROM
+  ( SELECT 10 LN, 'Database name' KEY_FIGURE FROM DUMMY UNION ALL
+    SELECT 20, 'Description'              FROM DUMMY UNION ALL
+    SELECT 30, 'Active'                   FROM DUMMY UNION ALL
+    SELECT 40, 'OS user / group'          FROM DUMMY
+  ) L,
+    DATABASES D
+  GROUP BY
+    LN,
+    KEY_FIGURE
+  UNION ALL
+  SELECT 1000,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 1010, 'SERVICES', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 1020, '********', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 1030,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT
+    1100,
+    S.SERVICE_NAME,
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  0 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  1 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  2 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  3 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  4 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  5 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  6 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  7 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  8 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  9 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 10 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 11 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 12 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 13 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 14 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 15 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 16 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 17 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 18 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 19 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 20 THEN 1 ELSE 0 END))
+  FROM
+    DATABASES D,
+    SYS_DATABASES.M_SERVICES S
+  WHERE
+    D.DATABASE_NAME = S.DATABASE_NAME
+  GROUP BY
+    S.SERVICE_NAME
+  UNION ALL
+  SELECT 2000,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 2010, 'PARAMETERS', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 2020, '**********', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 2030,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT
+    2100 + L.LN,
+    L.FILE_NAME || CHAR(32) || '->' || CHAR(32) || '[' || L.SECTION || ']' || CHAR(32) || '->' || CHAR(32) || L.KEY,
+    IFNULL(MAX(SYSTEMDB), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_01), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_02), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_03), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_04), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_05), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_06), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_07), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_08), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_09), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_10), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_11), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_12), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_13), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_14), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_15), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_16), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_17), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_18), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_19), '-- HANA internal --'),
+    IFNULL(MAX(TENANT_20), '-- HANA internal --')
+  FROM
+  ( SELECT 10 LN, 'global.ini' FILE_NAME, 'execution' SECTION, 'default_statement_concurrency_limit' KEY FROM DUMMY UNION ALL
+    SELECT 20,    'global.ini',           'execution',         'max_concurrency'                         FROM DUMMY UNION ALL
+    SELECT 30,    'global.ini',           'execution',         'max_concurrency_hint'                    FROM DUMMY UNION ALL
+    SELECT 40,    'global.ini',           'parallel',          'num_cores'                               FROM DUMMY UNION ALL
+    SELECT 50,    'global.ini',           'memorymanager',     'global_allocation_limit'                 FROM DUMMY UNION ALL
+    SELECT 60,    'global.ini',           'memorymanager',     'statement_memory_limit'                  FROM DUMMY UNION ALL
+    SELECT 70,    'indexerver.ini',       'memorymanager',     'allocationlimit'                         FROM DUMMY
+  ) L LEFT OUTER JOIN
+    PARAMETERS P ON
+      L.FILE_NAME = P.FILE_NAME AND
+      L.SECTION = P.SECTION AND
+      L.KEY = P.KEY
+  GROUP BY
+    L.LN,
+    L.FILE_NAME,
+    L.SECTION,
+    L.KEY
+  UNION ALL
+  SELECT 3000,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 3010, 'MEMORY', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 3020, '******', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 3030,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT
+    3100 + L.LN,
+    L.KEY_FIGURE,
+    MAX(CASE WHEN DB_NUM = 0 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 1 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 2 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 3 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 4 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 5 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 6 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 7 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 8 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 9 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 10 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 11 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 12 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 13 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 14 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 15 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 16 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 17 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 18 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 19 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 20 THEN
+      CASE 
+          WHEN LN = 10 THEN ALLOC_LIM_GB
+          WHEN LN = 20 THEN MEM_USED_GB
+          WHEN LN = 30 THEN HEAP_ALLOC_GB
+          WHEN LN = 40 THEN HEAP_USED_GB
+          WHEN LN = 50 THEN SHARED_ALLOC_GB
+      END
+    END)
+  FROM
+  ( SELECT 10 LN, 'Allocation limit (GB)' KEY_FIGURE FROM DUMMY UNION ALL
+    SELECT 20, 'Memory used (GB)'                    FROM DUMMY UNION ALL
+    SELECT 30, 'Heap allocated (GB)'                 FROM DUMMY UNION ALL
+    SELECT 40, 'Heap used (GB)'                      FROM DUMMY UNION ALL
+    SELECT 50, 'Shared memory allocated (GB)'        FROM DUMMY
+  ) L,
+  ( SELECT
+      D.DB_NUM,
+      D.DATABASE_NAME,
+      TO_VARCHAR(TO_DECIMAL(MAX(M.EFFECTIVE_ALLOCATION_LIMIT) / 1024 / 1024 / 1024, 10, 2)) ALLOC_LIM_GB,
+      TO_VARCHAR(TO_DECIMAL(SUM(M.TOTAL_MEMORY_USED_SIZE) / 1024 / 1024 / 1024, 10, 2)) MEM_USED_GB,
+      TO_VARCHAR(TO_DECIMAL(SUM(M.HEAP_MEMORY_ALLOCATED_SIZE) / 1024 / 1024 / 1024, 10, 2)) HEAP_ALLOC_GB,
+      TO_VARCHAR(TO_DECIMAL(SUM(M.HEAP_MEMORY_USED_SIZE) / 1024 / 1024 / 1024, 10, 2)) HEAP_USED_GB,
+      TO_VARCHAR(TO_DECIMAL(MAX(M.SHARED_MEMORY_ALLOCATED_SIZE) / 1024 / 1024 / 1024, 10, 2)) SHARED_ALLOC_GB
+    FROM
+      DATABASES D,
+      SYS_DATABASES.M_SERVICE_MEMORY M
+    WHERE
+      D.DATABASE_NAME = M.DATABASE_NAME
+    GROUP BY
+      D.DB_NUM,
+      D.DATABASE_NAME
+  )
+  GROUP BY
+    L.LN,
+    L.KEY_FIGURE
+  UNION ALL
+  SELECT 3500,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 3510, 'CPU', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 3520, '***', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 3530,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT
+    3600 + L.LN,
+    L.KEY_FIGURE,
+    MAX(CASE WHEN DB_NUM = 0 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 1 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 2 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 3 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 4 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 5 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 6 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 7 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 8 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 9 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 10 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 11 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 12 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 13 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 14 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 15 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 16 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 17 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 18 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 19 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 20 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU_CURRENT_PCT
+          WHEN LN = 20 THEN CPU_AVG_PCT
+      END
+    END)
+  FROM
+  ( SELECT 10 LN, 'CPU current (%)' KEY_FIGURE FROM DUMMY UNION ALL
+    SELECT 20, 'CPU average (%)'               FROM DUMMY 
+  ) L,
+  ( SELECT
+      D.DB_NUM,
+      D.DATABASE_NAME,
+      TO_VARCHAR(TO_DECIMAL(SUM(S.PROCESS_CPU), 10, 2)) CPU_CURRENT_PCT,
+      TO_VARCHAR(TO_DECIMAL(SUM(S.PROCESS_CPU_TIME / 1000 / SECONDS_BETWEEN(S.START_TIME, S.SYS_TIMESTAMP)) / H.VALUE * 100, 10, 2)) CPU_AVG_PCT
+    FROM
+      DATABASES D,
+      SYS_DATABASES.M_SERVICE_STATISTICS S,
+      M_HOST_INFORMATION H
+    WHERE
+      D.DATABASE_NAME = S.DATABASE_NAME AND
+      H.HOST = S.HOST AND
+      H.KEY = 'cpu_threads'
+    GROUP BY
+      D.DB_NUM,
+      D.DATABASE_NAME,
+      H.VALUE
+  )
+  GROUP BY
+    L.LN,
+    L.KEY_FIGURE
+  UNION ALL
+  SELECT 4000,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 4010, 'HEAP', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 4020, '****', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 4030,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT
+    4040,
+    COMPONENT || CHAR(32) || '(GB)',
+    MAX(CASE WHEN DB_NUM =  0 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM =  1 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM =  2 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM =  3 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM =  4 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM =  5 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM =  6 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM =  7 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM =  8 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM =  9 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM = 10 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM = 11 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM = 12 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM = 13 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM = 14 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM = 15 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM = 16 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM = 17 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM = 18 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM = 19 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END),
+    MAX(CASE WHEN DB_NUM = 20 THEN TO_VARCHAR(TO_DECIMAL(EXCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024, 10, 2)) END)
+  FROM
+  ( SELECT
+      D.DB_NUM,
+      D.DATABASE_NAME,
+      H.COMPONENT,
+      SUM(EXCLUSIVE_SIZE_IN_USE) EXCLUSIVE_SIZE_IN_USE
+    FROM 
+      DATABASES D,
+      SYS_DATABASES.M_HEAP_MEMORY H
+    WHERE
+      H.DATABASE_NAME = D.DATABASE_NAME
+    GROUP BY
+      D.DB_NUM,
+      D.DATABASE_NAME,
+      H.COMPONENT
+  )
+  GROUP BY
+    COMPONENT
+  UNION ALL
+  SELECT 5000,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 5010, 'ROW STORE', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 5020, '*********', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 5030, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT
+    5100,
+    R.CATEGORY || CHAR(32) || '(GB)',
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM =  0 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM =  1 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM =  2 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM =  3 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM =  4 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM =  5 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM =  6 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM =  7 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM =  8 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM =  9 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM = 10 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM = 11 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM = 12 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM = 13 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM = 14 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM = 15 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM = 16 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM = 17 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM = 18 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM = 19 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN D.DB_NUM = 20 THEN R.ALLOCATED_SIZE END) / 1024 / 1024 / 1024, 10, 2))
+  FROM
+    DATABASES D,
+    SYS_DATABASES.M_RS_MEMORY R
+  WHERE
+    R.DATABASE_NAME = D.DATABASE_NAME
+  GROUP BY
+    R.CATEGORY
+  UNION ALL
+  SELECT 6000,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 6010, 'LOAD HISTORY (LAST DAY)', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 6020, '***********************', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 6030, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT
+    6100 + L.LN,
+    L.KEY_FIGURE,
+    MAX(CASE WHEN DB_NUM = 0 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 1 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 2 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 3 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 4 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 5 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 6 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 7 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 8 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 9 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 10 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 11 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 12 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 13 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 14 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 15 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 16 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 17 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 18 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 19 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 20 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END)
+  FROM
+  ( SELECT 10 LN, 'Avg. CPU (%)' KEY_FIGURE FROM DUMMY UNION ALL
+    SELECT 20, 'Avg. system CPU (%)'        FROM DUMMY UNION ALL
+    SELECT 30, 'Avg. ping time (ms)'        FROM DUMMY UNION ALL
+    SELECT 40, 'Avg. connections'           FROM DUMMY UNION ALL
+    SELECT 50, 'Statements / s'             FROM DUMMY UNION ALL
+    SELECT 60, 'Avg. pending sessions'      FROM DUMMY UNION ALL
+    SELECT 70, 'Avg. active threads'        FROM DUMMY UNION ALL
+    SELECT 80, 'Avg. versions'              FROM DUMMY
+  ) L,
+    DATABASES D,
+  ( SELECT
+      S.DATABASE_NAME,
+      TO_VARCHAR(TO_DECIMAL(AVG(CPU), 10, 2)) CPU,
+      TO_VARCHAR(TO_DECIMAL(AVG(SYSTEM_CPU), 10, 2)) SYSTEM_CPU,
+      TO_VARCHAR(TO_DECIMAL(AVG(PING_TIME), 10, 2)) PING_TIME,
+      TO_VARCHAR(TO_DECIMAL(AVG(CONNECTION_COUNT), 10, 2)) CONNECTIONS,
+      TO_VARCHAR(TO_DECIMAL(SUM(STATEMENT_COUNT) / 86400, 10, 2)) STMT_PER_S,
+      TO_VARCHAR(TO_DECIMAL(AVG(PENDING_SESSION_COUNT), 10, 2)) PENDING_SESSIONS,
+      TO_VARCHAR(TO_DECIMAL(AVG(ACTIVE_THREAD_COUNT), 10, 2)) ACTIVE_THREADS,
+      TO_VARCHAR(TO_DECIMAL(AVG(MVCC_VERSION_COUNT), 10, 2)) VERSIONS
+    FROM
+      SYS_DATABASES.M_SERVICES S,
+      M_LOAD_HISTORY_SERVICE L
+    WHERE
+      S.HOST = L.HOST AND
+      S.PORT = L.PORT AND
+      SECONDS_BETWEEN(L.TIME, CURRENT_TIMESTAMP) <= 86400 AND
+      S.SERVICE_NAME in ('nameserver', 'indexserver')
+    GROUP BY
+      S.DATABASE_NAME
+  ) LH
+  WHERE
+    D.DATABASE_NAME = LH.DATABASE_NAME
+  GROUP BY
+    L.LN,
+    L.KEY_FIGURE
+  UNION ALL
+  SELECT 6500,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 6510, 'LOAD HISTORY (LAST HOUR)', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 6520, '************************', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 6530, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT
+    6600 + L.LN,
+    L.KEY_FIGURE,
+    MAX(CASE WHEN DB_NUM = 0 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 1 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 2 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 3 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 4 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 5 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 6 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 7 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 8 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 9 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 10 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 11 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 12 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 13 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 14 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 15 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 16 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 17 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 18 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 19 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END),
+    MAX(CASE WHEN DB_NUM = 20 THEN
+      CASE 
+          WHEN LN = 10 THEN CPU
+          WHEN LN = 20 THEN SYSTEM_CPU
+          WHEN LN = 30 THEN PING_TIME
+          WHEN LN = 40 THEN CONNECTIONS
+          WHEN LN = 50 THEN STMT_PER_S
+          WHEN LN = 60 THEN PENDING_SESSIONS
+          WHEN LN = 70 THEN ACTIVE_THREADS
+          WHEN LN = 80 THEN VERSIONS
+      END
+    END)
+  FROM
+  ( SELECT 10 LN, 'Avg. CPU (%)' KEY_FIGURE FROM DUMMY UNION ALL
+    SELECT 20, 'Avg. system CPU (%)'        FROM DUMMY UNION ALL
+    SELECT 30, 'Avg. ping time (ms)'        FROM DUMMY UNION ALL
+    SELECT 40, 'Avg. connections'           FROM DUMMY UNION ALL
+    SELECT 50, 'Statements / s'             FROM DUMMY UNION ALL
+    SELECT 60, 'Avg. pending sessions'      FROM DUMMY UNION ALL
+    SELECT 70, 'Avg. active threads'        FROM DUMMY UNION ALL
+    SELECT 80, 'Avg. versions'              FROM DUMMY
+  ) L,
+    DATABASES D,
+  ( SELECT
+      S.DATABASE_NAME,
+      TO_VARCHAR(TO_DECIMAL(AVG(CPU), 10, 2)) CPU,
+      TO_VARCHAR(TO_DECIMAL(AVG(SYSTEM_CPU), 10, 2)) SYSTEM_CPU,
+      TO_VARCHAR(TO_DECIMAL(AVG(PING_TIME), 10, 2)) PING_TIME,
+      TO_VARCHAR(TO_DECIMAL(AVG(CONNECTION_COUNT), 10, 2)) CONNECTIONS,
+      TO_VARCHAR(TO_DECIMAL(SUM(STATEMENT_COUNT) / 86400, 10, 2)) STMT_PER_S,
+      TO_VARCHAR(TO_DECIMAL(AVG(PENDING_SESSION_COUNT), 10, 2)) PENDING_SESSIONS,
+      TO_VARCHAR(TO_DECIMAL(AVG(ACTIVE_THREAD_COUNT), 10, 2)) ACTIVE_THREADS,
+      TO_VARCHAR(TO_DECIMAL(AVG(MVCC_VERSION_COUNT), 10, 2)) VERSIONS
+    FROM
+      SYS_DATABASES.M_SERVICES S,
+      M_LOAD_HISTORY_SERVICE L
+    WHERE
+      S.HOST = L.HOST AND
+      S.PORT = L.PORT AND
+      SECONDS_BETWEEN(L.TIME, CURRENT_TIMESTAMP) <= 3600 AND
+      S.SERVICE_NAME in ('nameserver', 'indexserver')
+    GROUP BY
+      S.DATABASE_NAME
+  ) LH
+  WHERE
+    D.DATABASE_NAME = LH.DATABASE_NAME
+  GROUP BY
+    L.LN,
+    L.KEY_FIGURE
+  UNION ALL
+  SELECT 7000,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 7010, 'WORKLOAD (LAST MINUTE)', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 7020, '**********************', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 7030,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT
+    7100 + L.LN,
+    L.KEY_FIGURE,
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 0 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 1 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 2 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 3 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 4 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 5 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 6 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 7 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 8 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 9 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 10 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 11 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 12 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 13 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 14 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 15 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 16 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 17 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 18 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 19 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(MAX(CASE WHEN D.DB_NUM = 20 THEN
+      CASE
+        WHEN L.LN = 10 THEN CURRENT_EXECUTION_RATE
+        WHEN L.LN = 20 THEN CURRENT_COMPILATION_RATE
+        WHEN L.LN = 30 THEN CURRENT_TRANSACTION_RATE
+        WHEN L.LN = 40 THEN CURRENT_UPDATE_TRANSACTION_RATE
+        WHEN L.LN = 50 THEN CURRENT_COMMIT_RATE
+        WHEN L.LN = 60 THEN CURRENT_ROLLBACK_RATE
+       END
+    END) / 60, 10, 2))
+  FROM
+  ( SELECT 10 LN, 'Executions / s' KEY_FIGURE FROM DUMMY UNION ALL
+    SELECT 20,    'Preparations / s'          FROM DUMMY UNION ALL
+    SELECT 30,    'Transactions / s'          FROM DUMMY UNION ALL
+    SELECT 40,    'Update transactions / s'   FROM DUMMY UNION ALL
+    SELECT 50,    'Commits / s'               FROM DUMMY UNION ALL
+    SELECT 60,    'Rollbacks / s'             FROM DUMMY
+  ) L,
+    DATABASES D,
+    SYS_DATABASES.M_WORKLOAD W
+  WHERE
+    D.DATABASE_NAME = W.DATABASE_NAME
+  GROUP BY
+    L.LN,
+    L.KEY_FIGURE
+  UNION ALL
+  SELECT 9000,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 9010, 'DISKS', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 9020, '*****', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 9030,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT
+    9100,
+    USAGE_TYPE || ' size (GB)',
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM =  0 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM =  1 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM =  2 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM =  3 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM =  4 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM =  5 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM =  6 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM =  7 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM =  8 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM =  9 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM = 10 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM = 11 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM = 12 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM = 13 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM = 14 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM = 15 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM = 16 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM = 17 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM = 18 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM = 19 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2)),
+    TO_VARCHAR(TO_DECIMAL(SUM(CASE WHEN DB_NUM = 20 THEN USED_SIZE ELSE 0 END) / 1024 / 1024 / 1024, 10, 2))
+  FROM
+  ( SELECT
+      D.DB_NUM,
+      D.DATABASE_NAME,
+      DU.USAGE_TYPE,
+      SUM(DU.USED_SIZE) USED_SIZE
+    FROM
+      DATABASES D,
+      SYS_DATABASES.M_DISK_USAGE DU
+    WHERE
+      D.DATABASE_NAME = DU.DATABASE_NAME
+    GROUP BY
+      D.DB_NUM,
+      D.DATABASE_NAME,
+      DU.USAGE_TYPE
+  )
+  GROUP BY
+    USAGE_TYPE
+  UNION ALL
+  SELECT 10000,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 10010, 'BACKUPS', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 10020, '*******', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 10030,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT
+    10100,
+    'Last data backup',
+    MAX(CASE WHEN DB_NUM =  0 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM =  1 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM =  2 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM =  3 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM =  4 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM =  5 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM =  6 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM =  7 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM =  8 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM =  9 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM = 10 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM = 11 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM = 12 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM = 13 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM = 14 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM = 15 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM = 16 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM = 17 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM = 18 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM = 19 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END),
+    MAX(CASE WHEN DB_NUM = 20 AND B.BACKUP_TYPE IN ('complete data backup', 'data snapshot') THEN TO_VARCHAR(BACKUP_TIME, 'YYYY/MM/DD HH24:MI:SS') END)
+  FROM
+    DATABASES D,
+    BACKUPS B
+  WHERE
+    D.DATABASE_NAME = B.DATABASE_NAME
+  UNION ALL
+  SELECT
+    10110,
+    'Data backup size (GB)',
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  0 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  1 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  2 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  3 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  4 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  5 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  6 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  7 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  8 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  9 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 10 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 11 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 12 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 13 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 14 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 15 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 16 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 17 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 18 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 19 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 20 THEN TO_DECIMAL(B.BACKUP_SIZE / 1024 / 1024 / 1024, 10, 2) END))
+  FROM
+    DATABASES D,
+    BACKUPS B,
+  ( SELECT
+      MAX(BACKUP_TIME) BACKUP_TIME
+    FROM
+      BACKUPS
+    WHERE
+      BACKUP_TYPE IN ('complete data backup', 'data snapshot')
+    GROUP BY
+      DATABASE_NAME
+  ) BM
+  WHERE
+    D.DATABASE_NAME = B.DATABASE_NAME AND
+    B.BACKUP_TIME = BM.BACKUP_TIME
+  UNION ALL
+  SELECT
+    10120,
+    'Number of log backups (last day)',
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  0 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  1 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  2 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  3 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  4 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  5 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  6 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  7 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  8 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM =  9 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 10 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 11 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 12 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 13 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 14 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 15 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 16 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 17 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 18 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 19 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END)),
+    TO_VARCHAR(SUM(CASE WHEN DB_NUM = 20 AND B.BACKUP_TYPE = 'log backup' AND SECONDS_BETWEEN(BACKUP_TIME, CURRENT_TIMESTAMP) <= 86400 THEN 1 ELSE 0 END))
+  FROM
+    DATABASES D,
+    BACKUPS B
+  WHERE
+    D.DATABASE_NAME = B.DATABASE_NAME
+  UNION ALL
+  SELECT
+    10130,
+    'Catalog size (MB)',
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  0 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  1 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  2 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  3 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  4 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  5 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  6 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  7 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  8 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM =  9 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 10 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 11 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 12 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 13 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 14 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 15 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 16 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 17 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 18 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 19 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END)),
+    TO_VARCHAR(MAX(CASE WHEN DB_NUM = 20 THEN TO_DECIMAL(B.CATALOG_SIZE / 1024 / 1024, 10, 2) END))
+  FROM
+    DATABASES D,
+    BACKUPS B,
+  ( SELECT
+      MAX(BACKUP_TIME) BACKUP_TIME
+    FROM
+      BACKUPS
+    GROUP BY
+      DATABASE_NAME
+  ) BM
+  WHERE
+    D.DATABASE_NAME = B.DATABASE_NAME AND
+    B.BACKUP_TIME = BM.BACKUP_TIME
+  UNION ALL
+  SELECT 13000,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 13010, 'SAVEPOINTS (LAST DAY)', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 13020, '*********************', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 13030,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT
+    13100 + L.LN,
+    L.KEY_FIGURE,
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 0 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 1 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 2 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 3 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 4 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 5 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 6 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 7 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 8 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 9 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 10 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 11 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 12 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 13 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 14 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 15 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 16 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 17 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 18 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 19 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 20 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(S.NUM_SAVEPOINTS), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(TOTAL_DURATION_S, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(AVG_DURATION_S, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(MAX_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 45 THEN TO_DECIMAL(AVG_BLK_PHASE_S, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(MAX_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 55 THEN TO_DECIMAL(AVG_CRIT_PHASE_S, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(TOTAL_FLUSH_GB, 10, 2)
+        WHEN L.LN = 70 THEN TO_DECIMAL(AVG_FLUSH_MB, 10, 2)
+       END
+    END))
+  FROM
+  ( SELECT 10 LN, 'Savepoints' KEY_FIGURE            FROM DUMMY UNION ALL
+    SELECT 20,    'Total duration (s)'               FROM DUMMY UNION ALL
+    SELECT 30,    'Avg duration (s)'                 FROM DUMMY UNION ALL
+    SELECT 40,    'Max. blocking phase duration (s)' FROM DUMMY UNION ALL
+    SELECT 45,    'Avg. blocking phase duration (s)' FROM DUMMY UNION ALL
+    SELECT 50,    'Max. critical phase duration (s)' FROM DUMMY UNION ALL
+    SELECT 55,    'Avg. critical phase duration (s)' FROM DUMMY UNION ALL
+    SELECT 60,    'Total flush size (GB)'            FROM DUMMY UNION ALL
+    SELECT 70,    'Avg. flush size (MB)'             FROM DUMMY
+  ) L,
+    DATABASES D,
+  ( SELECT
+      DATABASE_NAME,
+      COUNT(*) NUM_SAVEPOINTS,
+      SUM(DURATION / 1000000) TOTAL_DURATION_S,
+      AVG(DURATION / 1000000) AVG_DURATION_S,
+      MAX(CRITICAL_PHASE_WAIT_TIME + CRITICAL_PHASE_DURATION) / 1000000 MAX_BLK_PHASE_S,
+      AVG(CRITICAL_PHASE_WAIT_TIME + CRITICAL_PHASE_DURATION) / 1000000 AVG_BLK_PHASE_S,
+      MAX(CRITICAL_PHASE_DURATION) / 1000000 MAX_CRIT_PHASE_S,
+      AVG(CRITICAL_PHASE_DURATION) / 1000000 AVG_CRIT_PHASE_S,
+      SUM(FLUSHED_SIZE) / 1024 / 1024 / 1024 TOTAL_FLUSH_GB,
+      AVG(FLUSHED_SIZE) / 1024 / 1024 AVG_FLUSH_MB
+    FROM
+      SYS_DATABASES.M_SAVEPOINTS
+    WHERE
+      SECONDS_BETWEEN(START_TIME, CURRENT_TIMESTAMP) <= 86400
+    GROUP BY
+      DATABASE_NAME
+  ) S
+  WHERE
+    D.DATABASE_NAME = S.DATABASE_NAME
+  GROUP BY
+    L.LN,
+    L.KEY_FIGURE
+  UNION ALL
+  SELECT 14000,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 14010, 'DISK I/O', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 14020, '********', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 14030,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT
+    14100 + L.LN,
+    L.KEY_FIGURE,
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 0 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 1 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 2 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 3 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 4 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 5 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 6 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 7 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 8 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 9 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 10 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 11 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 12 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 13 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 14 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 15 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 16 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 17 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 18 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 19 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 20 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(I.DATA_READ_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 20 THEN TO_DECIMAL(I.DATA_READ_TP_MBPS, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(I.DATA_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 40 THEN TO_DECIMAL(I.DATA_WRITE_TP_MBPS, 10, 2)
+        WHEN L.LN = 50 THEN TO_DECIMAL(I.LOG_WRITE_LOAD_MBPS, 10, 2)
+        WHEN L.LN = 60 THEN TO_DECIMAL(I.LOG_WRITE_TP_MBPS, 10, 2)
+       END
+    END))
+  FROM
+  ( SELECT 10 LN, 'Data read load (MB/s)' KEY_FIGURE  FROM DUMMY UNION ALL
+    SELECT 20,    'Data read throughput (MB/s)'       FROM DUMMY UNION ALL
+    SELECT 30,    'Data write load (MB/s)'            FROM DUMMY UNION ALL
+    SELECT 40,    'Data write throughput (MB/s)'      FROM DUMMY UNION ALL
+    SELECT 50,    'Log write load (MB/s)'             FROM DUMMY UNION ALL
+    SELECT 60,    'Log write throughput (MB/s)'       FROM DUMMY 
+  ) L,
+    DATABASES D,
+  ( SELECT
+      DATABASE_NAME,
+      SUM(MAP(I.TYPE, 'DATA', I.TOTAL_READ_SIZE, 0)) / 1024 / 1024 / SECONDS_BETWEEN(H.VALUE, CURRENT_TIMESTAMP) DATA_READ_LOAD_MBPS,
+      SUM(MAP(I.TYPE, 'DATA', I.TOTAL_READ_SIZE, 0)) / 1024 / 1024 * 1000000 / SUM(TOTAL_READ_TIME) DATA_READ_TP_MBPS,
+      SUM(MAP(I.TYPE, 'DATA', I.TOTAL_WRITE_SIZE, 0)) / 1024 / 1024 / SECONDS_BETWEEN(H.VALUE, CURRENT_TIMESTAMP) DATA_WRITE_LOAD_MBPS,
+      SUM(MAP(I.TYPE, 'DATA', I.TOTAL_WRITE_SIZE, 0)) / 1024 / 1024 * 1000000 / SUM(I.TOTAL_WRITE_TIME) DATA_WRITE_TP_MBPS,
+      SUM(MAP(I.TYPE, 'LOG', I.TOTAL_WRITE_SIZE, 0)) / 1024 / 1024 / SECONDS_BETWEEN(H.VALUE, CURRENT_TIMESTAMP) LOG_WRITE_LOAD_MBPS,
+      SUM(MAP(I.TYPE, 'LOG', I.TOTAL_WRITE_SIZE, 0)) / 1024 / 1024 * 1000000 / SUM(I.TOTAL_WRITE_TIME) LOG_WRITE_TP_MBPS
+    FROM
+      SYS_DATABASES.M_VOLUME_IO_TOTAL_STATISTICS I,
+      M_HOST_INFORMATION H
+    WHERE
+      I.HOST = H.HOST AND
+      H.KEY = 'start_time'
+    GROUP BY
+      DATABASE_NAME,
+      H.VALUE
+  ) I
+  WHERE
+    D.DATABASE_NAME = I.DATABASE_NAME
+  GROUP BY
+    L.LN,
+    L.KEY_FIGURE
+  UNION ALL
+  SELECT 15000,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 15010, 'HISTORY FILES', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 15020, '*************', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT 15030,  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT
+    15100 + L.LN,
+    L.KEY_FIGURE,
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 0 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 1 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 2 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 3 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 4 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 5 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 6 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 7 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 8 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 9 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 10 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 11 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 12 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 13 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 14 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 15 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 16 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 17 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 18 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 19 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END)),
+    TO_VARCHAR(MAX(CASE WHEN D.DB_NUM = 20 THEN
+      CASE
+        WHEN L.LN = 10 THEN TO_DECIMAL(ROUND(UNDO_FILES), 10, 0)
+        WHEN L.LN = 20 THEN TO_DECIMAL(UNDO_FILE_GB, 10, 2)
+        WHEN L.LN = 30 THEN TO_DECIMAL(ROUND(CLEANUP_FILES), 10, 0)
+        WHEN L.LN = 40 THEN TO_DECIMAL(CLEANUP_FILE_GB, 10, 2)
+       END
+    END))
+  FROM
+  ( SELECT 10 LN, 'Undo files' KEY_FIGURE  FROM DUMMY UNION ALL
+    SELECT 20,    'Undo file size (GB)'    FROM DUMMY UNION ALL
+    SELECT 30,    'Cleanup files'          FROM DUMMY UNION ALL
+    SELECT 40,    'Cleanup file size (GB)' FROM DUMMY
+  ) L,
+    DATABASES D,
+  ( SELECT
+      DATABASE_NAME,
+      SUM(MAP(TYPE, 'UNDO', 1, 0)) UNDO_FILES,
+      SUM(MAP(TYPE, 'UNDO', RAW_SIZE, 0)) / 1024 / 1024 / 1024 UNDO_FILE_GB,
+      SUM(MAP(TYPE, 'CLEANUP', 1, 0)) CLEANUP_FILES,
+      SUM(MAP(TYPE, 'CLEANUP', RAW_SIZE, 0)) / 1024 / 1024 / 1024 CLEANUP_FILE_GB
+    FROM
+      SYS_DATABASES.M_UNDO_CLEANUP_FILES
+    GROUP BY
+      DATABASE_NAME
+  ) H
+  WHERE
+    D.DATABASE_NAME = H.DATABASE_NAME
+  GROUP BY
+    L.LN,
+    L.KEY_FIGURE
+)
+ORDER BY
+  LINE_NO
+WITH HINT (IGNORE_PLAN_CACHE)

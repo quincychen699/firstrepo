@@ -1,0 +1,238 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Locks_Internal_Overview
+
+[DESCRIPTION]
+
+- Overview of wait times for internal locks (read / write locks, mutexes, semaphores and conditional variables since startup)
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2014/05/02:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_READWRITELOCKS
+- M_CONDITIONAL_VARIABLES
+- M_SEMAPHORES
+- M_MUTEXES
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- STATISTICS_NAME
+
+  Statistics name
+
+  'ConsistentChangeLock' --> Specific statistics name ConsistentChangeLock
+  '%Savepoint%'          --> All statistics names containing 'Savepoint'
+  '%'                    --> No statistics name restriction
+
+- MAX_STATISTICS_NAME_LENGTH
+
+  Maximum output length of lock statistic name
+
+  50               --> Names are truncated to 50 characters
+  -1               --> No limitation of output length of lock statistic name
+
+- LOCK_TYPE
+
+  Lock type
+
+  'READWRITELOCK'    --> Read write locks
+  'SEMAPHORE, MUTEX' --> Semaphores and mutexes
+  '%'                --> No lock type restriction
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'STATISTIC'        --> Aggregation by statistics name
+  'HOST, PORT'       --> Aggregation by host and port
+  'NONE'             --> No aggregation, pure filtering 
+
+- RESULT_ROWS
+
+  Number of records to be returned by the query
+
+  100             --> Return a maximum number of 100 records
+  -1              --> Return all records
+
+[OUTPUT PARAMETERS]
+
+- HOST:             Host name
+- PORT:             Port
+- SERVICE:          Service name
+- LOCK_TYPE:        Type of lock
+- STATISTICS_NAME:  Name of lock statistic
+- ACT_SESS:         Average number of waiting sessions
+- WAIT_TIME_S:      Total wait time (in s)
+- WAIT_PCT:         Fraction of overall total time (in %)   
+
+[EXAMPLE OUTPUT]
+
+--------------------------------------------------------------------------------------------------------------------
+|HOST|SERVICE_NAME|LOCK_TYPE    |STATISTICS_NAME                                   |ACT_SESS|WAIT_TIME_S | WAIT_PCT|
+--------------------------------------------------------------------------------------------------------------------
+|any |any         |SEMAPHORE    |jx-workers                                        |  456.09| 27454823.13|    83.06|
+|any |any         |SEMAPHORE    |jx-parking                                        |   29.59|  1781338.29|     5.38|
+|any |any         |READWRITELOCK|FileIDMapping                                     |    5.75|   346443.56|     1.04|
+|any |any         |SEMAPHORE    |CollectorThread                                   |    3.16|   190364.00|     0.57|
+|any |any         |SEMAPHORE    |BackupTimeout                                     |    2.99|   180300.58|     0.54|
+|any |any         |SEMAPHORE    |SubmitThread-DATA_BACKUP-0                        |    2.99|   180272.66|     0.54|
+|any |any         |SEMAPHORE    |TraceSegmentCompressorSemaphore                   |    2.98|   179801.99|     0.54|
+|any |any         |SEMAPHORE    |SubmitThread-LOG_BACKUP-0                         |    2.97|   179377.18|     0.54|
+|any |any         |SEMAPHORE    |JobExecWatchDog                                   |    2.92|   176005.24|     0.53|
+|any |any         |SEMAPHORE    |SubmitThread-BACKUP-0                             |    2.85|   171796.14|     0.51|
+|any |any         |SEMAPHORE    |Event[string.hpp:1116]@0x00007ff648f63ebd: queuese|    2.85|   171781.93|     0.51|
+|any |any         |SEMAPHORE    |LogBackupQueue                                    |    2.81|   169430.80|     0.51|
+|any |any         |SEMAPHORE    |SubmitThread-LOG-0                                |    2.80|   168717.95|     0.51|
+|any |any         |SEMAPHORE    |SubmitThread-DATA-0                               |    2.37|   142867.52|     0.43|
+|any |any         |READWRITELOCK|ConsistentChangeLock                              |    2.27|   136788.53|     0.41|
+|any |any         |SEMAPHORE    |SavepointWait                                     |    1.98|   119549.60|     0.36|
+|any |any         |SEMAPHORE    |PostCommitExecutorSemaphore                       |    1.92|   116059.94|     0.35|
+|any |any         |SEMAPHORE    |GroupMulticastExecutor                            |    1.67|   100957.14|     0.30|
+|any |any         |SEMAPHORE    |Event[X2.cpp:946]@0x00007fe779f8c13a: Executor::X2|    0.99|    60161.40|     0.18|
+|any |any         |SEMAPHORE    |Event[X2.cpp:946]@0x00007fe0cf77a13a: Executor::X2|    0.99|    60161.40|     0.18|
+--------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SERVICE_NAME SERVICE,
+  LOCK_TYPE,
+  MAP(MAX_STATISTICS_NAME_LENGTH, -1, STATISTICS_NAME, SUBSTR(STATISTICS_NAME, 1, MAX_STATISTICS_NAME_LENGTH)) STATISTICS_NAME,
+  LPAD(TO_DECIMAL(MAP(UPTIME_S, 0, 0, WAIT_TIME_S / UPTIME_S), 10, 2), 8) ACT_SESS,
+  LPAD(TO_DECIMAL(WAIT_TIME_S, 10, 2), 12) WAIT_TIME_S,
+  LPAD(TO_DECIMAL(MAP(OVERALL_WAIT_TIME_S, 0, 0, WAIT_TIME_S / OVERALL_WAIT_TIME_S * 100), 10, 2), 9) WAIT_PCT
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'HOST')      != 0 THEN L.HOST            ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                       END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(L.PORT)   ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                       END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')    != 0 THEN S.SERVICE_NAME    ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME)       END SERVICE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'STATISTIC') != 0 THEN L.STATISTICS_NAME ELSE MAP(BI.STATISTICS_NAME, '%', 'any', BI.STATISTICS_NAME) END STATISTICS_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'TYPE')      != 0 THEN L.LOCK_TYPE       ELSE MAP(BI.LOCK_TYPE, '%', 'any', BI.LOCK_TYPE)             END LOCK_TYPE,
+    SUM(L.WAIT_TIME_S) WAIT_TIME_S,
+    SUM(SUM(L.WAIT_TIME_S)) OVER () OVERALL_WAIT_TIME_S,
+    BI.RESULT_ROWS,
+    BI.MAX_STATISTICS_NAME_LENGTH,
+    T.UPTIME_S,
+    ROW_NUMBER() OVER (ORDER BY SUM(L.WAIT_TIME_S) DESC) ROW_NUM
+  FROM
+  ( SELECT                        /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      '%' SERVICE_NAME,
+      '%' STATISTICS_NAME,
+      50 MAX_STATISTICS_NAME_LENGTH,
+      '%' LOCK_TYPE,              /* READWRITELOCK, COND_VARIABLE, MUTEX, SEMAPHORE, comma separated list or % for all */
+      'NONE' AGGREGATE_BY,        /* HOST, PORT, SERVICE, TYPE, STATISTIC or comma separated combinations, NONE for no aggregation */
+      100 RESULT_ROWS
+    FROM
+      DUMMY
+  ) BI,
+    M_SERVICES S,
+  ( SELECT
+      MAX(SECONDS_BETWEEN(TO_TIMESTAMP(VALUE), CURRENT_TIMESTAMP)) UPTIME_S
+    FROM
+      M_HOST_INFORMATION
+    WHERE
+      KEY = 'start_time'
+  ) T,
+  ( SELECT
+      'READWRITELOCK' LOCK_TYPE,
+      HOST,
+      PORT,
+      STATISTICS_NAME,
+      ( SUM_EXCLUSIVE_WAIT_TIME + SUM_SHARED_WAIT_TIME ) / 1000000 WAIT_TIME_S
+    FROM
+      M_READWRITELOCKS
+    UNION ALL
+    ( SELECT
+        'SEMAPHORE' LOCK_TYPE,
+        HOST,
+        PORT,
+        STATISTICS_NAME,
+        SUM_BLOCKING_TIME / 1000000 WAIT_TIME_S
+      FROM
+        M_SEMAPHORES
+    )
+    UNION ALL
+    ( SELECT
+        'MUTEX' LOCK_TYPE,
+        HOST,
+        PORT,
+        STATISTICS_NAME,
+        SUM_WAIT_TIME / 1000000 WAIT_TIME_S
+      FROM
+        M_MUTEXES
+    )
+    UNION ALL
+    ( SELECT
+        'COND_VARIABLE' LOCK_TYPE,
+        HOST,
+        PORT,
+        STATISTICS_NAME,
+        SUM_BLOCKING_TIME / 1000000 WAIT_TIME_S
+      FROM
+        M_CONDITIONAL_VARIABLES
+    )
+  ) L
+  WHERE
+    S.HOST LIKE BI.HOST AND
+    TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+    S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+    L.HOST = S.HOST AND
+    L.PORT = S.PORT AND
+    L.STATISTICS_NAME LIKE BI.STATISTICS_NAME AND
+    ( BI.LOCK_TYPE = '%' OR LOCATE(BI.LOCK_TYPE, L.LOCK_TYPE) != 0 ) 
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'HOST')      != 0 THEN L.HOST            ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                       END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(L.PORT)   ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                       END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')    != 0 THEN S.SERVICE_NAME    ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME)       END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'STATISTIC') != 0 THEN L.STATISTICS_NAME ELSE MAP(BI.STATISTICS_NAME, '%', 'any', BI.STATISTICS_NAME) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'TYPE')      != 0 THEN L.LOCK_TYPE       ELSE MAP(BI.LOCK_TYPE, '%', 'any', BI.LOCK_TYPE)             END,
+    BI.RESULT_ROWS,
+    BI.MAX_STATISTICS_NAME_LENGTH,
+    T.UPTIME_S
+)
+WHERE
+  ( RESULT_ROWS = -1 OR ROW_NUM <= RESULT_ROWS )

@@ -1,0 +1,157 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Tables_RowStore_Containers_Internal
+
+[DESCRIPTION]
+
+- Row store container information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+
+[VALID FOR]
+
+- Revisions:              any
+
+[SQL COMMAND VERSION]
+
+- 2017/01/07:  1.0 (initial version)
+- 2020/04/07:  1.1 (CONTAINER_ID included)
+- 2020/05/15:  1.2 (dedicated version also runnable on SAP HANA 1.0)
+
+[INVOLVED TABLES]
+
+- M_DEV_RS_CONTAINER_INFO
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- MIN_SLOT_SIZE_BYTE
+
+  Minimum container slot size (byte)
+
+  600             --> Only display containers with a slot size of at least 600 byte
+  -1              --> Show all containers
+
+[OUTPUT PARAMETERS]
+
+- HOST:            Host name
+- PORT:            Port
+- SCHEMA_NAME:     Schema name
+- TABLE_NAME:      Table name
+- CONT_TOTAL:      Total number of containers
+- CONT_PERM:       Containers related to permanent tables
+- CONT_TEMP:       Containers related to temporary tables
+
+[EXAMPLE OUTPUT]
+
+--------------------------------------------------------------------------------------------------------------------------------
+|HOST  |PORT |SCHEMA_NAME         |TABLE_NAME                                                 |CONT_TOTAL|CONT_PERM |CONT_TEMP |
+--------------------------------------------------------------------------------------------------------------------------------
+|lt5105|30301|                    |                                                           |       214|       214|         0|
+|lt5105|30301|SAP_XS_LM_PE        |sap.hana.xs.lm.pe.db::ACTIVATION_OBJECTS                   |         1|         1|         0|
+|lt5105|30301|SYS                 |ABSTRACT_SQL_PLANS_                                        |         1|         1|         0|
+|lt5105|30301|SYS                 |ADAPTERS_                                                  |         1|         1|         0|
+|lt5105|30301|SYS                 |ADAPTER_CAPABILITIES_                                      |         1|         1|         0|
+|lt5105|30301|SYS                 |ADAPTER_LOCATIONS_                                         |         1|         1|         0|
+|lt5105|30301|SYS                 |AFL_AREAS_                                                 |         1|         1|         0|
+|lt5105|30301|SYS                 |AFL_FUNCTIONS_                                             |         1|         1|         0|
+|lt5105|30301|SYS                 |AFL_FUNCTION_PARAMETERS_                                   |         1|         1|         0|
+|lt5105|30301|SYS                 |AFL_FUNCTION_PROPERTIES_                                   |         1|         1|         0|
+|lt5105|30301|SYS                 |AFL_PACKAGES_                                              |         1|         1|         0|
+|lt5105|30301|SYS                 |AFL_TEXTS_                                                 |         1|         1|         0|
+|lt5105|30301|SYS                 |AGENTS_                                                    |         1|         1|         0|
+|lt5105|30301|SYS                 |AGENT_GROUPS_                                              |         1|         1|         0|
+|lt5105|30301|SYS                 |ASSOCIATIONS_                                              |         1|         1|         0|
+--------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  PORT,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  LPAD(CONT_TOTAL, 10) CONT_TOTAL,
+  LPAD(CONT_TOTAL - CONT_TEMP, 10) CONT_PERM,
+  LPAD(CONT_TEMP, 10) CONT_TEMP
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')      != 0 THEN C.HOST                     ELSE MAP(BI.HOST,         '%', 'any', BI.HOST)                     END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(C.PORT)         ELSE MAP(BI.PORT,         '%', 'any', BI.PORT)                     END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')    != 0 THEN C.SCHEMA_NAME              ELSE MAP(BI.SCHEMA_NAME,  '%', 'any', BI.SCHEMA_NAME)              END SCHEMA_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')     != 0 THEN C.TABLE_NAME               ELSE MAP(BI.TABLE_NAME,   '%', 'any', BI.TABLE_NAME)               END TABLE_NAME,
+    COUNT(*) CONT_TOTAL,
+    SUM(CASE WHEN CID >= 1073741824 THEN 1 ELSE 0 END) CONT_TEMP
+  FROM
+  ( SELECT               /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      '%' SCHEMA_NAME,
+      '%' TABLE_NAME,
+      1 MIN_SLOT_SIZE_BYTE,
+      'TABLE' AGGREGATE_BY              /* HOST, PORT, SCHEMA, TABLE or comma separated combinations, NONE for no aggregation */
+    FROM
+      DUMMY
+  ) BI,
+    SYS.M_DEV_RS_CONTAINER_INFO C
+  WHERE
+    C.HOST LIKE BI.HOST AND
+    TO_VARCHAR(C.PORT) LIKE BI.PORT AND
+    C.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    C.TABLE_NAME LIKE BI.TABLE_NAME AND
+    ( BI.MIN_SLOT_SIZE_BYTE = -1 OR C.SLOT_SIZE >= BI.MIN_SLOT_SIZE_BYTE )
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')      != 0 THEN C.HOST                     ELSE MAP(BI.HOST,         '%', 'any', BI.HOST)                     END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(C.PORT)         ELSE MAP(BI.PORT,         '%', 'any', BI.PORT)                     END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')    != 0 THEN C.SCHEMA_NAME              ELSE MAP(BI.SCHEMA_NAME,  '%', 'any', BI.SCHEMA_NAME)              END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')     != 0 THEN C.TABLE_NAME               ELSE MAP(BI.TABLE_NAME,   '%', 'any', BI.TABLE_NAME)               END
+)
+ORDER BY
+  CONT_TOTAL DESC,
+  HOST,
+  PORT,
+  SCHEMA_NAME,
+  TABLE_NAME
+  

@@ -1,0 +1,180 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_SQL_PlanStability_StatementHints_1.00.122.03+
+
+[DESCRIPTION]
+
+- Display SAP HANA statement hints (SAP Note 2400006)
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Statement hints available starting with Rev. 1.00.122.03
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.122.03
+
+[SQL COMMAND VERSION]
+
+- 2017/04/03:  1.0 (initial version)
+- 2017/10/26:  1.1 (TIMEZONE included)
+
+[INVOLVED TABLES]
+
+- STATEMENT_HINTS
+
+[INPUT PARAMETERS]
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- STATEMENT_STRING
+
+  SQL statement string
+
+  'SELECT%'       --> SQL statements starting with 'SELECT'
+  '%'             --> All statement strings
+
+- HINT_STRING
+
+  Hint string
+
+  'NO_CS_JOIN'    --> Only show entries with hint NO_CS_JOIN
+  '%'             --> No restriction related to hints
+
+- IS_ENABLED
+
+  Flag if hint is currently enabled or not
+
+  'TRUE'          --> Statement hint is enabled
+  'FALSE'         --> Statement hint is disabled
+  '%'             --> No restriction
+
+- USER_NAME
+
+  Name of user who has enabled the statement hint
+
+  'SAPSR3'        --> Filter for hints being enabled by user SAPSR3
+  '%'             --> No restriction related to enabling user
+
+- EXCLUDE_PREDEFINED_ENTRIES
+
+  Possibility to exclude statement hints that are pre-delivered (user is SYS)
+
+  'X'             --> Only show customer-specific statement hints
+  ' '             --> Consider all statement hints
+
+- LINE_LENGTH
+
+  Maximum displayed line size
+
+  50              --> Lines are wrapped after 50 characters
+  -1              --> No line wrapping
+
+- STATEMENT_STRING_LENGTH
+
+  Maximum length of statement string to be displayed
+
+  100             --> Only display the first 100 characters of the statement string
+  -1              --> No restriction related to statement string length
+
+[OUTPUT PARAMETERS]
+
+- STATEMENT_STRING:   Statement string
+- HINT_STRING:        Hint string (i.e. hints manually added by user)
+- SYSTEM_HINT_STRING: System hint string (i.e. hints predelivered during upgrade)
+- ENABLED:            Status of statement hint (TRUE -> enabled, FALSE -> disabled)
+- ENABLE_TIME:        Last enable time
+- USER_NAME:          Name of user who enabled statement hint last time
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+|STATEMENT_STRING                                                                |HINT_STRING                 |ENABLED|ENABLE_TIME        |USER_NAME|
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+|SELECT * FROM AAA, BBB WHERE AAA.X = BBB.X                                      |NO_CS_JOIN, NO_CS_UNION_ALL |TRUE   |2017/04/03 16:30:47|SYSTEM   |
+|SELECT Table__46.PRODUCT_EVENT_NUM, "A_PE_TASK"."TASK_STATUS", Table__372."DESCR|NO_CS_OUTER_JOIN_WITH_FILTER|TRUE   |2016/12/27 13:16:19|SYS      |
+|IPTION", "PE_PARTNER_PERSRESP_BUSINESS_PARTNER_FUNC"."BP_NAME", "A_PE_PLI"."PLI_|                            |       |                   |         |
+|NUM", Table__387."DESCRIPTION", Table__210."TASK_STATUS" FROM "_Z_GCH_MAIN"."H_C|                            |       |                   |         |
+|ODE" Table__387 RIGHT OUTER JOIN "_Z_GCH_MAIN"."H_TASK_VW" Table__210 ON (Table_|                            |       |                   |         |
+|_210."TASK_TYPE_KEY"=Table__387."CODE_KEY" AND Table__387."CODE_TYPE" IN ('CRMC_|                            |       |                   |         |
+|ACT_CAT_T', 'DEFAULT')) RIGHT OUTER JOIN "_Z_GCH_MAIN"."H_PRODUCT_EVENT_VW" Tabl|                            |       |                   |         |
+|e__46 ON (Table__46."PRODUCT_EVENT_ID"=Table__210."HEADER_ID") LEFT OUTER JOIN "|                            |       |                   |         |
+|_Z_GCH_MAIN"."H_BP_TRANS_FUNCTION_VW" "PE_PARTNER_BURESP_BUSINESS_PARTNER_FUNC" |                            |       |                   |         |
+|ON (Table__46."PRODUCT_EVENT_ID"="PE_PARTNER_BURESP_BUSINESS_PARTNER_FUNC"."TRAN|                            |       |                   |         |
+|SACTION_ID" AND "PE_PARTNER_BURESP_BUSINESS_PARTNER_FUNC"."BP_FUNCTION_TYPE"='ZB|                            |       |                   |         |
+|U') LEFT OUTER JOIN "_Z_GCH_MAIN"."H_BP_TRANS_FUNCTION_VW" "PE_PARTNER_PERSRESP_|                            |       |                   |         |
+|BUSINESS_PARTNER_FUNC" ON (Table__46."PRODUCT_EVENT_ID"="PE_PARTNER_PERSRESP_BUS|                            |       |                   |         |
+|INESS_PARTNER_FUNC"."TRANSACTION_ID" AND "PE_PARTNER_PERSRESP_BUSINESS_PARTNER_F|                            |       |                   |         |
+|UNC"."BP_FUNCTION_TYPE" in ('00000022','ZPERRESP')) LEFT OUTER JOIN "_Z_GCH_MAIN|                            |       |                   |         |
+|"."H_PLI_VW" "A_PE_PLI" ON ("A_PE_PLI"."HEADER_ID"=Table__46."PRODUCT_EVENT_ID")|                            |       |                   |         |
+| LEFT OUTER JOIN "_Z_GCH_MAIN"."H_TASK_VW" "A_PE_TASK" ON (Table__46."PRODUCT_EV|                            |       |                   |         |
+|ENT_ID"="A_PE_TASK"."HEADER_ID" AND "A_PE_TASK"."PLI_ID" IS NULL AND "A_PE_TASK"|                            |       |                   |         |
+|."PARENT_TRANSACTION_ID" IS NULL) LEFT OUTER JOIN "_Z_GCH_MAIN"."H_CODE" Table__|                            |       |                   |         |
+|372 ON ("A_PE_TASK"."TASK_TYPE_KEY"=Table__372."CODE_KEY" AND Table__372."CODE_T|                            |       |                   |         |
+|YPE" IN ('CRMC_ACT_CAT_T', 'DEFAULT') AND "A_PE_TASK"."PLI_ID" IS NULL AND "A_PE|                            |       |                   |         |
+|_TASK"."PARENT_TRANSACTION_ID" IS NULL) WHERE ( "PE_PARTNER_BURESP_BUSINESS_PART|                            |       |                   |         |
+|NER_FUNC"."BP_NAME" = 'CRDM' AND Table__46."PRODUCT_EVENT_STATUS" NOT IN ( 'Clos|                            |       |                   |         |
+|ed','Void' ) )                                                                  |                            |       |                   |         |
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  SUBSTR(SH.STATEMENT_STRING, 1 + ( O.LINE_NO - 1 ) * SH.LINE_LENGTH, SH.LINE_LENGTH) STATEMENT_STRING,
+  MAP(ROW_NUMBER () OVER (PARTITION BY SH.STATEMENT_STRING ORDER BY O.LINE_NO), 1, SH.HINT_STRING, '')  HINT_STRING,
+  MAP(ROW_NUMBER () OVER (PARTITION BY SH.STATEMENT_STRING ORDER BY O.LINE_NO), 1, SH.SYSTEM_HINT_STRING, '')  SYSTEM_HINT_STRING,
+  MAP(ROW_NUMBER () OVER (PARTITION BY SH.STATEMENT_STRING ORDER BY O.LINE_NO), 1, SH.IS_ENABLED, '')  ENABLED,
+  MAP(ROW_NUMBER () OVER (PARTITION BY SH.STATEMENT_STRING ORDER BY O.LINE_NO), 1, TO_VARCHAR(SH.LAST_ENABLE_TIME, 'YYYY/MM/DD HH24:MI:SS'), '') ENABLE_TIME,
+  MAP(ROW_NUMBER () OVER (PARTITION BY SH.STATEMENT_STRING ORDER BY O.LINE_NO), 1, SH.USER_NAME, '') USER_NAME
+FROM
+( SELECT
+    TO_VARCHAR(SUBSTR(SH.STATEMENT_STRING, 1, MAP(BI.STATEMENT_STRING_LENGTH, -1, 5000, BI.STATEMENT_STRING_LENGTH))) STATEMENT_STRING,
+    IFNULL(SH.HINT_STRING, '') HINT_STRING,
+    IFNULL(SH.SYSTEM_HINT_STRING, '') SYSTEM_HINT_STRING,
+    SH.IS_ENABLED,
+    CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(SH.LAST_ENABLE_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE SH.LAST_ENABLE_TIME END LAST_ENABLE_TIME,
+    SH.LAST_ENABLE_USER USER_NAME,
+    BI.LINE_LENGTH
+  FROM
+  ( SELECT                 /* Modification section */
+      'SERVER' TIMEZONE,                              /* SERVER, UTC */
+      '%' STATEMENT_STRING,
+      '%' HINT_STRING,
+      '%' IS_ENABLED,
+      '%' USER_NAME,
+      ' ' EXCLUDE_PREDEFINED_ENTRIES,
+      80 LINE_LENGTH,
+      -1 STATEMENT_STRING_LENGTH
+    FROM
+      DUMMY
+  ) BI,
+    STATEMENT_HINTS SH
+  WHERE
+    TO_VARCHAR(SUBSTR(SH.STATEMENT_STRING, 1, 5000)) LIKE BI.STATEMENT_STRING AND
+    ( IFNULL(SH.HINT_STRING, '') LIKE BI.HINT_STRING OR IFNULL(SH.SYSTEM_HINT_STRING, '') LIKE BI.HINT_STRING ) AND
+    SH.IS_ENABLED LIKE BI.IS_ENABLED AND
+    SH.LAST_ENABLE_USER LIKE BI.USER_NAME AND
+    ( BI.EXCLUDE_PREDEFINED_ENTRIES = ' ' OR SH.LAST_ENABLE_USER != 'SYS' )
+) SH,
+( SELECT
+    ROW_NUMBER () OVER () LINE_NO
+  FROM
+    OBJECTS
+) O
+WHERE
+  O.LINE_NO <= GREATEST(1, CEILING(LENGTH(SH.STATEMENT_STRING) / LINE_LENGTH))
+ORDER BY
+  SH.STATEMENT_STRING,
+  O.LINE_NO

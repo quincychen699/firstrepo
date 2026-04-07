@@ -1,0 +1,215 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_IO_Flushes_Details_Internal_2.00.000+
+
+[DESCRIPTION]
+
+- flush thread activity details
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+- Flush thread is responsible for writing pages to disk (FlushResourcesThread)
+- M_PAGE_FLUSH_DETAILED_STATISTICS.SUM_MATERIALIZE_PAGE_DURATION no longer exists starting with SAP HANA 2.00.000,
+  values are now part of SUM_ASSEMBLE_PAGE_DURATION 
+- The hierarchy of times is as follows:
+
+  PREPARE_FLUSH_DURATION (from M_MEMORY_OBJECT_FLUSH_THREAD_STATISTICS_)
+    ASSIGN_PHYSICAL_PAGE_DURATION
+  FLUSH_DURATION         (from M_MEMORY_OBJECT_FLUSH_THREAD_STATISTICS_)
+    GET_PAGE_FOR_FLUSH_DURATION
+      ALLOCATE_SHADOW_PAGE_DURATION
+      COPY_TO_SHADOW_PAGE_DURATION
+      CALCULATE_CHECKSUM_DURATION
+      MATERIALIZE_PAGE_DURATION
+      ASSEMBLE_PAGE_DURATION
+      ENCRYPT_PAGE_DURATION
+    TRIGGER_WRITE_DURATION
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.000
+
+[SQL COMMAND VERSION]
+
+- 2016/04/20:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_PAGE_FLUSH_DETAILED_STATISTICS_
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- VOLUME_ID
+
+  Disk volume ID
+
+  3               --> Volume 3
+  -1              --> No restriction related to volume 
+
+- PAGE_TYPE
+
+  Page type (case-insensitive)
+
+  'DataPage, CriticalPhase' --> Only check for data pages written during critical savepoint phase
+  '%'                       --> No restriction related to page type
+
+- SIZE_CLASS
+
+  Page size class (case-insensitive)
+
+  '4k'            --> Only check pages of size 4 KB
+  '%'             --> No restriction related to size class
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'VOLUME'        --> Aggregation by volume ID
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+[OUTPUT PARAMETERS]
+
+- HOST:           Host name
+- PORT:           Port
+- VOL:            Volume ID
+- PAGE_TYPE:      Page type
+- SIZE_CLASS:     Size class
+- PAGE_COUNT:     Flushed pages
+- SIZE_GB:        Flush size (GB)
+- FLUSH_S:        Flush time (s)
+- ALLOC_SHDW_PCT: Allocation of shadow page time (% of total flush time)
+- CP_SHDW_PCT:    Copy to shadow page time (% of total flush time)
+- CHECKSUM_PCT:   Checksum calculation time (% of total flush time)
+- ASSEMBLE_PCT:   Page materialize (column store) and assemble (row store) time (% of total flush time)
+- ENCRYPT_PCT:    Page encryption time (% of total flush time)
+- TRIG_WRT_PCT:   Trigger write time (% of total flush time)
+- OTHER_PCT:      Time not recorded in one of the previous areas % of total flush time)
+- EMERG_COUNT:    Number of times the 16 MB emergency page was used during times of low memory (-> can result in long critical phases)
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|HOST|PORT |VOL|PAGE_TYPE                              |SIZE_CLASS|PAGES     |SIZE_GB|FLUSH_S |GET_PAGE_S|ALL_SHDW_S|CP_SHDW_S|CHECKSUM_S|MATERIALIZE_S|ASSEMBLE_S|ENCRYPT_S|TRIG_WRT_S|
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|any |  any|any|DataPage, CriticalPhase                |any       |       406|      0|       0|         0|         0|        0|         0|            0|         0|        0|         0|
+|any |  any|any|RowStoreConverterPage, NonCriticalPhase|any       |     15140|      4|       1|         1|         0|        0|         1|            0|         0|        0|         0|
+|any |  any|any|DataPage, NonCriticalPhase             |any       |    230465|     14|       9|         6|         0|        0|         5|            1|         0|        0|         0|
+|any |  any|any|DefaultConverterPage, CriticalPhase    |any       |       213|      0|       0|         0|         0|        0|         0|            0|         0|        0|         0|
+|any |  any|any|RowStoreConverterPage, CriticalPhase   |any       |       153|      0|       0|         0|         0|        0|         0|            0|         0|        0|         0|
+|any |  any|any|DefaultConverterPage, NonCriticalPhase |any       |     41380|     10|       4|         3|         0|        0|         3|            0|         0|        0|         1|
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  LPAD(VOLUME_ID, 3) VOL,
+  PAGE_TYPE,
+  SIZE_CLASS,
+  LPAD(PAGE_COUNT, 10) PAGE_COUNT,
+  LPAD(TO_DECIMAL(ROUND(SIZE_GB), 10, 0), 7) SIZE_GB,
+  LPAD(TO_DECIMAL(ROUND(FLUSH_S), 10, 0), 8) FLUSH_S,
+  LPAD(TO_DECIMAL(ROUND(ALLOC_SHDW_PCT), 14, 0), 14) ALLOC_SHDW_PCT,
+  LPAD(TO_DECIMAL(ROUND(CP_SHDW_PCT), 11, 0), 11) CP_SHDW_PCT,
+  LPAD(TO_DECIMAL(ROUND(CHECKSUM_PCT), 12, 0), 12) CHECKSUM_PCT,
+  LPAD(TO_DECIMAL(ROUND(ASSEMBLE_PCT), 12, 0), 12) ASSEMBLE_PCT,
+  LPAD(TO_DECIMAL(ROUND(ENCRYPT_PCT), 11, 0), 11) ENCRYPT_PCT,
+  LPAD(TO_DECIMAL(ROUND(TRIG_WRT_PCT), 12, 0), 12) TRIG_WRT_PCT,
+  LPAD(TO_DECIMAL(ROUND(OTHER_PCT), 10, 0), 9) OTHER_PCT,
+  LPAD(EMERG_COUNT, 11) EMERG_COUNT
+FROM
+( SELECT
+    HOST,
+    PORT,
+    VOLUME_ID,
+    PAGE_TYPE,
+    SIZE_CLASS,
+    PAGE_COUNT,
+    SIZE_GB,
+    FLUSH_S,
+    MAP(FLUSH_S, 0, 0, ALLOC_SHADOW_TIME_S / FLUSH_S * 100) ALLOC_SHDW_PCT,
+    MAP(FLUSH_S, 0, 0, COPY_SHADOW_TIME_S  / FLUSH_S * 100) CP_SHDW_PCT,
+    MAP(FLUSH_S, 0, 0, CHECKSUM_TIME_S     / FLUSH_S * 100) CHECKSUM_PCT,
+    MAP(FLUSH_S, 0, 0, ASSEMBLE_TIME_S     / FLUSH_S * 100) ASSEMBLE_PCT,
+    MAP(FLUSH_S, 0, 0, ENCRYPT_TIME_S      / FLUSH_S * 100) ENCRYPT_PCT,
+    MAP(FLUSH_S, 0, 0, TRIG_WRT_TIME_S     / FLUSH_S * 100) TRIG_WRT_PCT,
+    MAP(FLUSH_S, 0, 0, 100 - (ALLOC_SHADOW_TIME_S + COPY_SHADOW_TIME_S + CHECKSUM_TIME_S + ASSEMBLE_TIME_S + ENCRYPT_TIME_S + TRIG_WRT_TIME_S) / FLUSH_S * 100) OTHER_PCT,
+    EMERG_COUNT
+  FROM
+  ( SELECT
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')   != 0 THEN F.HOST               ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                   END HOST,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')   != 0 THEN TO_VARCHAR(F.PORT)      ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                   END PORT,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'VOLUME') != 0 THEN TO_VARCHAR(F.VOLUME_ID) ELSE MAP(BI.VOLUME_ID, -1, 'any', TO_VARCHAR(BI.VOLUME_ID)) END VOLUME_ID,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')   != 0 THEN F.PAGE_TYPE          ELSE MAP(BI.PAGE_TYPE, '%', 'any', BI.PAGE_TYPE)         END PAGE_TYPE,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SIZE')   != 0 THEN F.SIZE_CLASS         ELSE MAP(BI.SIZE_CLASS, '%', 'any', BI.SIZE_CLASS)       END SIZE_CLASS,
+      SUM(F.FLUSHED_PAGE_COUNT) PAGE_COUNT,
+      SUM(F.FLUSHED_PAGE_SIZE) / 1024 / 1024 / 1024 SIZE_GB,
+      SUM(F.SUM_FLUSH_DURATION) / 1000000 FLUSH_S,
+      SUM(F.SUM_GET_PAGE_FOR_FLUSH_DURATION) / 1000000 GET_PAGE_TIME_S,
+      SUM(F.SUM_ALLOCATE_SHADOW_PAGE_DURATION) / 1000000 ALLOC_SHADOW_TIME_S,
+      SUM(F.SUM_COPY_TO_SHADOW_PAGE_DURATION) / 1000000 COPY_SHADOW_TIME_S,
+      SUM(F.SUM_CALCULATE_CHECKSUM_DURATION) / 1000000 CHECKSUM_TIME_S,
+      SUM(F.SUM_ASSEMBLE_PAGE_DURATION) / 1000000 ASSEMBLE_TIME_S,
+      SUM(F.SUM_ENCRYPT_PAGE_DURATION) / 1000000 ENCRYPT_TIME_S,
+      SUM(F.SUM_TRIGGER_WRITE_DURATION) / 1000000 TRIG_WRT_TIME_S,
+      SUM(F.EMERGENCY_PAGE_USE_COUNT) EMERG_COUNT
+    FROM
+    ( SELECT                   /* Modification section */
+        '%' HOST,
+        '%' PORT,
+        -1 VOLUME_ID,
+        '%' PAGE_TYPE,
+        '%' SIZE_CLASS,
+        'NONE' AGGREGATE_BY              /* HOST, PORT, VOLUME, TYPE, SIZE or comma separated combinations, NONE for no aggregation */
+      FROM
+        DUMMY
+    ) BI,
+      SYS.M_PAGE_FLUSH_DETAILED_STATISTICS_ F
+    WHERE
+      F.HOST LIKE BI.HOST AND
+      TO_VARCHAR(F.PORT) LIKE BI.PORT AND
+      ( BI.VOLUME_ID = -1 OR F.VOLUME_ID = BI.VOLUME_ID ) AND
+      UPPER(F.PAGE_TYPE) LIKE UPPER(BI.PAGE_TYPE)
+    GROUP BY
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')   != 0 THEN F.HOST               ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                   END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')   != 0 THEN TO_VARCHAR(F.PORT)      ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                   END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'VOLUME') != 0 THEN TO_VARCHAR(F.VOLUME_ID) ELSE MAP(BI.VOLUME_ID, -1, 'any', TO_VARCHAR(BI.VOLUME_ID)) END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')   != 0 THEN F.PAGE_TYPE          ELSE MAP(BI.PAGE_TYPE, '%', 'any', BI.PAGE_TYPE)         END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SIZE')   != 0 THEN F.SIZE_CLASS         ELSE MAP(BI.SIZE_CLASS, '%', 'any', BI.SIZE_CLASS)       END
+  )
+)
+ORDER BY
+  FLUSH_S DESC,
+  HOST,
+  PORT,
+  VOLUME_ID,
+  PAGE_TYPE,
+  SIZE_CLASS
+

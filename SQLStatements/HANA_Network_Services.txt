@@ -1,0 +1,250 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Network_Services
+
+[DESCRIPTION]
+
+- Service network communication
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- RESET can be performed via:
+
+  ALTER SYSTEM RESET MONITORING VIEW M_SERVICE_NETWORK_IO_RESET
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2014/07/10:  1.0 (initial version)
+- 2014/09/01:  1.1 (INTRA_HOST_COMMUNICATION and INTER_HOST_COMMUNICATION restrictions included, AGGREGATE_BY included)
+- 2014/10/07:  1.2 (SEND_KB_PER_REQ and REC_KB_PER_REQ included)
+- 2015/05/12:  1.3 (M_SERVICE_NETWORK_IO_RESET included)
+- 2016/12/10:  1.4 (SEND_VOL_MBPS and REC_VOL_MBPS included)
+
+[INVOLVED TABLES]
+
+- M_SERVICE_NETWORK_IO
+- M_SERVICE_NETWORK_IO_RESET
+
+[INPUT PARAMETERS]
+
+- SENDER_HOST
+
+  Sender host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- SENDER_PORT
+
+  Sender port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- RECEIVER_HOST
+
+  Receiver host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- RECEIVER_PORT
+
+  Receiver port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports- CONN_ID
+
+- INTER_HOST_COMMUNICATION
+
+  Controls if communication between different hosts is displayed
+
+  'X'             --> Include communication between different hosts
+  ' '             --> Exclude communication between different hosts
+
+- INTRA_HOST_COMMUNICATION
+
+  Controls if communication within one host is displayed
+
+  'X'             --> Include communication within one host
+  ' '             --> Exclude communication within one host
+
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_ tables)
+  'RESET'         --> Data from reset information (*_RESET tables)
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'SENDER_HOST'                  --> Aggregation by sender host
+  'RECEIVER_HOST, RECEIVER_PORT' --> Aggregation by receiver host and receiver port
+  'NONE'                         --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'SENDER_HOST'          --> Sorting by sender host
+  'RECEIVE_TIME'         --> Sorting by receive time
+ 
+[OUTPUT PARAMETERS]
+
+- SEND_HOST:        Sender host
+- SEND_PORT:        Sender port
+- RECEIVE_HOST:     Receiver host
+- RECEIVE_PORT:     Receiver port
+- SEND_GB:          Amount of data sent (GB)
+- SEND_TIME_S:      Total send time (s)
+- SEND_TP_MBPS:     Send throughput (MB / s), based on active time
+- SEND_VOL_MBPS:    Send volume (MB / s), based on overall time
+- SEND_KB_PER_REQ:  Amount of data sent per request (KB)
+- REC_KB_PER_REQ:   Amount of data received per request (KB)
+- RECEIVE_GB:       Amount of data received (GB)
+- REC_TIME_S:       Total receive time (s) related to own requests
+- REC_TP_MBPS:      Receive throughput (MB / s), based on active time
+- REC_VOL_MBPS:     Receive volume (MB / s), based on overall time
+- REQUESTS:         Total number of requests
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------------------------------------------
+|SEND_HOST|SEND_PORT|RECEIVE_HOST|RECEIVE_PORT|SEND_GB   |RECEIVE_GB|SEND_TIME_S|RECEIVE_TIME_S|SEND_MB_PER_S|RECEIVE_MB_PER_S|REQUESTS|
+----------------------------------------------------------------------------------------------------------------------------------------
+|any      |    31103|any         |       31101|      0.20|      5.79|         10|         76349|        21.81|            0.07|  488209|
+|any      |    31103|any         |       31103|  26365.75|  11296.77|     319737|      13938354|        84.43|            0.82|11616349|
+|any      |    31103|any         |       31105|     48.24|      3.72|       2607|         46208|        18.94|            0.08|11528511|
+|any      |    31103|any         |       31107|      5.24|      0.27|         54|          3510|        99.61|            0.08|  479825|
+|any      |    31103|any         |       31102|      0.03|      1.21|          3|           866|        12.33|            1.43|  159830|
+|any      |    31103|any         |       31110|      0.03|      1.19|          3|           828|        12.80|            1.47|  159830|
+|any      |    31105|any         |       31102|      0.03|      0.07|          3|           741|        13.56|            0.10|  166353|
+|any      |    31105|any         |       31110|      0.03|      0.07|          3|           703|        14.45|            0.11|  166444|
+|any      |    31105|any         |       31103|    266.06|      3.92|       4070|         18220|        66.94|            0.22| 2733647|
+|any      |    31105|any         |       31101|      0.17|      0.22|          8|          7614|        24.09|            0.02|  501821|
+|any      |    31105|any         |       31105|      0.00|      0.03|          0|           445|         8.92|            0.06|   13500|
+|any      |    31105|any         |       31107|     24.55|      0.01|        102|           207|       247.04|            0.09|   86095|
+|any      |    31107|any         |       31101|      0.00|      0.00|          0|           462|         7.45|            0.00|     569|
+|any      |    31107|any         |       31103|      0.58|      0.16|         11|          1259|        54.56|            0.13|  293606|
+|any      |    31107|any         |       31105|      0.00|      0.00|          1|            23|         8.26|            0.23|   35873|
+----------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  SEND_HOST,
+  SEND_PORT,
+  RECEIVE_HOST,
+  RECEIVE_PORT,
+  SEND_GB,
+  LPAD(TO_DECIMAL(ROUND(SEND_TIME_S), 11, 0), 11) SEND_TIME_S,
+  SEND_TP_MBPS,
+  SEND_VOL_MBPS,
+  SEND_KB_PER_REQ,
+  RECEIVE_GB,
+  LPAD(TO_DECIMAL(ROUND(REC_TIME_S), 11, 0), 10) REC_TIME_S,
+  REC_TP_MBPS,
+  REC_VOL_MBPS,
+  REC_KB_PER_REQ,
+  REQUESTS
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'SENDER_HOST')   != 0 THEN SN.SENDER_HOST             ELSE MAP(BI.SENDER_HOST, '%', 'any', BI.SENDER_HOST)     END SEND_HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'SENDER_PORT')   != 0 THEN LPAD(SN.SENDER_PORT, 9)    ELSE MAP(BI.SENDER_PORT, '%', 'any', BI.SENDER_PORT)     END SEND_PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'RECEIVER_HOST') != 0 THEN SN.RECEIVER_HOST           ELSE MAP(BI.RECEIVER_HOST, '%', 'any', BI.RECEIVER_HOST) END RECEIVE_HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'RECEIVER_PORT') != 0 THEN LPAD(SN.RECEIVER_PORT, 12) ELSE MAP(BI.RECEIVER_PORT, '%', 'any', BI.RECEIVER_PORT) END RECEIVE_PORT,
+    LPAD(TO_DECIMAL(SUM(SN.SEND_SIZE) / 1024 / 1024 / 1024, 10, 2), 10) SEND_GB,
+    LPAD(TO_DECIMAL(SUM(SN.RECEIVE_SIZE) / 1024 / 1024 / 1024, 10, 2), 10) RECEIVE_GB,
+    LPAD(TO_DECIMAL(MAP(SUM(SN.SEND_DURATION), 0, 0, SUM(SN.SEND_SIZE) / 1024 / 1024 / ( SUM(SN.SEND_DURATION) / 1000 / 1000)), 10, 2), 12) SEND_TP_MBPS,
+    LPAD(TO_DECIMAL(MAP(SUM(SN.RECEIVE_DURATION), 0, 0, SUM(SN.RECEIVE_SIZE) / 1024 / 1024 / ( SUM(SN.RECEIVE_DURATION) / 1000 / 1000)), 10, 2), 11) REC_TP_MBPS,
+    LPAD(TO_DECIMAL(MAP(SUM(SN.SECONDS), 0, 0, SUM(SN.SEND_SIZE) / 1024 / 1024 / SUM(SN.SECONDS)), 10, 2), 13) SEND_VOL_MBPS,
+    LPAD(TO_DECIMAL(MAP(SUM(SN.SECONDS), 0, 0, SUM(SN.RECEIVE_SIZE) / 1024 / 1024 / SUM(SN.SECONDS)), 10, 2), 12) REC_VOL_MBPS,
+    SUM(SN.SEND_DURATION / 1000 / 1000) SEND_TIME_S,
+    SUM(SN.RECEIVE_DURATION / 1000 / 1000) REC_TIME_S,
+    LPAD(SUM(SN.REQUEST_COUNT), 10) REQUESTS,
+    LPAD(TO_DECIMAL(MAP(SUM(SN.REQUEST_COUNT), 0, 0, SUM(SN.SEND_SIZE) / 1024 / ( SUM(SN.REQUEST_COUNT))), 10, 2), 15) SEND_KB_PER_REQ,
+    LPAD(TO_DECIMAL(MAP(SUM(SN.REQUEST_COUNT), 0, 0, SUM(SN.RECEIVE_SIZE) / 1024 / ( SUM(SN.REQUEST_COUNT))), 10, 2), 14) REC_KB_PER_REQ,
+    BI.ORDER_BY
+  FROM
+  ( SELECT                            /* Modification section */
+      '%' SENDER_HOST,
+      '%' SENDER_PORT,
+      '%' RECEIVER_HOST,
+      '%' RECEIVER_PORT,
+      'X' INTER_HOST_COMMUNICATION,
+      'X' INTRA_HOST_COMMUNICATION,
+      'CURRENT' DATA_SOURCE,
+      'NONE' AGGREGATE_BY,            /* SENDER_HOST, SENDER_PORT, RECEIVER_HOST, RECEIVER_PORT or comma-separated combination, NONE for no aggregation */
+      'SENDER_HOST' ORDER_BY          /* SENDER_HOST, RECEIVER_HOST, SEND_SIZE, RECEIVE_SIZE, SEND_TIME, RECEIVE_TIME */
+    FROM
+      DUMMY
+  ) BI,
+  ( SELECT
+      'CURRENT' DATA_SOURCE,
+      SECONDS_BETWEEN(START_TIME, CURRENT_TIMESTAMP) SECONDS,
+      SENDER_HOST,
+      SENDER_PORT,
+      RECEIVER_HOST,
+      RECEIVER_PORT,
+      SEND_SIZE,
+      RECEIVE_SIZE,
+      SEND_DURATION,
+      RECEIVE_DURATION,
+      REQUEST_COUNT
+    FROM
+      M_SERVICE_NETWORK_IO N,
+      M_SERVICE_STATISTICS S
+    WHERE
+      S.HOST = N.SENDER_HOST AND
+      S.PORT = N.SENDER_PORT
+    UNION ALL
+    SELECT
+      'RESET' DATA_SOURCE,
+      SECONDS_BETWEEN(RESET_TIME, CURRENT_TIMESTAMP) SECONDS,
+      SENDER_HOST,
+      SENDER_PORT,
+      RECEIVER_HOST,
+      RECEIVER_PORT,
+      SEND_SIZE,
+      RECEIVE_SIZE,
+      SEND_DURATION,
+      RECEIVE_DURATION,
+      REQUEST_COUNT
+    FROM
+      M_SERVICE_NETWORK_IO_RESET
+  ) SN
+  WHERE
+    SN.SENDER_HOST LIKE BI.SENDER_HOST AND
+    TO_VARCHAR(SN.SENDER_PORT) LIKE BI.SENDER_PORT AND
+    SN.RECEIVER_HOST LIKE BI.RECEIVER_HOST AND
+    TO_VARCHAR(SN.RECEIVER_PORT) LIKE BI.RECEIVER_PORT AND
+    SN.DATA_SOURCE = BI.DATA_SOURCE AND
+    ( BI.INTER_HOST_COMMUNICATION = 'X' AND SN.SENDER_HOST != SN.RECEIVER_HOST OR
+      BI.INTRA_HOST_COMMUNICATION = 'X' AND SN.SENDER_HOST = SN.RECEIVER_HOST
+    ) 
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'SENDER_HOST')   != 0 THEN SN.SENDER_HOST             ELSE MAP(BI.SENDER_HOST, '%', 'any', BI.SENDER_HOST)     END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'SENDER_PORT')   != 0 THEN LPAD(SN.SENDER_PORT, 9)    ELSE MAP(BI.SENDER_PORT, '%', 'any', BI.SENDER_PORT)     END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'RECEIVER_HOST') != 0 THEN SN.RECEIVER_HOST           ELSE MAP(BI.RECEIVER_HOST, '%', 'any', BI.RECEIVER_HOST) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'RECEIVER_PORT') != 0 THEN LPAD(SN.RECEIVER_PORT, 12) ELSE MAP(BI.RECEIVER_PORT, '%', 'any', BI.RECEIVER_PORT) END,
+    BI.ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'SENDER_HOST', SEND_HOST, 'RECEIVER_HOST', RECEIVE_HOST),
+  MAP(ORDER_BY, 'SEND_SIZE', SEND_GB, 'RECEIVE_SIZE', RECEIVE_GB, 'SEND_TIME', SEND_TIME_S, 'RECEIVE_TIME', REC_TIME_S) DESC

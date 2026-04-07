@@ -1,0 +1,747 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Configuration_Overview
+
+[DESCRIPTION]
+
+- General information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2014/03/31:  1.0 (initial version)
+- 2014/05/30:  1.1 (moved parts to other commands like HANA_Configuration_MiniChecks or HANA_Hosts*)
+- 2014/09/05:  1.2 (several feature checks added)
+- 2014/09/27:  1.3 (SAP_NOTES added)
+
+[INVOLVED TABLES]
+
+- various
+
+[INPUT PARAMETERS]
+
+[OUTPUT PARAMETERS]
+
+- NAME:      Name of information and check
+- VALUE:     Related value
+- SAP_NOTES: Related SAP Note numbers
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------------------------------
+|NAME                                     |VALUE                                        |SAP_NOTES                         |
+----------------------------------------------------------------------------------------------------------------------------
+|GENERAL INFORMATION:                     |                                             |                                  |
+|                                         |                                             |                                  |
+|Database type                            |SAP HANA                                     |2000003                           |
+|Evaluation time                          |2014/09/27 12:18:27                          |                                  |
+|Evaluation user                          |SAPPRD                                       |                                  |
+|OS user                                  |prdadm (80384) (8 hosts)                     |                                  |
+|SAP database users                       |SAPHANA01                                    |                                  |
+|                                         |SAPPRD                                       |                                  |
+|SAP database schemas                     |SAPHANA01                                    |                                  |
+|                                         |SAPPRD                                       |                                  |
+|                                         |SAP_HANA_ADMIN                               |                                  |
+|                                         |SAP_XS_LM                                    |                                  |
+|Startup time                             |2014/09/13 13:00:14                          |                                  |
+|                                         |2014/09/13 13:00:25 (saphana0032)            |                                  |
+|                                         |2014/09/13 13:00:16 (saphana0033)            |                                  |
+|                                         |2014/09/13 13:00:15 (saphana0034)            |                                  |
+|                                         |2014/09/13 13:00:15 (saphana0035)            |                                  |
+|                                         |2014/09/13 13:00:15 (saphana0041)            |                                  |
+|                                         |2014/09/13 13:00:14 (saphana0042)            |                                  |
+|                                         |2014/09/13 13:00:14 (saphana0043)            |                                  |
+|                                         |2014/09/13 13:00:14 (saphana0044)            |                                  |
+|Database name                            |P06                                          |                                  |
+|Instance name                            |P06                                          |                                  |
+|Instance number                          |00                                           |                                  |
+|Distributed system                       |yes (8 hosts)                                |                                  |
+|Everything started                       |yes                                          |                                  |
+|Version                                  |1.00.74.02.392316 (NewDB100_REL)             |                                  |
+|Support package stack                    |SPS 07                                       |                                  |
+|Number of hosts                          |8                                            |                                  |
+|Host role                                |MASTER   (saphana0032)                       |                                  |
+|                                         |SLAVE    (saphana0033)                       |                                  |
+|                                         |SLAVE    (saphana0034)                       |                                  |
+|                                         |SLAVE    (saphana0041)                       |                                  |
+|                                         |SLAVE    (saphana0042)                       |                                  |
+|                                         |SLAVE    (saphana0043)                       |                                  |
+|                                         |SLAVE    (saphana0044)                       |                                  |
+|                                         |STANDBY  (saphana0035)                       |                                  |
+|Host directory                           |/usr/sap/P06/HDB00/saphana0032/ (saphana0032)|                                  |
+|                                         |/usr/sap/P06/HDB00/saphana0033/ (saphana0033)|                                  |
+|                                         |/usr/sap/P06/HDB00/saphana0034/ (saphana0034)|                                  |
+|                                         |/usr/sap/P06/HDB00/saphana0035/ (saphana0035)|                                  |
+|                                         |/usr/sap/P06/HDB00/saphana0041/ (saphana0041)|                                  |
+|                                         |/usr/sap/P06/HDB00/saphana0042/ (saphana0042)|                                  |
+|                                         |/usr/sap/P06/HDB00/saphana0043/ (saphana0043)|                                  |
+|                                         |/usr/sap/P06/HDB00/saphana0044/ (saphana0044)|                                  |
+|Timezone                                 |CEST (8 hosts)                               |                                  |
+|                                         |                                             |                                  |
+|PATCH HISTORY:                           |                                             |                                  |
+|                                         |                                             |                                  |
+|2014/08/09 11:33:12                      |1.00.74.02.392316                            |                                  |
+|2014/03/15 09:11:31                      |1.00.72.00.388670                            |                                  |
+|2014/02/15 12:58:30                      |1.00.69.385196                               |                                  |
+|                                         |                                             |                                  |
+|FEATURE AND CONFIGURATION INFORMATION:   |                                             |                                  |
+|                                         |                                             |                                  |
+|Database log mode                        |normal      (default)                        |1642148                           |
+|Automatic log backup                     |yes         (default)                        |1642148                           |
+|Query result cache                       |no          (default)                        |2014148                           |
+|Global auditing state                    |false       (default)                        |1991634                           |
+|Self-signed certificates                 |false       (default)                        |1891055                           |
+|Hostname resolution for default route    |ip          (default)                        |1906381                           |
+|Mountpoint usage for data and log volumes|yes         (default)                        |1809453, 1820553                  |
+|Client distribution mode                 |statement   (default)                        |1743225, 1745057, 1774187, 1785171|
+|Parallel mode                            |Auto        (default)                        |2036111                           |
+|Parallelism of table preload             |5           (default)                        |2036111                           |
+|Table preload during startup             |true        (default)                        |1889081                           |
+|Embedded statistics server active        |false       (default)                        |1917938                           |
+|Standalone statistics server active      |true        (default)                        |2036111                           |
+|Listen interface                         |.global                                      |1999797                           |
+|                                         |                                             |                                  |
+|SPACE INFORMATION:                       |                                             |                                  |
+|                                         |                                             |                                  |
+|Database size on disk (GB)               |      1746.19                                |                                  |
+|Data backup size (GB)                    |      1726.41                                |                                  |
+|Row store size total (GB)                |       212.10 (saphana0032)                  |                                  |
+|Column store size total (GB)             |      1213.39                                |                                  |
+|Row store tables                         |      2488 (SAP schema:   2246)              |                                  |
+|Column store tables                      |     70566 (SAP schema:  70400)              |                                  |
+----------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  'GENERAL INFORMATION:' NAME,
+  ' ' VALUE,
+  ' ' SAP_NOTES
+FROM
+  DUMMY
+UNION ALL
+( SELECT
+    ' ',
+    ' ',
+    ' '
+  FROM
+    DUMMY
+)
+UNION ALL
+( SELECT
+    'Database type',
+    'SAP HANA',
+    '2000003'
+  FROM
+    DUMMY
+)
+UNION ALL
+( SELECT
+    'Support package stack',
+    'SPS' || CHAR(32) || CASE
+      WHEN REVISION BETWEEN 120 AND 129 THEN '12'
+      WHEN REVISION BETWEEN 110 AND 119 THEN '11'
+      WHEN REVISION BETWEEN 100 AND 109 THEN '10'
+      WHEN REVISION BETWEEN  90 AND  99 THEN '09'
+      WHEN REVISION BETWEEN  80 AND  89 THEN '08'
+      WHEN REVISION BETWEEN  70 AND  79 THEN '07'
+      WHEN REVISION BETWEEN  60 AND  69 THEN '06'
+      WHEN REVISION BETWEEN  45 AND  59 THEN '05'
+      WHEN REVISION BETWEEN  28 AND  44 THEN '04'
+      WHEN REVISION BETWEEN  20 AND  27 THEN '03'
+      WHEN REVISION BETWEEN  12 AND  19 THEN '02'
+      WHEN REVISION BETWEEN   1 AND  11 THEN '01'
+    END,
+    ' '
+  FROM
+  ( SELECT 
+      SUBSTR(VALUE, LOCATE(VALUE, '.', 1, 2) + 1, LOCATE(VALUE, '.', 1, 3) - LOCATE(VALUE, '.', 1, 2) - 1) REVISION 
+    FROM 
+      M_SYSTEM_OVERVIEW 
+    WHERE 
+      SECTION = 'System' AND 
+      NAME = 'Version' 
+   )
+)
+UNION ALL
+( SELECT
+    'Revision',
+    VALUE,
+    ' '
+  FROM
+    M_SYSTEM_OVERVIEW
+  WHERE
+    SECTION = 'System' AND
+    NAME = 'Version'
+)
+UNION ALL
+( SELECT
+    'Evaluation time',
+    TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYY/MM/DD HH24:MI:SS'),
+    ' '
+  FROM
+    DUMMY
+)
+UNION ALL
+( SELECT
+    'Evaluation user',
+    CURRENT_USER,
+    ' '
+  FROM
+    DUMMY
+)
+UNION ALL
+( SELECT
+    'OS user',
+    VALUE || ' (' || COUNT(*) || ' host' || CASE WHEN COUNT(*) = 1 THEN '' ELSE 's' END || ')',
+    ' '
+  FROM
+    M_HOST_INFORMATION
+  WHERE
+    KEY = 'os_user'
+  GROUP BY
+    VALUE
+  ORDER BY
+    VALUE
+)
+UNION ALL
+( SELECT
+    MAP(ROW_NUMBER () OVER (ORDER BY USER_NAME), 1, 'SAP database users', ' '),
+    IFNULL(USER_NAME, 'none'),
+    ' '
+  FROM
+    DUMMY LEFT OUTER JOIN
+    USERS ON
+      USER_NAME LIKE 'SAP%'
+)
+UNION ALL
+( SELECT
+    MAP(ROW_NUMBER () OVER (ORDER BY SCHEMA_NAME), 1, 'SAP database schemas', ' '),
+    IFNULL(SCHEMA_NAME, 'none'),
+    ' '
+  FROM
+    DUMMY LEFT OUTER JOIN
+    SCHEMAS ON
+      SCHEMA_NAME LIKE 'SAP%'
+)
+UNION ALL
+( SELECT
+    'Startup time',
+    TO_VARCHAR(START_TIME, 'YYYY/MM/DD HH24:MI:SS'),
+    ' '
+  FROM
+    M_DATABASE
+)
+UNION ALL
+( SELECT
+    ' ',
+    TO_VARCHAR(TO_TIMESTAMP(SUBSTR(VALUE, 1, 19), 'YYYY-MM-DD HH24:MI:SS'), 'YYYY/MM/DD HH24:MI:SS') || ' (' || HOST || ')',
+    ' '
+  FROM
+    M_HOST_INFORMATION
+  WHERE
+    KEY = 'start_time'
+  ORDER BY
+    HOST
+)
+UNION ALL
+( SELECT
+    'Database name',
+    DATABASE_NAME,
+    ' '
+  FROM
+    M_DATABASE
+)
+UNION ALL
+( SELECT
+    'Instance name',
+    VALUE,
+    ' '
+  FROM
+    M_SYSTEM_OVERVIEW
+  WHERE
+    NAME = 'Instance ID'
+)
+UNION ALL
+( SELECT
+    'Instance number',
+    VALUE,
+    ' '
+  FROM
+    M_SYSTEM_OVERVIEW
+  WHERE
+    SECTION = 'System' AND
+    NAME = 'Instance Number'
+)
+UNION ALL
+( SELECT
+    'Distributed system',
+    LOWER(VALUE),
+    ' '
+  FROM
+    M_SYSTEM_OVERVIEW
+  WHERE
+    SECTION = 'System' AND
+    NAME = 'Distributed'
+)
+UNION ALL
+( SELECT
+    'Multitenant',
+    CASE WHEN NUM_INDEXSERVERS = 0 THEN 'yes (SystemDB)' WHEN IFNULL(MAX_PORT, 0) >= 40 THEN 'yes (TenantDB)' ELSE 'no' END,
+    ' '
+  FROM
+  ( SELECT
+      COUNT(*) NUM_INDEXSERVERS
+    FROM
+      M_SERVICES
+    WHERE
+      SERVICE_NAME = 'indexserver'
+  ),
+  ( SELECT
+      MAX(MOD(PORT, 100)) MAX_PORT
+    FROM
+      M_SERVICES
+    WHERE
+      SERVICE_NAME = 'indexserver'
+  )
+)
+UNION ALL
+( SELECT
+    'Everything started',
+    LOWER(VALUE),
+    ' '
+  FROM
+    M_SYSTEM_OVERVIEW
+  WHERE
+    SECTION = 'Services' AND
+    NAME = 'All Started'
+)
+UNION ALL
+( SELECT
+    'Number of hosts',
+    TO_VARCHAR(COUNT (DISTINCT HOST)),
+    ' '
+  FROM
+    M_SERVICES
+)
+UNION ALL
+( SELECT
+    MAP(ROW_NUMBER () OVER (ORDER BY COORDINATOR_TYPE, HOST), 1, 'Host role', ' '),
+    RPAD(COORDINATOR_TYPE, 8) || ' (' || HOST || ')',
+    ' '
+  FROM
+    M_SERVICES
+  WHERE
+    SERVICE_NAME = 'indexserver'
+  ORDER BY
+    COORDINATOR_TYPE,
+    HOST
+)
+UNION ALL
+( SELECT
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, 'Host directory', ' '),
+    VALUE || ' (' || HOST || ')',
+    ' '
+  FROM
+    M_HOST_INFORMATION
+  WHERE
+    KEY = 'sap_retrieval_path'
+  ORDER BY
+    HOST
+)
+UNION ALL
+( SELECT
+    'Timezone',
+    VALUE || ' (' || COUNT(*) || ' host' || CASE WHEN COUNT(*) = 1 THEN '' ELSE 's' END || ')',
+    ' '
+  FROM
+    M_HOST_INFORMATION
+  WHERE
+    KEY = 'timezone_name'
+  GROUP BY
+    VALUE
+  ORDER BY
+    VALUE
+)
+UNION ALL
+( SELECT
+    ' ',
+    ' ',
+    ' '
+  FROM
+    DUMMY
+)
+UNION ALL
+( SELECT
+    'PATCH HISTORY:',
+    ' ',
+    ' '
+  FROM
+    DUMMY
+)
+UNION ALL
+( SELECT
+    ' ',
+    ' ',
+    ' '
+  FROM
+    DUMMY
+)
+UNION ALL
+( SELECT
+    TO_VARCHAR(INSTALL_TIME, 'YYYY/MM/DD HH24:MI:SS'),
+    VERSION,
+    ' '
+  FROM
+    M_DATABASE_HISTORY
+  ORDER BY
+    INSTALL_TIME DESC
+)
+UNION ALL
+( SELECT
+    ' ',
+    ' ',
+    ' '
+  FROM 
+    DUMMY
+)
+UNION ALL
+( SELECT
+    'FEATURE AND CONFIGURATION INFORMATION:',
+    ' ',
+    ' '
+  FROM 
+    DUMMY
+)
+UNION ALL
+( SELECT
+    ' ',
+    ' ',
+    ' '
+  FROM 
+    DUMMY
+)
+UNION ALL
+( SELECT
+    MAP(ROW_NUMBER () OVER (ORDER BY REPLICATION_PATH DESC), 1, 'System replication', ' '),
+    IFNULL(REPLICATION_PATH, 'no'),
+    '1999880'
+  FROM
+  ( SELECT DISTINCT
+      REPLICATION_MODE || ' (' || SITE_NAME || ' -> ' || SECONDARY_SITE_NAME || ')' REPLICATION_PATH
+    FROM
+      DUMMY LEFT OUTER JOIN
+      M_SERVICE_REPLICATION ON
+        REPLICATION_MODE != ''
+  )
+  ORDER BY
+    REPLICATION_PATH DESC
+)
+UNION ALL
+( SELECT
+    'liveCache',
+    MAP(COUNT(*), 0, 'no', 'yes'),
+    ' '
+  FROM
+    M_LIVECACHE_CONTAINER_STATISTICS
+)
+UNION ALL
+( SELECT
+    'Activated audit policies',
+    TO_VARCHAR(COUNT(*)),
+    ' '
+  FROM
+    AUDIT_POLICIES
+  WHERE
+    IS_AUDIT_POLICY_ACTIVE = 'TRUE'
+)
+UNION ALL
+( SELECT
+    'Users with individual statement memory limit',
+    TO_VARCHAR(COUNT(*)),
+    '1999997'
+  FROM
+    USER_PARAMETERS
+  WHERE
+    PARAMETER = 'STATEMENT MEMORY LIMIT'
+)
+UNION ALL
+( SELECT
+    'Sequences',
+    TO_VARCHAR(TOTAL_SEQUENCES) || MAP(TOTAL_SEQUENCES, 0, '', MAP(SLT_SEQUENCES, 0, '',
+      ' (SLT:' || CHAR(32) || SLT_SEQUENCES || ')')) VALUE,
+    ''
+  FROM
+  ( SELECT
+      COUNT(*) TOTAL_SEQUENCES,
+      SUM(MAP(SUBSTR(SEQUENCE_NAME, 1, 12), 'SEQ_/1CADMC/', 1, 0)) SLT_SEQUENCES
+    FROM
+      SEQUENCES
+    WHERE
+      SCHEMA_NAME NOT IN ('SYS', 'SYSTEM')
+  )
+)
+UNION ALL
+( SELECT
+    'Triggers',
+    TO_VARCHAR(TOTAL_TRIGGERS) || MAP(TOTAL_TRIGGERS, 0, '', MAP(SLT_TRIGGERS, 0, '',
+      ' (SLT:' || CHAR(32) || SLT_TRIGGERS || ')')) VALUE,
+    ''
+  FROM
+  ( SELECT
+      COUNT(*) TOTAL_TRIGGERS,
+      SUM(MAP(SUBSTR(TRIGGER_NAME, 1, 5), '/1LT/', 1, 0) +
+        MAP(SUBSTR(TRIGGER_NAME, 1, 8), '/1CADMC/', 1, 0)) SLT_TRIGGERS
+    FROM
+      TRIGGERS
+    WHERE
+      OWNER_NAME NOT IN ('SYS', 'SYSTEM')
+  )
+)
+UNION ALL
+( SELECT
+    'Fulltext indexes',
+    TO_VARCHAR(COUNT(*)),
+    ''
+  FROM
+    INDEXES
+  WHERE
+    INDEX_TYPE = 'FULLTEXT' AND
+    SCHEMA_NAME != '_SYS_REPO'
+)
+UNION ALL
+( SELECT
+    'Inverted hash indexes',
+    TO_VARCHAR(COUNT(*)),
+    ''
+  FROM
+    INDEXES
+  WHERE
+    INDEX_TYPE LIKE 'INVERTED HASH%'
+)
+UNION ALL
+( SELECT
+    'Columns with explicit preload flag',
+    TO_VARCHAR(COUNT(*)),
+    '2127458'
+  FROM
+    TABLE_COLUMNS
+  WHERE
+    PRELOAD = 'TRUE'
+)
+UNION ALL
+( SELECT
+    'Tables with special unload priorities',
+    TO_VARCHAR(COUNT(*)),
+    '2127458'
+  FROM
+    TABLES
+  WHERE
+    IS_COLUMN_TABLE = 'TRUE' AND
+    IS_TEMPORARY = 'FALSE' AND
+    SUBSTR(SCHEMA_NAME, 1, 5) != '_SYS_' AND
+    SCHEMA_NAME NOT IN ( 'SYS' , 'SYSTEM' ) AND
+    ( ( TABLE_NAME LIKE '/BI%' OR TABLE_NAME LIKE '/B28/%' OR TABLE_NAME LIKE '0BW:BIA%' OR TABLE_NAME LIKE '$BPC$HC$%' ) AND UNLOAD_PRIORITY NOT IN (5, 7) OR
+      ( TABLE_NAME NOT LIKE '/BI%' AND TABLE_NAME NOT LIKE '/B28/%' AND TABLE_NAME NOT LIKE '0BW:BIA%' AND TABLE_NAME NOT LIKE '$BPC$HC$%' ) AND UNLOAD_PRIORITY != 5
+    )
+)
+UNION ALL
+( SELECT
+    'History tables',
+    TO_VARCHAR(COUNT(*)),
+    '1910610'
+  FROM
+    TABLES
+  WHERE
+    SESSION_TYPE = 'HISTORY'
+)
+UNION ALL
+( SELECT
+    'Virtual tables',
+    TO_VARCHAR(COUNT(*)),
+    '2180119'
+  FROM
+    TABLES
+  WHERE
+    TABLE_TYPE = 'VIRTUAL'
+)
+UNION ALL
+( SELECT
+    'Smart data access',
+    MAP(COUNT(*), 0, 'no', 'yes'),
+    '2180119'
+  FROM
+    REMOTE_SOURCES
+)
+UNION ALL
+( SELECT
+    DESCRIPTION,
+    IFNULL(SYSTEM_VALUE, IFNULL(HOST_VALUE, RPAD(IFNULL(DEFAULT_VALUE, INTERNAL_DEFAULT_VALUE), 12) || '(default)')),
+    SAP_NOTES
+  FROM
+  ( SELECT
+      P.LINE_NO,
+      P.DESCRIPTION,
+      P.SAP_NOTES,
+      P.DEFAULT_VALUE INTERNAL_DEFAULT_VALUE,
+      MAX(MAP(LAYER_NAME, 'DEFAULT', VALUE)) DEFAULT_VALUE,
+      MAX(MAP(LAYER_NAME, 'HOST',    VALUE)) HOST_VALUE,
+      MAX(MAP(LAYER_NAME, 'SYSTEM',  VALUE)) SYSTEM_VALUE
+    FROM 
+    ( SELECT  10 LINE_NO, 'Database log mode' DESCRIPTION,             'global.ini' FILE_NAME, 'persistence' SECTION,        'log_mode' KEY,                   '' DEFAULT_VALUE, '1642148' SAP_NOTES  FROM DUMMY UNION ALL
+      SELECT  20 LINE_NO, 'Automatic log backup',                      'global.ini',           'persistence',                'enable_auto_log_backup',         '',               '1642148'            FROM DUMMY UNION ALL
+      SELECT  30 LINE_NO, 'Query result cache',                        'indexserver.ini',      'cache',                      'resultcache_enabled',            '',               '2014148'            FROM DUMMY UNION ALL
+      SELECT  40 LINE_NO, 'Global auditing state',                     'global.ini',           'auditing configuration',     'global_auditing_state',          'false',          '1991634'            FROM DUMMY UNION ALL
+      SELECT  50 LINE_NO, 'Self-signed certificates',                  'global.ini',           'communication',              'sslCreateSelfSignedCertificate', 'false',          '1891055'            FROM DUMMY UNION ALL
+      SELECT  60 LINE_NO, 'Hostname resolution for default route',     'global.ini',           'public_hostname_resolution', 'use_default_route',              '',               '1906381'            FROM DUMMY UNION ALL
+      SELECT  70 LINE_NO, 'Mountpoint usage for data and log volumes', 'global.ini',           'persistence',                'use_mountpoints',                '',               '1809453, 1820553'   FROM DUMMY UNION ALL
+      SELECT  80 LINE_NO, 'Client distribution mode',                  'indexserver.ini',      'distribution',               'client_distribution_mode',       '',               '2200772'            FROM DUMMY UNION ALL
+      SELECT  90 LINE_NO, 'Parallel mode',                             'indexserver.ini',      'parallel',                   'mode',                           '',               '2036111'            FROM DUMMY UNION ALL
+      SELECT 100 LINE_NO, 'Parallelism of table preload',              'indexserver.ini',      'parallel',                   'tables_preloaded_in_parallel',   '',               '2127458'            FROM DUMMY UNION ALL
+      SELECT 110 LINE_NO, 'Table preload during startup',              'indexserver.ini',      'sql',                        'reload_tables',                  '',               '2127458'            FROM DUMMY UNION ALL
+      SELECT 120 LINE_NO, 'Embedded statistics server active',         'nameserver.ini',       'statisticsserver',           'active',                         '',               '2147247'            FROM DUMMY UNION ALL
+      SELECT 130 LINE_NO, 'Standalone statistics server active',       'statisticsserver.ini', 'statisticsserver_general',   'active',                         '',               '2147247'            FROM DUMMY UNION ALL
+      SELECT 140 LINE_NO, 'Listen interface',                          'global.ini',           'communication',              'listeninterface',                '',               '1999797'            FROM DUMMY
+    ) P LEFT OUTER JOIN
+      M_INIFILE_CONTENTS I ON
+        I.FILE_NAME = P.FILE_NAME AND
+        I.SECTION = P.SECTION AND
+        I.KEY = P.KEY
+    GROUP BY
+      P.LINE_NO,
+      P.DESCRIPTION,
+      P.SAP_NOTES,
+      P.DEFAULT_VALUE
+  )
+  ORDER BY
+    LINE_NO
+)
+UNION ALL
+( SELECT
+    ' ',
+    ' ',
+    ' '
+  FROM 
+    DUMMY
+)
+UNION ALL
+( SELECT
+    'SPACE INFORMATION:',
+    ' ',
+    ' '
+  FROM 
+    DUMMY
+)
+UNION ALL
+( SELECT
+    ' ',
+    ' ',
+    ' '
+  FROM 
+    DUMMY
+)
+UNION ALL
+( SELECT
+    'Database disk size allocated (GB)',
+    LPAD(TO_DECIMAL(SUM(TOTAL_SIZE) / 1024 / 1024 / 1024, 12, 2), 13),
+    ' '
+  FROM
+    M_VOLUME_FILES
+  WHERE
+    FILE_TYPE = 'DATA'
+)
+UNION ALL
+( SELECT
+    'Database disk size used (GB)',
+    LPAD(TO_DECIMAL(SUM(USED_SIZE) / 1024 / 1024 / 1024, 12, 2), 13),
+    ' '
+  FROM
+    M_VOLUME_FILES
+  WHERE
+    FILE_TYPE = 'DATA'
+)
+UNION ALL
+( SELECT
+    'Converter disk size (GB)',
+    LPAD(TO_DECIMAL(SUM(ALLOCATED_PAGE_SIZE) / 1024 / 1024 / 1024, 10, 2), 13),
+    ' '
+  FROM
+    M_CONVERTER_STATISTICS
+)
+UNION ALL
+( SELECT
+    'Data backup size (GB)',
+    LPAD(TO_DECIMAL(SUM(BACKUP_SIZE) / 1024 / 1024 / 1024, 12, 2), 13),
+    ' '
+  FROM
+  ( SELECT TOP 1
+      BACKUP_ID
+    FROM
+      M_BACKUP_CATALOG
+    WHERE
+      ENTRY_TYPE_NAME IN ( 'complete data backup', 'data snapshot' ) AND 
+      STATE_NAME = 'successful'
+    ORDER BY
+      UTC_START_TIME DESC
+  ) MB,
+    M_BACKUP_CATALOG_FILES B
+  WHERE
+    B.BACKUP_ID = MB.BACKUP_ID
+)
+UNION ALL
+( SELECT
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, 'Row store size total (GB)', ' '),
+    LPAD(TO_DECIMAL(SUM(ALLOCATED_SIZE) / 1024 / 1024 / 1024, 12, 2), 13) || ' (' || HOST || ')',
+    ' '
+  FROM
+    M_RS_MEMORY
+  GROUP BY
+    HOST
+  HAVING
+    SUM(ALLOCATED_SIZE) / 1024 / 1024 / 1024 > 3
+  ORDER BY
+    HOST
+)
+UNION ALL
+( SELECT
+    'Column store size total (GB)',
+    LPAD(TO_DECIMAL(SUM(TABLE_SIZE) / 1024 / 1024 / 1024, 12, 2), 13),
+    ' '
+  FROM
+    M_TABLES
+  WHERE
+    TABLE_TYPE = 'COLUMN'
+)
+UNION ALL
+( SELECT
+    'Row store tables',
+    LPAD(COUNT(*), 10) || '    (SAP schema: ' || LPAD(SUM(MAP(SUBSTR(SCHEMA_NAME, 1, 3), 'SAP', 1, 0)), 6) || ')',
+    ' '
+  FROM
+    TABLES
+  WHERE 
+    TABLE_TYPE = 'ROW'
+)
+UNION ALL
+( SELECT
+    'Column store tables',
+    LPAD(COUNT(*), 10) || '    (SAP schema: ' || LPAD(SUM(MAP(SUBSTR(SCHEMA_NAME, 1, 3), 'SAP', 1, 0)), 6) || ')',
+    ' '
+  FROM
+    TABLES
+  WHERE 
+    TABLE_TYPE = 'COLUMN'
+)

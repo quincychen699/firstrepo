@@ -1,0 +1,141 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Jobs_Executors_Waiting_Internal
+
+[DESCRIPTION]
+
+- Overview of waiting job executors
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+
+[VALID FOR]
+
+- Revisions:              any
+- Statistics server type: any
+
+[SQL COMMAND VERSION]
+
+- 2017/03/11:  1.0 (initial version)
+- 2019/04/09:  1.1 (dedicated 2.00.000+ version based on M_DEV_JOBEX_THREADGROUPS)
+
+[INVOLVED TABLES]
+
+- M_DEV_JOBEX_THREADGROUPS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- STATISTICS_NAME
+
+  JobExecutor statistics name
+
+  'jx-tg01'       --> Restrict output to JobExecutor thread group 01
+  'JobsWait%'     --> Restrict output to statistics starting with 'JobsWait'
+  '%'             --> No restriction related to statistics name
+
+- MIN_WAITING
+
+  Minimum number of waiting JobExecutors
+
+  50              --> Only display statistics with at least 50 waiting JobExecutors
+  -1              --> No restriction related to number of waiting JobExecutors
+
+- MAX_FREE
+
+  Minimum number of JobExecutors in NOSTEAL mode on primary socket
+
+  0               --> Only display statistics with 0 free JobExecutors
+  -1              --> No restriction related to free JobExecutors
+
+[OUTPUT PARAMETERS]
+
+- HOST:             Host name
+- PORT:             Port
+- NUMA_NODE:        NUMA node
+- CONC_CONF:        Configured max concurrency
+- CONC_DYN:         Dynamic max concurrency (e.g. reduced in case of high load)
+- TOTAL:            Total number of waiting JobExecutors
+- FREE:             Free JobExecutors
+- NOPREF:           Number of NOPREF JobExecutors
+- NUMAPREF:         Number of NUMAPREF JobExecutors
+- NOSTEAL:          Number of NOSTEAL JobExecutors
+- SYSTEM:           Number of SYSTEM JobExecutors
+- OTHER:            Number of OTHER JobExecutors
+- WAITING:          Number of WAITING JobExecutors
+- COMPLETED_JOBS:   Number of completed jobs
+- JOBBARRIER_WAITS: Number of Job barrier waits
+- STATISTICS_NAME:  JobExecutor statistics name
+
+[EXAMPLE OUTPUT]
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+|HOST       |PORT |NUMA_NODE|CONC_CONF|CONC_DYN|TOTAL|FREE|NOPREF|NUMAPREF|NOSTEAL|SYSTEM|OTHER|COMPLETED_JOBS|JOBBARRIER_WAITS|STATISTICS_NAME|
+------------------------------------------------------------------------------------------------------------------------------------------------
+|saphana_001|31003|       15|       24|      11|   59|   0|     6|       0|      0|     0|    0|     526072936|        17489963|jx-tg15        |
+|saphana_001|31003|       14|       24|       3|   51|   0|     1|      32|      0|     0|    0|     174353149|       301580361|jx-tg14        |
+------------------------------------------------------------------------------------------------------------------------------------------------
+*/
+
+  J.HOST,
+  LPAD(J.PORT, 5) PORT,
+  LPAD(J.THREAD_GROUP, 9) NUMA_NODE,
+  LPAD(J.MAX_CONCURRENCY_CONFIG, 9) CONC_CONF,
+  LPAD(J.MAX_CONCURRENCY_DYNAMIC, 8) CONC_DYN,
+  LPAD(J.TOTAL_WORKER_COUNT, 5) TOTAL,
+  LPAD(J.FREE_WORKER_COUNT, 4) FREE,
+  LPAD(J.OPEN_NOPREF_PRIMARY_COUNT, 6) NOPREF,
+  LPAD(J.OPEN_NUMAPREF_PRIMARY_COUNT, 8) NUMAPREF,
+  LPAD(J.OPEN_NOSTEAL_PRIMARY_COUNT, 7) NOSTEAL,
+  LPAD(J.OPEN_SYSTEM_PRIMARY_COUNT, 6) SYSTEM,
+  LPAD(J.OPEN_OTHER_PRIMARY_COUNT, 5) OTHER,
+  LPAD(J.COMPLETED_JOBS_COUNT, 14) COMPLETED_JOBS,
+  LPAD(J.JOBBARRIER_WAIT_COUNT, 16) JOBBARRIER_WAITS,
+  J.STATISTICS_NAME
+FROM
+( SELECT                    /* Modification section */
+    '%' HOST,
+    '%' PORT,
+    '%' STATISTICS_NAME,
+    0 MAX_FREE,
+    -1 MIN_NOSTEAL,
+    'TOTAL' ORDER_BY        /* TOTAL, NOSTEAL, NAME */
+  FROM
+    DUMMY
+) BI,
+  SYS.M_DEV_JOBEX_THREADGROUPS J
+WHERE
+  J.HOST LIKE BI.HOST AND
+  TO_CHAR(J.PORT) LIKE BI.PORT AND
+  J.STATISTICS_NAME LIKE BI.STATISTICS_NAME AND
+  ( BI.MAX_FREE = -1 OR J.FREE_WORKER_COUNT <= BI.MAX_FREE ) AND
+  ( BI.MIN_NOSTEAL = -1 OR J.OPEN_NOSTEAL_PRIMARY_COUNT >= BI.MIN_NOSTEAL )
+ORDER BY
+  MAP(BI.ORDER_BY, 'TOTAL', J.TOTAL_WORKER_COUNT, 'NOSTEAL', J.OPEN_NOSTEAL_PRIMARY_COUNT) DESC,
+  MAP(BI.ORDER_BY, 'NAME', J.STATISTICS_NAME )

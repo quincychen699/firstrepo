@@ -1,0 +1,180 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_LOBs_LOBFiles
+
+[DESCRIPTION]
+
+- Overview of disk LOB files
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2016/02/16:  1.0 (initial version)
+- 2016/02/26:  1.1 (PHYS_PER_FILE_MB and BIN_PER_FILE_MB added)
+
+[INVOLVED TABLES]
+
+- M_TABLE_LOB_FILES
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TABLE'         --> Aggregation by table name
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+[OUTPUT PARAMETERS]
+
+- HOST:             Host name
+- PORT:             Port
+- SERVICE:          Service name
+- SCHEMA_NAME:      Schema name
+- TABLE_NAME:       Table name
+- COLUMN_NAME:      LOB column name
+- LOB_TYPE:         Type of LOB
+- NUM_FILES:        Number of LOB files
+- PHYS_SIZE_MB:     Physical LOB size (MB)
+- BIN_SIZE_MB:      Binary LOB size (MB)
+- PHYS_PER_FILE_MB: Physical size per disk LOB file (MB)
+- BIN_PER_FILE_MB:  Binary size per disk LOB file (MB)
+- PAGES:            Number of allocated pages
+
+[EXAMPLE OUTPUT]
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+|HOST  |PORT |SERVICE_NAME|SCHEMA_NAME    |TABLE_NAME                       |COLUMN_NAME             |LOB_TYPE|NUM_FILES|PHYS_SIZE_MB|BIN_SIZE_MB|PAGES    |
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+|hana01|34003|indexserver |SAPSR3         |CRMCONT                          |CLUSTD                  |BLOB    | 54466127|  1450294.14| 1392335.53|107639484|
+|hana01|34003|indexserver |SAPSR3         |SXMSCLUR                         |CLUSTD                  |BLOB    | 12313837|   357465.10|  346449.88| 25003870|
+|hana01|34003|indexserver |SAPSR3         |CRMORDERCONT                     |CLUSTD                  |BLOB    | 11600387|   329599.05|  318481.46| 23234345|
+|hana01|34003|indexserver |SAPSR3         |/SVC/RSP_DATAIN                  |CLUSTD                  |BLOB    | 60779358|   237419.36|  165666.89| 60779358|
+|hana01|34003|indexserver |SAPSR3         |STXL                             |CLUSTD                  |BLOB    | 24849124|   101025.71|   27587.47| 25862582|
+|hana01|34003|indexserver |SAPSR3         |SMW3_BDOC2                       |CLUSTD                  |BLOB    |  1891297|    26211.42|   22119.89|  5838718|
+|hana01|34003|indexserver |SAPSR3         |SXMSCLUP                         |CLUSTD                  |BLOB    |  3226300|    16875.74|   11129.09|  4319591|
+|hana01|34003|indexserver |SAPSR3         |ODQDATA_F                        |XDATA                   |BLOB    |   399218|    11520.00|   10498.02|  1121714|
+|hana01|34003|indexserver |SAPSR3         |SOFFCONT1                        |CLUSTD                  |BLOB    |   927512|     9840.21|    8069.65|  1313953|
+|hana01|34003|indexserver |SAPSR3         |REPOLOAD                         |                        |BLOB    |   496973|     9327.41|    8069.18|  1051222|
+|hana01|34003|indexserver |SAPSR3         |/SNO/DT_EO_DB2                   |EO_DATA                 |BLOB    |   123712|     7346.57|    6831.03|   294777|
+|hana01|34003|indexserver |SAPSR3         |/SDF/SMON_CLUST                  |CLUSTD                  |BLOB    |   157351|     4911.63|    4795.79|   314998|
+|hana01|34003|indexserver |SAPSR3         |REPOSRC                          |DATA                    |BLOB    |   793095|     4143.80|    2265.38|   948478|
+|hana01|34003|indexserver |_SYS_REPO      |OBJECT_HISTORY                   |CVERSION                |NCLOB   |    47649|     1270.37|    1128.87|    92686|
+|hana01|34003|indexserver |_SYS_STATISTICS|HOST_SQL_PLAN_CACHE_BASE         |STATEMENT_STRING        |NCLOB   |   111506|     1018.07|     742.15|   214370|
+|hana01|34003|indexserver |SAPSR3         |/SVC/D_TEXT_M                    |TEXT                    |NCLOB   |   143968|      749.91|     419.20|   170982|
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  PORT,
+  SERVICE_NAME,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  COLUMN_NAME,
+  LOB_TYPE,
+  LPAD(NUM, 9) NUM_FILES,
+  LPAD(TO_DECIMAL(PHYS_SIZE_MB, 10, 2), 12) PHYS_SIZE_MB,
+  LPAD(TO_DECIMAL(BIN_SIZE_MB, 10, 2), 11) BIN_SIZE_MB,
+  LPAD(TO_DECIMAL(MAP(NUM, 0, 0, PHYS_SIZE_MB * 1024 / NUM), 10, 2), 16) PHYS_PER_FILE_KB,
+  LPAD(TO_DECIMAL(MAP(NUM, 0, 0, BIN_SIZE_MB * 1024 / NUM), 10, 2), 15) BIN_PER_FILE_KB,
+  LPAD(PAGES, 9) PAGES
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')     != 0 THEN L.HOST                                                                  ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                 END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')     != 0 THEN TO_VARCHAR(L.PORT)                                                         ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                 END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')  != 0 THEN S.SERVICE_NAME                                                          ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME) END SERVICE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')   != 0 THEN L.SCHEMA_NAME                                                           ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)   END SCHEMA_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')    != 0 THEN L.TABLE_NAME || MAP(L.PART_ID, 0, '', -1, '', ' (' || L.PART_ID || ')') ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME)     END TABLE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'COLUMN')   != 0 THEN L.COLUMN_NAME                                                           ELSE 'any'                                             END COLUMN_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')     != 0 THEN L.LOB_TYPE                                                              ELSE 'any'                                             END LOB_TYPE,
+    COUNT(*) NUM,
+    SUM(PHYSICAL_SIZE) / 1024 / 1024 PHYS_SIZE_MB,
+    SUM(BINARY_SIZE) / 1024 / 1024 BIN_SIZE_MB,
+    SUM(PAGE_COUNT) PAGES
+  FROM
+  ( SELECT                 /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      '%' SERVICE_NAME,
+      '%' SCHEMA_NAME,
+      '%' TABLE_NAME,
+      'NONE' AGGREGATE_BY                 /* HOST, PORT, SERVICE, SCHEMA, TABLE, COLUMN, TYPE or comma separated combinations, NONE for no aggregation */
+    FROM
+      DUMMY
+  ) BI,
+    M_SERVICES S,
+    M_TABLE_LOB_FILES L
+  WHERE
+    S.HOST LIKE BI.HOST AND
+    TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+    L.HOST = S.HOST AND
+    L.PORT = S.PORT AND
+    L.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    L.TABLE_NAME LIKE BI.TABLE_NAME
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')     != 0 THEN L.HOST                                                                  ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                 END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')     != 0 THEN TO_VARCHAR(L.PORT)                                                         ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                 END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')  != 0 THEN S.SERVICE_NAME                                                          ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')   != 0 THEN L.SCHEMA_NAME                                                           ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')    != 0 THEN L.TABLE_NAME || MAP(L.PART_ID, 0, '', -1, '', ' (' || L.PART_ID || ')') ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME)     END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'COLUMN')   != 0 THEN L.COLUMN_NAME                                                           ELSE 'any'                                             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')     != 0 THEN L.LOB_TYPE                                                              ELSE 'any'                                             END
+)
+ORDER BY
+  PHYS_SIZE_MB DESC

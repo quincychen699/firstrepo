@@ -1,0 +1,364 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_ColumnStore_Merges_1.00.70+
+
+[DESCRIPTION]
+
+- Delta merge information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- ERROR_DESCRIPTION only available as of revision 70 (M_DELTA_MERGE_STATISTICS)
+- ERROR_DESCRIPTION not displayed for HISTORY, because only ESS supports it
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.70
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2014/04/19:  1.0 (initial version)
+- 2014/07/14:  1.1 (ERROR_DESCRIPTION included)
+- 2014/11/24:  1.2 (HOST_DELTA_MERGE_STATISTICS included)
+- 2014/12/27:  1.3 (TYPE and MOTIVATION extended)
+- 2015/03/14:  1.4 (MERGE_ERROR included)
+- 2015/06/02:  1.5 (ONLY_CRITICAL_ERRORS included)
+
+[INVOLVED TABLES]
+
+- M_DELTA_MERGE_STATISTICS
+- HOST_DELTA_MERGE_STATISTICS
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  TO_TIMESTAMP('2014/06/05 14:05:00', 'YYYY/MM/DD HH24:MI:SS') --> Set begin time to 5th of June 2014, 14:05 
+  ADD_DAYS(CURRENT_TIMESTAMP, -2)                              --> Set begin time to two days before current time 
+
+- END_TIME
+
+  End time
+
+  TO_TIMESTAMP('2014/06/08 14:05:00', 'YYYY/MM/DD HH24:MI:SS') --> Set end time to 8th of June 2014, 14:05 
+  CURRENT_TIMESTAMP                                            --> Set end time to current time 
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- MIN_MERGE_DURATION_S
+
+  Threshold for minimum merge duration (in s)
+
+  600             --> Only display merges with a duration >= 600 s
+  -1              --> Show all merges
+
+- MIN_RECORDS_MERGED
+
+  Threshold for minimum number of merged records
+
+  1000000         --> Only display merges of at least 1000000 records
+  -1              --> No limitation based on merged records
+
+- MERGE_TYPE
+
+  Merge type
+
+  'MERGE'         --> Normal merges
+  'SPARSE'        --> Compression optimizations
+  '%'             --> No restriction related to merge type
+
+- MERGE_MOTIVATION
+
+  Merge motivation
+
+  'AUTO'          --> Auto and critical merge
+  'SMART'         --> Smart merge
+  'HARD'          --> Hard merge
+  '%'             --> No restriction related to merge motivation
+
+- MERGE_ERROR
+
+  Merge error message
+
+  '%6924%'        --> Only show merges that failed with an error containing '6924'
+  '%'             --> No restriction related to merge error message
+
+- ONLY_FAILED_MERGES
+
+  Possibility to restrict results to failed merges
+
+  'X'             --> Only show merges that were not successful
+  ' '             --> Show all merges
+
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_ tables)
+  'HISTORY'       --> Data from persisted history information (HOST_ tables)
+  '%'             --> All data sources
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- AGGREGATION_TYPE
+
+  Type of aggregation (e.g. average, sum, maximum)
+
+  'AVG'           --> Average value
+  'SUM'           --> Total value
+  'MAX'           --> Maximum value
+
+- TIME_AGGREGATE_BY
+
+  Aggregation by time (e.g. hours, days)
+
+  'DAY'           --> Aggregation by days
+  'WW'            --> Aggregation by calendar week
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'TIME'          --> Sorting by time
+  'TABLE'         --> Sorting by table name
+  
+[OUTPUT PARAMETERS]
+
+- START_TIME:      Start time of merge
+- HOST:            Host name
+- PORT:            Port
+- NUM:             Number of merges
+- TYPE:            Merge type
+- MOTIVATION:      Merge motivation
+- SCHEMA_NAME:     Schema name
+- TABLE_NAME:      Table name
+- DURATION_S:      Merge duration (s)
+- ROWS_MERGED:     Number of records merged
+- TIME_PER_ROW_MS: Merge time per record (ms)
+- LAST_ERROR:      Last error message (0 if no error)
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------------------------------------
+|START_TIME         |HOST   |SERVICE_NAME|NUM |TYPE          |SCHEMA_NAME|TABLE_NAME     |DURATION_S|RECORDS_MERGED|LAST_ERROR|
+-------------------------------------------------------------------------------------------------------------------------------
+|2014/05/06 16:18:24|saphana|indexserver |   1|RECLAIM (AUTO)|HANADB     |QRFC_I_QIN_LOCK|      0.14|         36306|         0|
+|2014/05/05 06:24:55|saphana|indexserver |   1|RECLAIM (AUTO)|HANADB     |QRFC_I_QIN_LOCK|      0.14|          5678|         0|
+|2014/05/04 16:02:52|saphana|indexserver |   1|RECLAIM (AUTO)|HANADB     |QRFC_I_QIN_LOCK|      0.08|          1365|         0|
+|2014/05/03 21:31:48|saphana|indexserver |   1|RECLAIM (AUTO)|HANADB     |QRFC_I_QIN_LOCK|      0.05|           361|         0|
+|2014/05/03 17:46:59|saphana|indexserver |   1|RECLAIM (AUTO)|HANADB     |QRFC_I_QIN_LOCK|      0.06|           109|         0|
+|2014/05/03 15:55:30|saphana|indexserver |   1|RECLAIM (AUTO)|HANADB     |QRFC_I_QIN_LOCK|      0.07|            30|         0|
+|2014/05/03 15:32:49|saphana|indexserver |   1|RECLAIM (AUTO)|HANADB     |QRFC_I_QIN_LOCK|      0.05|             5|         0|
+|2014/05/03 15:30:45|saphana|indexserver |   1|MERGE (AUTO)  |HANADB     |QRFC_I_QIN_LOCK|      0.37|           198|         0|
+|2014/04/29 20:22:51|saphana|indexserver |   1|RECLAIM (AUTO)|HANADB     |QRFC_I_QIN_LOCK|      0.25|         52880|         0|
+|2014/04/28 04:19:22|saphana|indexserver |   1|RECLAIM (AUTO)|HANADB     |QRFC_I_QIN_LOCK|      0.08|         11973|         0|
+|2014/04/26 15:47:52|saphana|indexserver |   1|RECLAIM (AUTO)|HANADB     |QRFC_I_QIN_LOCK|      0.06|            81|         0|
+|2014/04/26 15:30:07|saphana|indexserver |   1|MERGE (AUTO)  |HANADB     |QRFC_I_QIN_LOCK|      0.35|             3|         0|
+|2014/04/21 19:47:04|saphana|indexserver |   1|RECLAIM (AUTO)|HANADB     |QRFC_I_QIN_LOCK|      0.11|         18556|         0|
+|2014/04/21 03:27:09|saphana|indexserver |   1|RECLAIM (AUTO)|HANADB     |QRFC_I_QIN_LOCK|      0.06|          4685|         0|
+|2014/04/20 00:02:55|saphana|indexserver |   1|RECLAIM (AUTO)|HANADB     |QRFC_I_QIN_LOCK|      0.09|           951|         0|
+|2014/04/19 17:39:53|saphana|indexserver |   1|RECLAIM (AUTO)|HANADB     |QRFC_I_QIN_LOCK|      0.07|           196|         0|
+|2014/04/19 15:35:03|saphana|indexserver |   1|RECLAIM (AUTO)|HANADB     |QRFC_I_QIN_LOCK|      0.08|            21|         0|
+|2014/04/19 15:29:55|saphana|indexserver |   1|MERGE (AUTO)  |HANADB     |QRFC_I_QIN_LOCK|      0.20|            46|         0|
+|2014/04/16 05:19:33|saphana|indexserver |   1|RECLAIM (AUTO)|HANADB     |QRFC_I_QIN_LOCK|      0.00|         43100|         0|
+-------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  START_TIME,
+  HOST,
+  PORT,
+  LPAD(NUM, 5) NUM,
+  TYPE,
+  MOTIVATION,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  LPAD(TO_DECIMAL(DURATION_S, 10, 2), 10) DURATION_S,
+  LPAD(ROUND(RECORDS_MERGED), 11) ROWS_MERGED,
+  LPAD(TO_DECIMAL(MAP(RECORDS_MERGED, 0, 0, DURATION_S / RECORDS_MERGED * 1000), 10, 2), 15) TIME_PER_ROW_MS,
+  LAST_ERROR
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME')       != 0 THEN TO_VARCHAR(M.START_TIME, BI.TIME_AGGREGATE_BY) ELSE 'any'                                                     END START_TIME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')       != 0 THEN M.HOST                                      ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                         END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')       != 0 THEN TO_VARCHAR(M.PORT)                          ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                         END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')     != 0 THEN M.SCHEMA_NAME                               ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)           END SCHEMA_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')      != 0 THEN M.TABLE_NAME                                ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME)             END TABLE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')       != 0 THEN M.TYPE                                      ELSE MAP(BI.MERGE_TYPE, '%', 'any', BI.MERGE_TYPE)             END TYPE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MOTIVATION') != 0 THEN M.MOTIVATION                                ELSE MAP(BI.MERGE_MOTIVATION, '%', 'any', BI.MERGE_MOTIVATION) END MOTIVATION,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'ERROR')      != 0 THEN M.LAST_ERROR                                ELSE MAP(BI.MERGE_ERROR, '%', 'any', BI.MERGE_ERROR)           END LAST_ERROR,
+    COUNT(*) NUM,
+    MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(M.DURATION_S), 'AVG', AVG(M.DURATION_S), 'SUM', SUM(M.DURATION_S)) DURATION_S,
+    MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(M.RECORDS_MERGED), 'AVG', AVG(M.RECORDS_MERGED), 'SUM', SUM(RECORDS_MERGED)) RECORDS_MERGED,
+    BI.ORDER_BY
+  FROM
+  ( SELECT
+      BEGIN_TIME,
+      END_TIME,
+      HOST,
+      PORT,
+      SCHEMA_NAME,
+      TABLE_NAME,
+      MIN_MERGE_DURATION_S,
+      MIN_RECORDS_MERGED,
+      MERGE_TYPE,
+      MERGE_MOTIVATION,
+      MERGE_ERROR,
+      ONLY_FAILED_MERGES,
+      ONLY_CRITICAL_ERRORS,
+      DATA_SOURCE,
+      AGGREGATE_BY,
+      MAP(TIME_AGGREGATE_BY,
+        'NONE',        'YYYY/MM/DD HH24:MI:SS.FF3',
+        'HOUR',        'YYYY/MM/DD HH24',
+        'DAY',         'YYYY/MM/DD (DY)',
+        'HOUR_OF_DAY', 'HH24',
+        TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+      AGGREGATION_TYPE,
+      ORDER_BY
+    FROM
+    ( SELECT                                                /* Modification section */
+        TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS') BEGIN_TIME,  
+        TO_TIMESTAMP('9999/12/31 23:59:00', 'YYYY/MM/DD HH24:MI:SS') END_TIME,
+        '%' HOST,
+        '%' PORT,
+        '%' SCHEMA_NAME,
+        '%' TABLE_NAME,
+        -1 MIN_MERGE_DURATION_S,
+        -1 MIN_RECORDS_MERGED,
+        '%' MERGE_TYPE,                 /* MERGE, HINT, SPARSE, RECLAIM */
+        '%' MERGE_MOTIVATION,           /* AUTO, SMART, HARD, FORCED */
+        '%' MERGE_ERROR,
+        ' ' ONLY_FAILED_MERGES,         
+        ' ' ONLY_CRITICAL_ERRORS,        
+        'HISTORY' DATA_SOURCE,
+        'NONE' AGGREGATE_BY,           /* TIME, HOST, PORT, SCHEMA, TABLE, TYPE, MOTIVATION, ERROR and comma-separated combinations, NONE for no aggregation */
+        'NONE' TIME_AGGREGATE_BY,      /* HOUR, DAY, HOUR_OF_DAY or HANA time pattern, NONE for no aggregation */
+        'SUM' AGGREGATION_TYPE,       /* MAX, AVG, SUM */
+        'TIME' ORDER_BY              /* TIME, TABLE, OCCURRENCES, DURATION */
+      FROM
+        DUMMY
+    )
+  ) BI,
+  ( SELECT
+      'CURRENT' DATA_SOURCE,
+      HOST,
+      PORT,
+      SCHEMA_NAME,
+      TABLE_NAME ORIG_TABLE_NAME,
+      TABLE_NAME || MAP(PART_ID, 0, '', ' (' || PART_ID || ')') TABLE_NAME,
+      PART_ID,
+      START_TIME,
+      EXECUTION_TIME / 1000 DURATION_S,
+      TYPE,
+      MOTIVATION,
+      TO_BIGINT(GREATEST(0, MERGED_DELTA_RECORDS)) RECORDS_MERGED,
+      MAP(LAST_ERROR, '0', '0', LAST_ERROR || CHAR(32) || ERROR_DESCRIPTION) LAST_ERROR
+    FROM
+      M_DELTA_MERGE_STATISTICS
+    UNION ALL
+    ( SELECT
+        'HISTORY' DATA_SOURCE,
+        HOST,
+        PORT,
+        SCHEMA_NAME,
+        TABLE_NAME ORIG_TABLE_NAME,
+        TABLE_NAME || MAP(PART_ID, 0, '', ' (' || PART_ID || ')') TABLE_NAME,
+        PART_ID,
+        START_TIME,
+        EXECUTION_TIME / 1000 DURATION_S,
+        TYPE,
+        MOTIVATION,
+        TO_BIGINT(GREATEST(0, MERGED_DELTA_RECORDS)) RECORDS_MERGED,
+        TO_VARCHAR(LAST_ERROR) LAST_ERROR
+      FROM
+        _SYS_STATISTICS.HOST_DELTA_MERGE_STATISTICS
+    )
+  ) M
+  WHERE
+    M.HOST LIKE BI.HOST AND
+    M.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    M.ORIG_TABLE_NAME LIKE BI.TABLE_NAME AND
+    TO_VARCHAR(M.PORT) LIKE BI.PORT AND
+    M.START_TIME BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+    M.DATA_SOURCE LIKE BI.DATA_SOURCE AND
+    M.TYPE LIKE BI.MERGE_TYPE AND
+    M.MOTIVATION LIKE BI.MERGE_MOTIVATION AND
+    M.LAST_ERROR LIKE BI.MERGE_ERROR AND
+    ( BI.MIN_MERGE_DURATION_S = -1 OR M.DURATION_S >= BI.MIN_MERGE_DURATION_S ) AND
+    ( BI.MIN_RECORDS_MERGED = -1 OR M.RECORDS_MERGED >= BI.MIN_RECORDS_MERGED ) AND
+    ( BI.ONLY_FAILED_MERGES = ' ' OR M.LAST_ERROR != '0' ) AND
+    ( BI.ONLY_CRITICAL_ERRORS = ' ' OR
+      ( M.LAST_ERROR != '0' AND
+        M.LAST_ERROR != '2048' AND
+        M.LAST_ERROR NOT LIKE '%2480%' AND
+        M.LAST_ERROR NOT LIKE '%2481%' AND
+        M.LAST_ERROR NOT LIKE '%2482%' AND
+        M.LAST_ERROR NOT LIKE '%2486%'
+      )
+    )
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME')       != 0 THEN TO_VARCHAR(M.START_TIME, BI.TIME_AGGREGATE_BY) ELSE 'any'                                                     END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')       != 0 THEN M.HOST                                      ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')       != 0 THEN TO_VARCHAR(M.PORT)                          ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')     != 0 THEN M.SCHEMA_NAME                               ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)           END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')      != 0 THEN M.TABLE_NAME                                ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME)             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')       != 0 THEN M.TYPE                                      ELSE MAP(BI.MERGE_TYPE, '%', 'any', BI.MERGE_TYPE)             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MOTIVATION') != 0 THEN M.MOTIVATION                                ELSE MAP(BI.MERGE_MOTIVATION, '%', 'any', BI.MERGE_MOTIVATION) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'ERROR')      != 0 THEN M.LAST_ERROR                                ELSE MAP(BI.MERGE_ERROR, '%', 'any', BI.MERGE_ERROR)           END,
+    BI.AGGREGATION_TYPE,
+    BI.ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'TIME', START_TIME) DESC,
+  MAP(ORDER_BY, 'TABLE', TABLE_NAME),
+  MAP(ORDER_BY, 'OCCURRENCES', NUM, 'DURATION', DURATION_S) DESC
+
+    

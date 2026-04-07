@@ -1,0 +1,320 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_ABAP_ChangeDocuments
+
+[DESCRIPTION]
+
+- Overview of ABAP change document details
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Tables CDPOS and CDHDR only available in SAP ABAP environments
+- You have to be connected to the SAP<sid> schema otherwise the following error is issued:
+
+  [259]: invalid table name: Could not find table/view CDPOS in schema
+
+- If access to ABAP objects is possible but you cannot log on as ABAP user, you can switch the default schema before executing the command:
+
+  SET SCHEMA SAP<sid>
+
+[VALID FOR]
+
+- Revisions:              all
+- Client application:     ABAP
+
+[SQL COMMAND VERSION]
+
+- 2025/04/09:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- CDHDR
+- CDPOS
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- MANDT
+
+  ABAP client
+
+  '100'           --> ABAP client 100
+  '%'             --> No restriction to ABAP client
+
+- OBJECTCLASS
+
+  Object class
+
+  'PFCG'          --> Object class PFCG
+  '%'             --> No restriction related to object class
+
+- OBJECTID
+
+  Object ID
+
+  'T_PLM415'      --> Object ID T_PLM415
+  '%'             --> No restriction related to object ID
+
+- CHANGENR
+
+  Change number
+
+  '0000372979'    --> Change number 0000372979
+  '%'             --> No restriction related to change number
+
+- USERNAME
+
+  Application user name
+
+  'DDIC'          --> Application user name DDIC
+  '%'             --> No restriction related to application user name
+
+- TCODE
+
+  Transaction code
+
+  'FB01'          --> Transaction FB01
+  '%'             --> No restriction related to transaction code
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'           --> Aggregation by time
+  'ALPROG, ALUSER' --> Aggregation by program and user
+  'NONE'           --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'TIME'          --> Sorting by change time
+  'COUNT'         --> Sorting by number of work items
+
+[OUTPUT PARAMETERS]
+
+- CREATE_TIME:       Change document creation timestamp
+- MANDT:             Client
+- OBJECTCLAS:        Object class
+- OBJECTID:          Object ID
+- CHANGENR:          Change number
+- USERNAME:          User name
+- TCODE:             Transaction code
+- COUNT:             Number of records
+- DIST_CHANGENR:     Number of CDHDR entries (distinct change numbers)
+- ROWS_PER_CHANGENR: Average number of CDPOS records per CDHDR entry (change number)
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+|CREATE_TIME|MANDT|OBJECTCLAS |OBJECTID                    |CHANGENR|USERNAME|TCODE          |COUNT     |DIST_CHANGENR|ROWS_PER_CHANGENR|
+-----------------------------------------------------------------------------------------------------------------------------------------
+|any        |800  |PFCG       |T_PLM415                    |any     |HENEKAA |PFCG           |    148155|           19|          7797.63|
+|any        |800  |PFCG       |T_PLM410                    |any     |HENEKAA |PFCG           |    119438|           14|          8531.28|
+|any        |800  |PFCG       |T_DERPQM                    |any     |HENEKAA |PFCG           |     90377|           22|          4108.04|
+|any        |800  |PFCG       |T_PLM400                    |any     |HENEKAA |PFCG           |     81935|           17|          4819.70|
+|any        |800  |PFCG       |T_PLM420                    |any     |HENEKAA |PFCG           |     71759|           15|          4783.93|
+|any        |800  |PFCG       |T_PLM421                    |any     |HENEKAA |PFCG           |     66538|           14|          4752.71|
+|any        |800  |PFCG       |Z_LO710_QUALITY_NOTIFICATION|any     |HENEKAA |PFCG           |     59167|            3|         19722.33|
+|any        |800  |PFCG       |T_HR580_CUSTOMERROLE        |any     |KOENIGK |PFCG           |     39005|           15|          2600.33|
+|any        |800  |PFCG       |T_PLM405                    |any     |HENEKAA |PFCG           |     38377|           15|          2558.46|
+|any        |800  |PFCG       |T_COMP_PCC                  |any     |BAZEMORE|PFCG           |     27789|            7|          3969.85|
+|any        |800  |VTABCONTENT|0000000691                  |any     |OHLERTH |CU60           |     24695|           12|          2057.91|
+|any        |800  |VTABCONTENT|0000000691                  |any     |OHLERTH |SESSION_MANAGER|     22982|            1|         22982.00|
+|any        |800  |PFCG       |Z_LO720                     |any     |HENEKAA |PFCG           |     22727|            3|          7575.66|
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  CREATE_TIME,
+  MANDT,
+  OBJECTCLAS,
+  OBJECTID,
+  CHANGENR,
+  IFNULL(USERNAME, '-- orphan CDPOS record --') USERNAME,
+  IFNULL(TCODE, '-- orphan CDPOS record --') TCODE,
+  LPAD(CNT, 10) "COUNT",
+  LPAD(DIST_CHANGENR, 13) DIST_CHANGENR,
+  LPAD(TO_DECIMAL(MAP(DIST_CHANGENR, 0, 0, CNT / DIST_CHANGENR), 10, 2), 17) ROWS_PER_CHANGENR
+FROM
+( SELECT
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), IFNULL(H.CREATE_TIME, TO_TIMESTAMP('0001/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'))) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(IFNULL(H.CREATE_TIME, TO_TIMESTAMP('0001/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')), BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END CREATE_TIME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MANDT')      != 0 THEN P.MANDANT    ELSE MAP(BI.MANDT,      '%', 'any', BI.MANDT)      END MANDT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OBJECTCLAS') != 0 THEN P.OBJECTCLAS ELSE MAP(BI.OBJECTCLAS, '%', 'any', BI.OBJECTCLAS) END OBJECTCLAS,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OBJECTID')   != 0 THEN P.OBJECTID   ELSE MAP(BI.OBJECTID,   '%', 'any', BI.OBJECTID)   END OBJECTID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CHANGENR')   != 0 THEN P.CHANGENR   ELSE MAP(BI.CHANGENR,   '%', 'any', BI.CHANGENR)   END CHANGENR,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'USERNAME')   != 0 THEN H.USERNAME   ELSE MAP(BI.USERNAME,   '%', 'any', BI.USERNAME)   END USERNAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TCODE')      != 0 THEN H.TCODE      ELSE MAP(BI.TCODE,      '%', 'any', BI.TCODE)      END TCODE,
+    COUNT(*) CNT,
+    COUNT(DISTINCT(H.CHANGENR)) DIST_CHANGENR,
+    BI.ORDER_BY
+  FROM
+  ( SELECT
+      CASE
+        WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+        WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+        WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+        WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+        WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+        WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+        WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('0001/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END BEGIN_TIME,
+      CASE
+        WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+        WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+        WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+        WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+        WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+        WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+        WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+        WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+        WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+        WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+        WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END END_TIME,
+      MANDT,
+      OBJECTCLAS,
+      OBJECTID,
+      CHANGENR,
+      USERNAME,
+      TCODE,
+      AGGREGATE_BY,
+      MAP(TIME_AGGREGATE_BY,
+        'NONE',        'YYYY/MM/DD HH24:MI:SS',
+        'HOUR',        'YYYY/MM/DD HH24',
+        'DAY',         'YYYY/MM/DD (DY)',
+        'HOUR_OF_DAY', 'HH24',
+        TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+      ORDER_BY
+    FROM
+    ( SELECT                    /* Modification section */
+        'MIN' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+        'MAX' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+        '%' MANDT,
+        '%' OBJECTCLAS,
+        '%' OBJECTID,
+        '' CHANGENR,
+        '%' USERNAME,
+        '%' TCODE,
+        'NONE' AGGREGATE_BY,           /* TIME, MANDT, OBJECTCLAS, OBJECTID, CHANGENR, USERNAME, TCODE or comma separated combinations, NONE for no aggregation */
+        'NONE' TIME_AGGREGATE_BY,      /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+        'NONE' ORDER_BY                /* TIME, COUNT, OBJECT */
+      FROM
+        DUMMY
+    )
+  ) BI,
+    CDPOS P LEFT OUTER JOIN
+  ( SELECT
+      TO_TIMESTAMP(GREATEST(UDATE, '00010101') || UTIME, 'YYYYMMDDHH24MISS') CREATE_TIME,
+      *
+    FROM
+      CDHDR
+    ) H ON
+    P.MANDANT = H.MANDANT AND
+    P.OBJECTCLAS = H.OBJECTCLAS AND
+    P.OBJECTID = H.OBJECTID AND
+    P.CHANGENR = H.CHANGENR
+  WHERE
+    TO_VARCHAR(IFNULL(H.CREATE_TIME, TO_TIMESTAMP('0001/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')), 'YYYY/MM/DD HH24:MI:SS') BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+    P.MANDANT LIKE BI.MANDT AND
+    P.OBJECTCLAS LIKE BI.OBJECTCLAS AND
+    P.OBJECTID LIKE BI.OBJECTID AND
+    P.CHANGENR LIKE BI.CHANGENR AND
+    IFNULL(H.USERNAME, '') LIKE BI.USERNAME AND
+    IFNULL(H.TCODE, '') LIKE BI.TCODE
+  GROUP BY
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), IFNULL(H.CREATE_TIME, TO_TIMESTAMP('0001/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'))) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(IFNULL(H.CREATE_TIME, TO_TIMESTAMP('0001/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')), BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MANDT')      != 0 THEN P.MANDANT    ELSE MAP(BI.MANDT,      '%', 'any', BI.MANDT)      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OBJECTCLAS') != 0 THEN P.OBJECTCLAS ELSE MAP(BI.OBJECTCLAS, '%', 'any', BI.OBJECTCLAS) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OBJECTID')   != 0 THEN P.OBJECTID   ELSE MAP(BI.OBJECTID,   '%', 'any', BI.OBJECTID)   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CHANGENR')   != 0 THEN P.CHANGENR   ELSE MAP(BI.CHANGENR,   '%', 'any', BI.CHANGENR)   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'USERNAME')   != 0 THEN H.USERNAME   ELSE MAP(BI.USERNAME,   '%', 'any', BI.USERNAME)   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TCODE')      != 0 THEN H.TCODE      ELSE MAP(BI.TCODE,      '%', 'any', BI.TCODE)      END,
+    BI.ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'TIME', CREATE_TIME) DESC,
+  MAP(ORDER_BY, 'COUNT', CNT) DESC,
+  MANDT,
+  OBJECTCLAS,
+  OBJECTID,
+  USERNAME,
+  TCODE,
+  CHANGENR

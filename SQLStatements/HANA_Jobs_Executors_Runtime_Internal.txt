@@ -1,0 +1,136 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Jobs_Executors_Runtime_Internal
+
+[DESCRIPTION]
+
+- Histogram of SAP HANA job runtimes
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+
+[VALID FOR]
+
+- Revisions:              any
+- Statistics server type: any
+
+[SQL COMMAND VERSION]
+
+- 2024/07/08:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_DEV_JOBEXRUNTIMES
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SITE_ID
+
+  System replication site ID
+
+  1               --> Site ID 1
+  -1              --> No restriction related to system replication site ID
+
+- STATISTICS_NAME
+
+  JobExecutor statistics name
+
+  'jx-tg01'       --> Restrict output to JobExecutor thread group 01
+  'JobsWait%'     --> Restrict output to statistics starting with 'JobsWait'
+  '%'             --> No restriction related to statistics name
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'DURATION'      --> Sorting by total job duration
+  'COUNT'         --> Sorting by job count
+
+[OUTPUT PARAMETERS]
+
+- HOST:            Host name
+- PORT:            Port
+- ST:              Site ID
+- STATISTICS_NAME: Statistics name (including job length interval)
+- JOB_COUNT:       Number of jobs
+- TOTAL_S:         Total runtime of the jobs (s)
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------
+|HOST        |PORT |ST|STATISTICS_NAME    |JOB_COUNT|TOTAL_S   |
+----------------------------------------------------------------
+|saphananode1|30001|-1|JobsRT01(0-10u)    | 24354121|       121|
+|saphananode1|30001|-1|JobsRT02(10u-30u)  | 98858380|      1977|
+|saphananode1|30001|-1|JobsRT03(30u-100u) | 25703815|      1670|
+|saphananode1|30001|-1|JobsRT04(100u-300u)|  9885307|      1977|
+|saphananode1|30001|-1|JobsRT05(300u-1m)  | 18469700|     12005|
+|saphananode1|30001|-1|JobsRT06(1m-3m)    | 21819534|     43639|
+|saphananode1|30001|-1|JobsRT07(3m-10m)   | 18606652|    120943|
+|saphananode1|30001|-1|JobsRT08(10m-30m)  |  8044548|    160890|
+|saphananode1|30001|-1|JobsRT09(30m-100m) |  7538660|    490012|
+|saphananode1|30001|-1|JobsRT10(100m-300m)|  1689082|    337816|
+|saphananode1|30001|-1|JobsRT11(300m-1s)  |  1781949|   1158266|
+|saphananode1|30001|-1|JobsRT12(1s-3s)    |  8123306|  16246612|
+|saphananode1|30001|-1|JobsRT13(3s-10s)   |      379|      2463|
+|saphananode1|30001|-1|JobsRT14(10s-30s)  |   832335|  16646700|
+|saphananode1|30001|-1|JobsRT15(30s-100s) |       30|      1950|
+|saphananode1|30001|-1|JobsRT16(100s-INF) |        0|         0|
+----------------------------------------------------------------
+
+*/
+
+  J.HOST,
+  LPAD(J.PORT, 5) PORT,
+  LPAD(J.SITE_ID, 2) ST,
+  J.STATISTICS_NAME,
+  LPAD(J.ELAPSED_COUNT, 9) JOB_COUNT,
+  LPAD(TO_DECIMAL(J.ELAPSED_COUNT * (J.MINTIME + MAP(J.MAXTIME, -1, 200000000, J.MAXTIME)) / 2 / 1000000, 10, 0), 10) TOTAL_S
+FROM
+( SELECT                    /* Modification section */
+    -1 SITE_ID,
+    '%' HOST,
+    '%' PORT,
+    '%' STATISTICS_NAME,
+    'INTERVAL' ORDER_BY        /* COUNT, DURATION, INTERVAL */
+  FROM
+    DUMMY
+) BI,
+  SYS.M_DEV_JOBEXRUNTIMES J
+WHERE
+  ( BI.SITE_ID = -1 OR ( BI.SITE_ID = 0 AND J.SITE_ID IN (-1, 0) ) OR J.SITE_ID = BI.SITE_ID ) AND
+  J.HOST LIKE BI.HOST AND
+  TO_CHAR(J.PORT) LIKE BI.PORT AND
+  J.STATISTICS_NAME LIKE BI.STATISTICS_NAME 
+ORDER BY
+  MAP(BI.ORDER_BY, 'COUNT', J.ELAPSED_COUNT, 'DURATION', J.ELAPSED_COUNT * (J.MINTIME + MAP(J.MAXTIME, -1, 200000000, J.MAXTIME))) DESC,
+  MAP(BI.ORDER_BY, 'INTERVAL', J.MINTIME ),
+  HOST,
+  PORT

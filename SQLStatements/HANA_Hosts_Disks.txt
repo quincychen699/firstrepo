@@ -1,0 +1,93 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Hosts_Disks
+
+[DESCRIPTION]
+
+- Disk information
+
+[DETAILS AND RESTRICTIONS]
+
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2014/05/30:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_DISKS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- MIN_USED_PCT
+
+  Minimum amount of used disk space (%)
+
+  90              --> Only show disks with at least 90 % usage
+  -1              --> No limitation related to used disk space
+
+[OUTPUT PARAMETERS]
+
+- HOST:          Host name
+- DEVICE_ID:     Device ID
+- USAGE_TYPE:    Usage type (e.g. DATA, LOG)
+- PATH:          Directory path
+- FILESYSTEM:    Filesystem type
+- TOTAL_SIZE_GB: Total disk size (GB)
+- USED_SIZE_GB:  Used disk size (GB)
+- USED_PCT:      Percentage of available disk size used
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------
+|HOST     |USAGE_TYPE |PATH                         |FILESYSTEM|TOTAL_SIZE_GB|USED_SIZE_GB|USED_PCT|
+----------------------------------------------------------------------------------------------------
+|<all>    |DATA_BACKUP|/sapmnt/backup/data/C11/     |gpfs      |     55415.53|    16661.10|   30.06|
+|<all>    |LOG_BACKUP |/sapmnt/backup/log/C11/      |gpfs      |     55415.53|    16661.10|   30.06|
+|saphana20|DATA       |/sapmnt/data/C11/            |gpfs      |     55415.53|    16660.97|   30.06|
+|saphana20|LOG        |/sapmnt/log/C11/             |gpfs      |     55415.53|    16660.97|   30.06|
+|saphana20|TRACE      |/usr/sap/C11/HDB01/saphana20/|gpfs      |     55415.53|    16660.97|   30.06|
+|saphana21|TRACE      |/usr/sap/C11/HDB01/saphana21/|gpfs      |     55415.53|    16661.10|   30.06|
+----------------------------------------------------------------------------------------------------
+
+*/
+
+  D.HOST,
+  LPAD(D.DEVICE_ID, 9) DEVICE_ID,
+  D.USAGE_TYPE,
+  D.PATH,
+  D.FILESYSTEM_TYPE FILESYSTEM,
+  LPAD(TO_DECIMAL(D.TOTAL_SIZE / 1024 / 1024 / 1024, 10, 2), 13) TOTAL_SIZE_GB,
+  LPAD(TO_DECIMAL(D.USED_SIZE / 1024 / 1024 / 1024, 10, 2), 12) USED_SIZE_GB,
+  LPAD(TO_DECIMAL(MAP(D.TOTAL_SIZE, 0, 0, D.USED_SIZE / D.TOTAL_SIZE * 100), 10, 2), 8) USED_PCT
+FROM
+( SELECT                       /* Modification section */
+    '%' HOST,
+    -1 MIN_USED_PCT
+  FROM
+    DUMMY
+) BI,
+  M_DISKS D
+WHERE
+  D.HOST LIKE BI.HOST AND
+  ( BI.MIN_USED_PCT = -1 OR MAP(D.TOTAL_SIZE, 0, 0, D.USED_SIZE / D.TOTAL_SIZE * 100) >= BI.MIN_USED_PCT )
+ORDER BY
+  D.HOST,
+  D.USAGE_TYPE, 
+  D.PATH

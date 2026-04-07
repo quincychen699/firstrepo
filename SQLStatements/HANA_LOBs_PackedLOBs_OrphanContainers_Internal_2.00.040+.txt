@@ -1,0 +1,124 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_LOBs_PackedLOBs_OrphanContainers_Internal_2.00.040+
+
+[DESCRIPTION]
+
+- Reports orphan packed LOB containers
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- See SAP Note 2910004 for background of orphan packed LOB containers
+- Orphan persistence containers can be temporarily reported in case LOB garbage collection has not run,
+  in this case the hdbcons cleanup command will not remove the containers
+- NUMTOHEX conversion available with SAP HANA >= 2.0 SPS 04
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.040
+
+[SQL COMMAND VERSION]
+
+- 2020/04/09:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+ - M_MID_SIZE_LOB_FILES_
+ - SYS.TOPOLOGY_INFORMATION_ 
+ - CS_TABLES_ 
+ - CS_COLUMNS_
+
+[INPUT PARAMETERS]
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- MIN_SIZE_MB
+
+  Threshold for minimum container size (MB)
+
+  10              --> Only report orphan packed LOB containers with at least 10 MB size
+  -1              --> No restriction related to orphan packed LOB container size
+
+[OUTPUT PARAMETERS]
+
+- SCHEMA_NAME:     Schema name
+- TABLE_NAME:      Table name
+- COLUMN_NAME:     Column name (may be empty)
+- SIZE_MB:         Size of orphan container (MB)
+- CLEANUP_COMMAND: hdbcons cleanup command (SAP Note 2222218)
+
+[EXAMPLE OUTPUT]
+
+------------------------------------------------------------------------------------------------------------------------------------
+|SCHEMA_NAME|TABLE_NAME  |COLUMN_NAME|SIZE_MB   |CLEANUP_COMMAND                                                                   |
+------------------------------------------------------------------------------------------------------------------------------------
+|SYSTEM     |CS_LOB_TABLE|           |     20.18|hdbcons -e hdbnameserver 'distribute e hana01:30403 msl check -c 000000FE000D4681'|
+|SYSTEM     |CS_LOB_TABLE|           |     20.18|hdbcons -e hdbnameserver 'distribute e hana01:30403 msl check -c 000000FE000D4682'|
+|SYSTEM     |CS_LOB_TABLE|           |     20.18|hdbcons -e hdbnameserver 'distribute e hana01:30403 msl check -c 000000FE000D4683'|
+|SYSTEM     |CS_LOB_TABLE|           |     20.18|hdbcons -e hdbnameserver 'distribute e hana01:30403 msl check -c 000000FE000D4655'|
+|SYSTEM     |TABLE483890 |           |      0.06|hdbcons -e hdbnameserver 'distribute e hana01:30403 msl check -c 000000FE000D1F18'|
+------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  IFNULL(TT.SCHEMA_NAME, '') SCHEMA_NAME,
+  IFNULL(TT.TABLE_NAME, '') TABLE_NAME,
+  IFNULL(C.COLUMN_NAME, IFNULL(TC.COLUMN_NAME, '')) COLUMN_NAME,
+  LPAD(TO_DECIMAL(L.PHYSICAL_SIZE / 1024 / 1024, 10, 2), 10) SIZE_MB,
+  'hdbcons -e hdbnameserver' || CHAR(32) || CHAR(39) || 'distribute e' || CHAR(32) || L.HOST || ':' || L.PORT || CHAR(32) || 
+    'msl check -c' || CHAR(32) || NUMTOHEX(L.CONTAINER_ID) || CHAR(39) CLEANUP_COMMAND
+FROM
+( SELECT                          /* Modification section */
+    '%' SCHEMA_NAME,
+    '%' TABLE_NAME,
+    -1 MIN_SIZE_MB
+  FROM
+    DUMMY
+) BI,
+  SYS.M_MID_SIZE_LOB_FILES_ L LEFT OUTER JOIN
+  SYS.TOPOLOGY_INFORMATION_ T ON 
+    L.TABLE_OR_TOPOLOGY_OID = T.OID INNER JOIN 
+  SYS.CS_TABLES_ TT ON 
+    T.SCHEMA_NAME = TT.SCHEMA_NAME AND
+    T.OBJECT_NAME = TT.TABLE_NAME LEFT OUTER JOIN 
+  SYS.CS_COLUMNS_ TC ON 
+    TT.TABLE_OID = TC.TABLE_OID AND 
+    L.ATTRIBUTE_ID = TC.INTERNAL_COLUMN_ID LEFT OUTER JOIN
+  SYS.CS_COLUMNS_ C ON 
+    L.TABLE_OR_TOPOLOGY_OID = C.TABLE_OID AND 
+    L.ATTRIBUTE_ID = C.INTERNAL_COLUMN_ID
+WHERE
+  ( BI.SCHEMA_NAME = '%' OR TT.SCHEMA_NAME LIKE BI.SCHEMA_NAME ) AND
+  ( BI.TABLE_NAME = '%' OR TT.TABLE_NAME LIKE BI.TABLE_NAME ) AND
+  ( BI.MIN_SIZE_MB = -1 OR L.PHYSICAL_SIZE / 1024 / 1024 >= BI.MIN_SIZE_MB ) AND
+  TC.TABLE_OID IS NULL AND
+  C.TABLE_OID IS NULL AND
+  L.PHYSICAL_SIZE > 0
+ORDER BY
+  L.PHYSICAL_SIZE DESC
+

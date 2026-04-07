@@ -1,0 +1,558 @@
+WITH 
+
+/* 
+
+[NAME]
+
+- HANA_Threads_CurrentThreads_1.00.120+
+
+[DESCRIPTION]
+
+- Thread information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- LOCK_OWNER_THREAD_ID available as of Rev. 1.00.70
+- STATEMENT_HASH available as of Rev. 1.00.100
+- LOCKS_OWNED available starting with Rev. 1.00.120
+- Memory size is always accounted to the SqlExecutor / Request thread and not to the related JobWorkers (to avoid double counting)
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.120
+
+[SQL COMMAND VERSION]
+
+- 2014/03/06:  1.0 (initial version)
+- 2015/05/14:  1.1 (THREAD_METHOD, THREAD_DETAIL, CALLER, CALLING and LOCK_WAIT_NAME added)
+- 2016/02/26:  1.2 (dedicated Rev100+ version)
+- 2016/07/02:  1.3 (LOG_CONN_ID included)
+- 2016/09/13:  1.4 (APP_USER in Modification section included)
+- 2016/11/08:  1.5 (PAR_CONN_ID included)
+- 2017/01/04:  1.6 (THREAD_TYPE, THREAD_HASH filter included, SQL_TEXT output included)
+- 2017/01/27:  1.7 (dedicated 1.00.120+ version)
+- 2017/02/03:  1.8 (EXCLUDE_PHANTOM_THREADS included)
+- 2017/05/01:  1.9 (CLIENT_PID included)
+- 2017/10/05:  2.0 (THREAD_DETAIL input parameter included)
+- 2017/10/14:  2.1 (USED_MEMORY_SIZE included)
+- 2018/03/04:  2.2 (DB_USER included)
+- 2019/04/09:  2.3 (LOCK_NAME filter included)
+- 2019/05/31:  2.5 (indents in THREAD_TYPE column to symbolize call hierarchy)
+
+[INVOLVED TABLES]
+
+- M_SERVICE_THREADS
+- M_CONNECTIONS
+- M_ACTIVE_STATEMENTS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- ONLY_ACTIVE_THREADS
+
+  Possibility to restrict output to active threads
+
+  'X'            --> Only show threads that are currently active
+  ' '            --> Show all threads
+
+- EXCLUDE_PHANTOM_THREADS
+
+  Possibility to exclude idle threads that are shown as "active" due to SAP HANA bugs
+
+  'X'             --> Do not show idle threads that are shown as active threads
+  ' '             --> No restriction of displayed threads
+
+- CONN_ID
+
+  Connection ID
+
+  330655          --> Connection ID 330655
+  -1              --> No connection ID restriction
+
+- LOG_CONN_ID:
+
+  Logical connection ID
+
+  330655          --> Logical connection ID 330655
+  -1              --> No logical connection ID restriction
+
+- PAR_CONN_ID
+
+  Parent connection ID
+
+  330655          --> Parent connection ID 330655
+  -1              --> No parent connection ID restriction
+
+- CLIENT_IP
+
+  IP address of client
+
+  '172.23.4.12'   --> IP address 172.23.4.12 
+  '%'             --> No restriction related to IP address
+
+- CLIENT_PID
+
+  Client process ID
+
+  10264           --> Client process ID 10264
+  -1              --> No client process ID restriction
+
+- DB_USER
+
+  Database user
+
+  'SYSTEM'        --> Database user 'SYSTEM'
+  '%'             --> No database user restriction
+
+- APP_NAME
+
+  Name of application
+
+  'ABAP:C11'      --> Application name 'ABAP:C11'
+  '%'             --> No application name restriction
+
+- APP_USER
+
+  Application user
+
+  'SAPSYS'        --> Application user 'SAPSYS'
+  '%'             --> No application user restriction
+
+- APP_SOURCE
+
+  Application source
+
+  'SAPL2:437'     --> Application source 'SAPL2:437'
+  'SAPMSSY2%'     --> Application sources starting with SAPMSSY2
+  '%'             --> No application source restriction
+
+- THREAD_ID
+
+  Thread identifier
+
+  4567            --> Thread 4567
+  -1              --> No thread identifier restriction
+
+- THREAD_TYPE
+
+  Type of thread (e.g. 'SqlExecutor', 'JobWorker' or 'MergedogMonitor')
+
+  'SqlExecutor'   --> Threads with type 'SqlExecutor'
+  '%'             --> No thread type restriction
+
+- THREAD_STATE
+
+  State of thread (e.g. e.g. 'Running', 'Network Read' or 'Semaphore Wait')
+
+  'Running'       --> Threads with state 'Running'
+  '%'             --> No thread state restriction
+
+- THREAD_METHOD
+
+  Thread method
+
+  'SearchPartJob' --> Thread method SearchPartJob
+  '%'             --> No restriction related to thread method
+
+- THREAD_DETAIL
+
+  Thread detail
+
+  '%MARC%'        --> List threads with thread detail containing 'MARC'
+  '%'             --> No restriction related to thread detail
+
+- LOCK_NAME
+
+  Lock name
+
+  'transLock'     --> Display threads waiting for transLock
+  '%'             --> No restriction related to lock waits
+
+- AGGREGATION_TYPE
+
+  Type of aggregation (e.g. average, sum, maximum)
+
+  'AVG'           --> Average value
+  'SUM'           --> Total value
+  'MAX'           --> Maximum value
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'THREAD_ID'     --> Aggregation by thread ID
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'THREADS'       --> Sorting by number of threads (useful when aggregating)
+  'CONNECTION'    --> Sorting by connection ID
+
+[OUTPUT PARAMETERS]
+
+- HOST:           Host name
+- PORT:           Port
+- DUR_S:          Thread duration (s)
+- CONN_ID:        Connection ID
+- THREAD_ID:      Thread ID
+- THREAD_TYPE:    Thread type
+- THREAD_METHOD:  Thread meathod
+- THREAD_STATE:   Thread state
+- LOCK_NAME:      Lock name
+- STATEMENT_HASH: Statement hash
+- THREAD_DETAIL:  Thread detail
+- DB_USER:        Database user
+- APP_NAME:       Application name
+- APP_USER:       Application user name
+- APP_SOURCE:     Application source
+- CLIENT_IP:      Client IP address
+- CLIENT_PID:     Client process ID
+- BLK_THREAD:     Blocking thread
+- LOCKS_OWNED:    Internal locks held by the thread
+- CALLER:         Caller thread (i.e. thread that has triggered the current thread)
+- CALLING:        Called thread (i.e. thread that is triggered by current thread)
+- ACTIVE:         'TRUE' if thread is active, otherwise false
+- CPU_TIME_S:     Thread CPU consumption (s)
+- CNT:            Number of threads (1 if no aggregation is done)
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------------------------------------------------------------------
+|HOST     |SERVICE_NAME    |NUM  |CONN_ID   |THREAD_ID|THREAD_TYPE        |THREAD_STATE|ACTIVE|APP_USER   |DURATION_S|CPU_TIME_S|
+---------------------------------------------------------------------------------------------------------------------------------
+|saphana20|preprocessor    |    1|    338803|    24424|Request            |any         |TRUE  |ZSAP_10    |      0.00|      0.00|
+|saphana20|indexserver     |    1|    338803|    24449|Request            |any         |TRUE  |ZSAP_10    |      0.00|      0.00|
+|saphana20|nameserver      |    1|    338803|    28364|Request            |any         |TRUE  |ZSAP_10    |      0.00|      0.00|
+|saphana21|indexserver     |    1|    338803|    52999|SqlExecutor        |any         |TRUE  |ZSAP_10    |      0.03|      0.00|
+|saphana21|indexserver     |    1|    300257|    53005|SqlExecutor        |any         |TRUE  |RT_VENTES  |      0.00|      0.00|
+|saphana21|indexserver     |    1|    301432|    53011|SqlExecutor        |any         |TRUE  |RT_LOG     |      0.00|      0.00|
+|saphana21|indexserver     |    1|    301551|    53024|SqlExecutor        |any         |TRUE  |RT_VENTES  |      0.00|      0.00|
+|saphana21|indexserver     |    1|    300290|    53508|SqlExecutor        |any         |TRUE  |RT_PUSHW045|      0.00|      0.00|
+|saphana21|indexserver     |    1|    300776|    65701|SqlExecutor        |any         |TRUE  |RT_PUSHW045|      0.00|      0.00|
+|saphana20|compileserver   |    1|    338803|    93615|Request            |any         |TRUE  |ZSAP_10    |      0.00|      0.00|
+|saphana21|nameserver      |    1|    338803|   102512|Request            |any         |TRUE  |ZSAP_10    |      0.00|      0.00|
+---------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+THREADS_HELPER AS
+( SELECT
+    HOST,
+    TO_VARCHAR(PORT) PORT,
+    CONNECTION_ID CONN_ID,
+    STATEMENT_HASH,
+    STATEMENT_ID,
+    THREAD_ID,
+    THREAD_TYPE,
+    THREAD_STATE,
+    THREAD_METHOD,
+    TO_VARCHAR(SUBSTR(THREAD_DETAIL, 1, 5000)) THREAD_DETAIL,
+    CLIENT_IP,
+    CLIENT_PID,
+    CALLER,
+    CASE 
+      WHEN CALLER LIKE '%@%:%' THEN SUBSTR(CALLER, 1, LOCATE(CALLER, '@') - 1)
+      WHEN CALLER LIKE '%:%' THEN '-99'
+      ELSE MAP(CALLER, '', '-99', CALLER) 
+    END CALLER_THREAD,
+    CASE WHEN CALLER LIKE '%:%' THEN SUBSTR(CALLER, LOCATE(CALLER, '@') + 1, LOCATE(CALLER, ':') - LOCATE(CALLER, '@') - 1) ELSE HOST                           END CALLER_HOST,
+    CASE WHEN CALLER LIKE '%:%' THEN SUBSTR(CALLER, LOCATE(CALLER, ':') + 1)                                                ELSE TO_VARCHAR(PORT)               END CALLER_PORT,
+    CALLING,
+    IS_ACTIVE ACTIVE,
+    USER_NAME DB_USER,
+    APPLICATION_NAME APP_NAME,
+    APPLICATION_USER_NAME APP_USER,
+    APPLICATION_SOURCE APP_SOURCE,
+    DURATION DURATION_MS,
+    CPU_TIME_SELF CPU_TIME_US,
+    LOCK_OWNER_THREAD_ID BLK_THREAD,
+    LOCK_WAIT_NAME LOCK_NAME,
+    LOCKS_OWNED
+  FROM
+    M_SERVICE_THREADS
+  WHERE
+    THREAD_METHOD NOT IN ('stat', 'core/stat')
+),
+THREADS AS
+( SELECT
+    T1.HOST,
+    T1.PORT,
+    CASE WHEN T1.CONN_ID = -1 AND T2.CONN_ID IS NOT NULL THEN T2.CONN_ID ELSE T1.CONN_ID END CONN_ID,
+    T1.STATEMENT_HASH,
+    T1.STATEMENT_ID,
+    T1.THREAD_ID,
+    T1.THREAD_TYPE,
+    T1.THREAD_STATE,
+    T1.THREAD_METHOD,
+    T1.THREAD_DETAIL,
+    T1.CLIENT_IP,
+    T1.CLIENT_PID,
+    T1.CALLER,
+    T1.CALLING,
+    T1.ACTIVE,
+    T1.DB_USER,
+    T1.APP_NAME,
+    T1.APP_USER,
+    T1.APP_SOURCE,
+    T1.DURATION_MS,
+    T1.CPU_TIME_US,
+    T1.BLK_THREAD,
+    T1.LOCK_NAME,
+    T1.LOCKS_OWNED,
+    CASE
+      WHEN T1.CALLER = ''       THEN 0
+      WHEN T3.THREAD_ID IS NULL THEN 1
+      WHEN T4.THREAD_ID IS NULL THEN 2
+      ELSE 3
+    END LVL,
+    CASE
+      WHEN T1.CALLER = ''       THEN LPAD(IFNULL(T1.THREAD_ID, 0), 15, '-') || LPAD('-', 45, '-')
+      WHEN T3.THREAD_ID IS NULL THEN LPAD(IFNULL(T2.THREAD_ID, 0), 15, '-') || LPAD(IFNULL(T1.THREAD_ID, 0), 15, '-') || LPAD('-', 30, '-')
+      WHEN T4.THREAD_ID IS NULL THEN LPAD(IFNULL(T3.THREAD_ID, 0), 15, '-') || LPAD(IFNULL(T2.THREAD_ID, 0), 15, '-') || LPAD(IFNULL(T1.THREAD_ID, 0), 15, '-') || LPAD('-', 15, '-')
+      ELSE                           LPAD(IFNULL(T4.THREAD_ID, 0), 15, '-') || LPAD(IFNULL(T3.THREAD_ID, 0), 15, '-') || LPAD(IFNULL(T2.THREAD_ID, 0), 15, '-') || LPAD(IFNULL(T1.THREAD_ID, 0), 15, '-')
+    END CONN_HIERARCHY
+  FROM
+    THREADS_HELPER T1 LEFT OUTER JOIN
+    THREADS_HELPER T2 ON
+      T2.THREAD_ID = T1.CALLER_THREAD AND
+      T2.HOST = T1.CALLER_HOST AND
+      T2.PORT = T1.CALLER_PORT LEFT OUTER JOIN
+    THREADS_HELPER T3 ON
+      T3.THREAD_ID = T2.CALLER_THREAD AND
+      T3.HOST = T2.CALLER_HOST AND
+      T3.PORT = T2.CALLER_PORT LEFT OUTER JOIN
+    THREADS_HELPER T4 ON
+      T4.THREAD_ID = T3.CALLER_THREAD AND
+      T4.HOST = T3.CALLER_HOST AND
+      T4.PORT = T3.CALLER_PORT
+)
+SELECT
+  HOST,
+  LPAD(PORT, 5) PORT,
+  LPAD(TO_DECIMAL(DURATION_S, 10, 0), 7) DUR_S,
+  LPAD(CONN_ID, 9) CONN_ID,
+  LPAD(THREAD_ID, 9) THREAD_ID,
+  LPAD(CHAR(32), LVL * 2) || THREAD_TYPE THREAD_TYPE,
+  THREAD_METHOD,
+  THREAD_STATE,
+  LOCK_NAME,
+  STATEMENT_HASH,
+  REPLACE(REPLACE(REPLACE(THREAD_DETAIL, CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' ') THREAD_DETAIL,
+  DB_USER,
+  APP_NAME,
+  APP_USER,
+  APP_SOURCE,
+  CLIENT_IP,
+  LPAD(CLIENT_PID, 10) CLIENT_PID,
+  LPAD(MAP(BLK_THREAD, '0', '', BLK_THREAD), 10) BLK_THREAD,
+  LOCKS_OWNED,
+  CALLER,
+  CALLING,
+  ACTIVE,
+  LPAD(TO_DECIMAL(CPU_TIME_S, 10, 2), 10) CPU_TIME_S,
+  MEM_USED_MB,
+  LPAD(NUM, 3) CNT
+  /* SERVICE_NAME SERVICE, IFNULL(LPAD(LOG_CONN_ID, 11), '') LOG_CONN_ID, IFNULL(LPAD(PAR_CONN_ID, 11), '') PAR_CONN_ID,
+  REPLACE(REPLACE(REPLACE(IFNULL(SQL_TEXT, ''), CHAR(10), CHAR(32)), CHAR(13), CHAR(32)), CHAR(9), CHAR(32)) SQL_TEXT */
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')          != 0 THEN T.HOST                               ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                          END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')          != 0 THEN TO_VARCHAR(T.PORT)                   ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                          END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')       != 0 THEN S.SERVICE_NAME                       ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME)          END SERVICE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CONN_ID')       != 0 THEN TO_VARCHAR(T.CONN_ID)                ELSE MAP(BI.CONN_ID, -1, 'any', TO_VARCHAR(BI.CONN_ID))         END CONN_ID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOG_CONN')      != 0 THEN TO_VARCHAR(C.LOGICAL_CONNECTION_ID)  ELSE MAP(BI.LOG_CONN_ID, -1, 'any', TO_VARCHAR(BI.LOG_CONN_ID)) END LOG_CONN_ID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PAR_CONN')      != 0 THEN TO_VARCHAR(C.PARENT_CONNECTION_ID)   ELSE MAP(BI.PAR_CONN_ID, -1, 'any', TO_VARCHAR(BI.PAR_CONN_ID)) END PAR_CONN_ID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HASH')          != 0 THEN T.STATEMENT_HASH                     ELSE MAP(BI.STATEMENT_HASH, '%', 'any', BI.STATEMENT_HASH)      END STATEMENT_HASH,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HASH')          != 0 THEN SUBSTR(ST.STATEMENT_STRING, 1, 4000) ELSE 'any'                                                      END SQL_TEXT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'DB_USER')       != 0 THEN T.DB_USER                            ELSE MAP(BI.DB_USER, '%', 'any', BI.DB_USER)                    END DB_USER,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_NAME')      != 0 THEN T.APP_NAME                           ELSE MAP(BI.APP_NAME, '%', 'any', BI.APP_NAME)                  END APP_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_USER')      != 0 THEN T.APP_USER                           ELSE MAP(BI.APP_USER, '%', 'any', BI.APP_USER)                  END APP_USER,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_SOURCE')    != 0 THEN T.APP_SOURCE                         ELSE MAP(BI.APP_SOURCE, '%', 'any', BI.APP_SOURCE)              END APP_SOURCE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_TYPE')   != 0 THEN T.THREAD_TYPE                        ELSE 'any'                                                      END THREAD_TYPE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_STATE')  != 0 THEN T.THREAD_STATE                       ELSE 'any'                                                      END THREAD_STATE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_METHOD') != 0 THEN T.THREAD_METHOD                      ELSE 'any'                                                      END THREAD_METHOD,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_DETAIL') != 0 THEN T.THREAD_DETAIL                      ELSE 'any'                                                      END THREAD_DETAIL,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_ID')     != 0 THEN TO_VARCHAR(T.THREAD_ID)              ELSE 'any'                                                      END THREAD_ID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CLIENT_IP')     != 0 THEN T.CLIENT_IP                          ELSE MAP(BI.CLIENT_IP, '%', 'any', BI.CLIENT_IP)                END CLIENT_IP,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CLIENT_PID')    != 0 THEN TO_VARCHAR(T.CLIENT_PID)             ELSE MAP(BI.CLIENT_PID, -1, 'any', TO_VARCHAR(BI.CLIENT_PID))   END CLIENT_PID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CALLER')        != 0 THEN T.CALLER                             ELSE 'any'                                                      END CALLER,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CALLING')       != 0 THEN T.CALLING                            ELSE 'any'                                                      END CALLING,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOCK_NAME')     != 0 THEN T.LOCK_NAME                          ELSE 'any'                                                      END LOCK_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOCKS_OWNED')   != 0 THEN T.LOCKS_OWNED                        ELSE 'any'                                                      END LOCKS_OWNED,
+    COUNT(*) NUM,
+    MAP(MIN(T.ACTIVE), MAX(T.ACTIVE), MAX(T.ACTIVE), 'any') ACTIVE,
+    MAP(BI.AGGREGATION_TYPE, 'AVG', AVG(T.DURATION_MS), 'MAX', MAX(T.DURATION_MS), 'SUM', SUM(T.DURATION_MS)) / 1000 DURATION_S,
+    MAP(BI.AGGREGATION_TYPE, 'AVG', AVG(T.CPU_TIME_US), 'MAX', MAX(T.CPU_TIME_US), 'SUM', SUM(T.CPU_TIME_US)) / 1000 / 1000 CPU_TIME_S,
+    LPAD(IFNULL(TO_DECIMAL(MAP(BI.AGGREGATION_TYPE, 
+      'AVG', AVG(MAP(T.THREAD_TYPE, 'SqlExecutor', ST.USED_MEMORY_SIZE, 'Request', ST.USED_MEMORY_SIZE, 0)), 
+      'MAX', MAX(MAP(T.THREAD_TYPE, 'SqlExecutor', ST.USED_MEMORY_SIZE, 'Request', ST.USED_MEMORY_SIZE, 0)),
+      'SUM', SUM(MAP(T.THREAD_TYPE, 'SqlExecutor', ST.USED_MEMORY_SIZE, 'Request', ST.USED_MEMORY_SIZE, 0))
+    ) / 1024 / 1024, 10, 2), 0), 11) MEM_USED_MB,
+    MAP(MIN(T.BLK_THREAD), TO_VARCHAR(MAX(T.BLK_THREAD)), TO_VARCHAR(MAX(T.BLK_THREAD)), 'various') BLK_THREAD,
+    MIN(T.LVL) LVL,
+    MIN(T.CONN_HIERARCHY) CONN_HIERARCHY,
+    BI.ORDER_BY
+  FROM
+  ( SELECT                                      /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      '%' SERVICE_NAME,
+      -1 CONN_ID,
+      -1 LOG_CONN_ID,
+      -1 PAR_CONN_ID,
+      '%' CLIENT_IP,
+      -1 CLIENT_PID,
+      '%' DB_USER,
+      '%' APP_NAME,
+      '%' APP_USER,
+      '%' APP_SOURCE,
+      -1 THREAD_ID,
+      '%' THREAD_TYPE,
+      '%' THREAD_STATE,
+      '%' THREAD_METHOD,
+      '%' THREAD_DETAIL,
+      '%' LOCK_NAME,
+      '%' STATEMENT_HASH,
+      'X' ONLY_ACTIVE_THREADS,
+      'X' EXCLUDE_PHANTOM_THREADS,
+      'SUM' AGGREGATION_TYPE,       /* MAX, AVG, SUM */
+      'NONE' AGGREGATE_BY,          /* HOST, PORT, SERVICE, CONN_ID, LOG_CONN, PAR_CONN, CLIENT_PID, HASH, DB_USER, APP_NAME, APP_USER, APP_SOURCE, THREAD_TYPE, THREAD_STATE, THREAD_METHOD, THREAD_DETAIL, 
+        THREAD_ID, CALLER, CALLING, LOCK_NAME, LOCKS_OWNED, and comma separated combinations, NONE for no aggregation */
+      'CONNECTION' ORDER_BY         /* THREAD_ID, CONNECTION, THREADS, MEMORY */
+    FROM
+      DUMMY
+  ) BI,
+    M_SERVICES S,
+    THREADS T LEFT OUTER JOIN
+    M_CONNECTIONS C ON
+      C.HOST = T.HOST AND
+      C.PORT = T.PORT AND
+      C.CONNECTION_ID = T.CONN_ID LEFT OUTER JOIN
+  ( SELECT
+      HOST,
+      PORT,
+      CONNECTION_ID,
+      STATEMENT_ID,
+      STATEMENT_STRING,
+      STATEMENT_STATUS,
+      GREATEST(0, IFNULL(USED_MEMORY_SIZE, 0)) USED_MEMORY_SIZE
+    FROM
+      M_ACTIVE_STATEMENTS
+  ) ST ON
+      C.HOST = ST.HOST AND
+      C.PORT = ST.PORT AND
+      C.CONNECTION_ID = ST.CONNECTION_ID AND
+      T.STATEMENT_ID = ST.STATEMENT_ID AND
+      ST.STATEMENT_STATUS = 'ACTIVE'
+  WHERE
+    S.HOST LIKE BI.HOST AND
+    TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+    S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+    T.HOST = S.HOST AND
+    T.PORT = S.PORT AND
+    IFNULL(T.DB_USER, '') LIKE BI.DB_USER AND
+    IFNULL(T.APP_NAME, '') LIKE BI.APP_NAME AND
+    IFNULL(T.APP_USER, '') LIKE BI.APP_USER AND
+    IFNULL(T.APP_SOURCE, '') LIKE BI.APP_SOURCE AND
+    ( BI.ONLY_ACTIVE_THREADS = ' ' OR T.ACTIVE = 'TRUE' ) AND
+    ( BI.CONN_ID = -1 OR T.CONN_ID = BI.CONN_ID ) AND
+    ( BI.LOG_CONN_ID = -1 OR C.LOGICAL_CONNECTION_ID = BI.LOG_CONN_ID ) AND
+    ( BI.THREAD_ID = -1 OR T.THREAD_ID = BI.THREAD_ID ) AND
+    T.CLIENT_IP LIKE BI.CLIENT_IP AND
+    ( BI.CLIENT_PID = -1 OR T.CLIENT_PID = BI.CLIENT_PID ) AND
+    T.THREAD_TYPE LIKE BI.THREAD_TYPE AND
+    T.THREAD_STATE LIKE BI.THREAD_STATE AND
+    IFNULL(T.THREAD_METHOD, '') LIKE BI.THREAD_METHOD AND
+    IFNULL(T.THREAD_DETAIL, '') LIKE BI.THREAD_DETAIL AND
+    IFNULL(T.LOCK_NAME, '') LIKE BI.LOCK_NAME AND
+    T.STATEMENT_HASH LIKE BI.STATEMENT_HASH AND
+    ( BI.EXCLUDE_PHANTOM_THREADS = ' ' OR NOT
+          ( T.THREAD_TYPE = 'AgentPingThread'                     AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'DPPeriodicThreadWaitSemaphore'                                  OR
+            T.THREAD_TYPE = 'BackupMonitor_TransferThread'        AND T.THREAD_STATE = 'Sleeping'                                                                                                     OR
+            T.THREAD_TYPE = 'ChildIOThreads::ErrorStream'         AND T.THREAD_STATE = 'Running'                                                                                                      OR
+            T.THREAD_TYPE = 'ChildIOThreads::OutputStream'        AND T.THREAD_STATE = 'Running'                                                                                                      OR
+            T.THREAD_TYPE LIKE 'DPDistributor%'                   AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'DPCommitTranPersistentDistributorQueueReaderAvailableSemaphore' OR
+            T.THREAD_TYPE LIKE 'DPReceiverCleaner%'               AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'DPPersistentTranDataCleanerDataAvailableSemaphore'              OR
+            T.THREAD_TYPE LIKE 'DPReceiverWriter%'                AND T.THREAD_STATE LIKE 'ConditionalVar% Wait'   AND T.LOCK_NAME = 'DPReceiverInboundQueueEmptyCond'                                OR
+            T.THREAD_TYPE = 'Generic'                             AND T.THREAD_STATE = 'Running'                                                                                                      OR
+            T.THREAD_TYPE = 'IndexingQueue'                       AND T.THREAD_STATE = 'Sleeping'                                                                                                     OR
+            T.THREAD_TYPE = 'JobWorker'                           AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'DPReceiverHouseKeepingTaskAvailableSemaphore'                   OR
+            T.THREAD_TYPE = 'JobWorker'                           AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'LogBackupQueue'                                                 OR
+            T.THREAD_TYPE = 'LogExceptionQueueThread'             AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'AdapterServiceFixedQueueListSemaphore'                          OR
+            T.THREAD_TYPE = 'LogRecovery'                         AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'LogRecoveryPointInTimeQueue'                                    OR
+            T.THREAD_TYPE = 'MaintenanceThread'                   AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'DPPeriodicThreadWaitSemaphore'                                  OR
+            T.THREAD_TYPE = 'Native'                              AND T.THREAD_DETAIL LIKE '%sysv_open_semaphore%'                                                                                    OR
+            T.THREAD_TYPE = 'PostCommitExecutor'                  AND T.THREAD_STATE LIKE 'ConditionalVar% Wait'   AND T.LOCK_NAME = 'RegularTaskQueueCV'                                             OR
+            T.THREAD_TYPE = 'PriPostCommitExecutor'               AND T.THREAD_STATE LIKE 'ConditionalVar% Wait'   AND T.LOCK_NAME = 'PrioritizedTaskQueueCV'                                         OR
+            T.THREAD_TYPE = 'StatsThread'                         AND T.THREAD_STATE LIKE 'ConditionalVar% Wait'   AND T.LOCK_NAME = 'DPStatsThreadCond'                                              OR
+            T.THREAD_TYPE = 'PushBufferIntoReplayThread'          AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'system replication: push buffer into replay semaphore'          OR
+            T.THREAD_TYPE = 'SecondarySlaveLogPositionSendThread' AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'system replication: slave log position send semaphore'          OR
+            T.THREAD_TYPE = 'SystemReplicationAsyncLogSender'     AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'system replication: AsyncLogBufferHandlerQueueSem'
+          )
+    )
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')          != 0 THEN T.HOST                               ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                          END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')          != 0 THEN TO_VARCHAR(T.PORT)                   ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                          END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')       != 0 THEN S.SERVICE_NAME                       ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME)          END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CONN_ID')       != 0 THEN TO_VARCHAR(T.CONN_ID)                ELSE MAP(BI.CONN_ID, -1, 'any', TO_VARCHAR(BI.CONN_ID))         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOG_CONN')      != 0 THEN TO_VARCHAR(C.LOGICAL_CONNECTION_ID)  ELSE MAP(BI.LOG_CONN_ID, -1, 'any', TO_VARCHAR(BI.LOG_CONN_ID)) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PAR_CONN')      != 0 THEN TO_VARCHAR(C.PARENT_CONNECTION_ID)   ELSE MAP(BI.PAR_CONN_ID, -1, 'any', TO_VARCHAR(BI.PAR_CONN_ID)) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HASH')          != 0 THEN T.STATEMENT_HASH                     ELSE MAP(BI.STATEMENT_HASH, '%', 'any', BI.STATEMENT_HASH)      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HASH')          != 0 THEN SUBSTR(ST.STATEMENT_STRING, 1, 4000) ELSE 'any'                                                      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'DB_USER')       != 0 THEN T.DB_USER                            ELSE MAP(BI.DB_USER, '%', 'any', BI.DB_USER)                    END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_NAME')      != 0 THEN T.APP_NAME                           ELSE MAP(BI.APP_NAME, '%', 'any', BI.APP_NAME)                  END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_USER')      != 0 THEN T.APP_USER                           ELSE MAP(BI.APP_USER, '%', 'any', BI.APP_USER)                  END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_SOURCE')    != 0 THEN T.APP_SOURCE                         ELSE MAP(BI.APP_SOURCE, '%', 'any', BI.APP_SOURCE)              END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_TYPE')   != 0 THEN T.THREAD_TYPE                        ELSE 'any'                                                      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_STATE')  != 0 THEN T.THREAD_STATE                       ELSE 'any'                                                      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_METHOD') != 0 THEN T.THREAD_METHOD                      ELSE 'any'                                                      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_DETAIL') != 0 THEN T.THREAD_DETAIL                      ELSE 'any'                                                      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_ID')     != 0 THEN TO_VARCHAR(T.THREAD_ID)              ELSE 'any'                                                      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CLIENT_IP')     != 0 THEN T.CLIENT_IP                          ELSE MAP(BI.CLIENT_IP, '%', 'any', BI.CLIENT_IP)                END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CLIENT_PID')    != 0 THEN TO_VARCHAR(T.CLIENT_PID)             ELSE MAP(BI.CLIENT_PID, -1, 'any', TO_VARCHAR(BI.CLIENT_PID))   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CALLER')        != 0 THEN T.CALLER                             ELSE 'any'                                                      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CALLING')       != 0 THEN T.CALLING                            ELSE 'any'                                                      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOCK_NAME')     != 0 THEN T.LOCK_NAME                          ELSE 'any'                                                      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOCKS_OWNED')   != 0 THEN T.LOCKS_OWNED                        ELSE 'any'                                                      END,
+    BI.ORDER_BY,
+    BI.AGGREGATION_TYPE
+)
+ORDER BY
+  MAP(ORDER_BY, 'THREAD_ID',   THREAD_ID),
+  MAP(ORDER_BY, 'CONNECTION', CONN_ID || CONN_HIERARCHY),
+  MAP(ORDER_BY, 'THREADS', NUM, 'MEMORY', MEM_USED_MB) DESC,
+  THREAD_ID,
+  LOG_CONN_ID,
+  PAR_CONN_ID,
+  CONN_ID
+

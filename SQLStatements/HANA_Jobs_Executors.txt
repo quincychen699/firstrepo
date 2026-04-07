@@ -1,0 +1,110 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Jobs_Executors
+
+[DESCRIPTION]
+
+- Job Executor overview
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can be used for monitoring remote system replication sites, see SAP Note 1999880 
+  ("Is it possible to monitor remote system replication sites on the primary system") for details.
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2014/07/09:  1.0 (initial version)
+- 2017/01/04:  1.1 (QUEUED included)
+
+[INVOLVED TABLES]
+
+- M_JOBEXECUTORS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+[OUTPUT PARAMETERS]
+
+- HOST:      Host name
+- PORT:      Port
+- TOTAL:     Total number of job workers
+- BUSY:      Active job workers
+- PARKED:    Job workers parked for future uwe
+- FREE:      Idle job workers
+- SYSWAIT:   Job workers waiting for synchronization
+- JOBWAIT:   Job workers waiting for other job workers
+- YIELDWAIT: Job workers waiting for some more important activities
+- QUEUED:    Queued job workers (because maximum amount of job workers is already in active)
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------
+|HOST         |PORT |TOTAL|BUSY|PARKED|FREE|SYSWAIT|JOBWAIT|YIELDWAIT|
+----------------------------------------------------------------------
+|saphanab3d001|31103|  172|   4|    12| 155|      0|      0|        0|
+|saphanab3d001|31105|  178|   0|    18| 159|      0|      0|        0|
+|saphanab3d001|31107|  161|   0|     1| 159|      0|      0|        0|
+|saphanab3d003|31103|  260| 158|    93|   0|      6|      2|        0|
+|saphanab3d004|31103|  329| 160|   165|   0|      0|      3|        0|
+|saphanab3d005|31103|  371|  16|   211| 111|     31|      1|        0|
+|saphanab3d006|31103|  253|   7|    93| 142|     10|      0|        0|
+|saphanab3d007|31103|  332| 156|   161|   0|     11|      3|        0|
+|saphanab3d008|31103|  338|   1|   178| 158|      0|      0|        0|
+|saphanab3d009|31103|  283|   2|   123| 156|      1|      0|        0|
+|saphanab3d010|31103|  264|   9|   104| 148|      1|      1|        0|
+|saphanab3d011|31103|  258| 135|    92|   0|     29|      1|        0|
+----------------------------------------------------------------------
+
+*/
+
+  J.HOST,
+  LPAD(J.PORT, 5) PORT,
+  LPAD(J.TOTAL_WORKER_COUNT, 5) TOTAL,
+  LPAD(J.TOTAL_WORKER_COUNT - J.PARKED_WORKER_COUNT - J.FREE_WORKER_COUNT - J.SYS_WAITING_WORKER_COUNT - 
+    J.JOB_WAITING_WORKER_COUNT - J.YIELD_WAITING_WORKER_COUNT - 1, 4) BUSY,
+  LPAD(J.PARKED_WORKER_COUNT, 6) PARKED,
+  LPAD(J.FREE_WORKER_COUNT, 4) FREE,
+  LPAD(J.SYS_WAITING_WORKER_COUNT, 7) SYSWAIT,
+  LPAD(J.JOB_WAITING_WORKER_COUNT, 7) JOBWAIT,
+  LPAD(J.YIELD_WAITING_WORKER_COUNT, 9) YIELDWAIT,
+  LPAD(J.QUEUED_WAITING_JOB_COUNT, 6) QUEUED
+FROM
+( SELECT                        /* Modification section */
+    '%' HOST,
+    '%' PORT
+  FROM
+    DUMMY
+) BI,
+  M_JOBEXECUTORS J
+WHERE
+  J.HOST LIKE BI.HOST AND
+  TO_VARCHAR(J.PORT) LIKE BI.PORT
+ORDER BY
+  J.HOST,
+  J.PORT

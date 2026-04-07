@@ -1,0 +1,323 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_ABAP_SAPoffice_Attachments
+
+[DESCRIPTION]
+
+- Overview of SAPoffice attachments
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- SAPoffice attachments are stored in ABAP table SOFFCONT1.
+- Tables SOFFPHF and SOFFPHIO only available in SAP ABAP environments
+- You have to be connected to the SAP<sid> schema otherwise the following error is issued:
+
+  [259]: invalid table name: Could not find table/view ARFCSSTATE in schema
+
+- If access to ABAP objects is possible but you cannot log on as ABAP user, you can switch the default schema before executing the command:
+
+  SET SCHEMA SAP<sid>
+
+[VALID FOR]
+
+- Revisions:              all
+- Client application:     ABAP
+
+[SQL COMMAND VERSION]
+
+- 2024/11/20:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- SOFFPHF
+- SOFFPHIO
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- MANDT
+
+  ABAP client
+
+  '100'           --> Client 100
+  '%'             --> Any ABAP client
+
+- PHIO_ID
+
+  Physical document ID
+
+  'F12BC760C4C41EDF9C819D05D21D80FB' --> Physical document ID F12BC760C4C41EDF9C819D05D21D80FB
+  '%'                                --> No restriction related to physical document ID
+
+- APP_USER
+
+  Application user
+
+  'SAPSYS'        --> Application user 'SAPSYS'
+  '%'             --> No application user restriction
+
+- FILE_NUM
+
+  File number (per physical document ID)
+
+  1               --> File number 1
+  -1              --> No restriction related to file number
+
+- MIME_TYPE
+
+  MIME type
+
+  'application/pdf' --> MIME type application/pdf
+  'image%'          --> MIME types starting with image
+  '%'               --> No restriction related to MIME type
+
+- FILE_NAME
+
+  File name
+
+  'PR.pdf'          --> File name PR.pdf
+  '%.mp4'           --> Files with names ending with .mp4
+  '%'               --> No limitation related to file name
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'                --> Aggregation by time
+  'APP_USER, MIME_TYPE' --> Aggregation by application user and MIME type
+  'NONE'                --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'TIME'          --> Sorting by change time
+  'COUNT'         --> Sorting by number of work items
+
+[OUTPUT PARAMETERS]
+
+- CREATE_TIME: Creation time
+- MANDT:       ABAP client
+- PHIO_ID:     Physical document ID
+- APP_USER:    Application user name
+- FILE_NUM:    File number of physical document ID
+- MIME_TYPE:   MIME type
+- FILE_NAME:   File name
+- COUNT:       Number of files
+- TOT_SIZE_GB: Total file size (GB)
+- AVG_SIZE_KB: Average file size (KB)
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------------------------------------
+|MANDT|APP_USER    |MIME_TYPE                                                        |COUNT   |TOT_SIZE_GB|AVG_SIZE_KB|
+-----------------------------------------------------------------------------------------------------------------------
+|  100|RFCBLACKLINE|application/vnd.openxmlformats-officedocument.spreadsheetml.sheet|   89302|     127.74|    1499.91|
+|  100|OPS0RFC_SME |application/pdf                                                  | 1223550|     121.02|     103.71|
+|  100|OPS0RFC_SME |message/rfc822                                                   |  510998|     114.45|     234.86|
+|  100|RFCBLACKLINE|application/vnd.ms-excel.sheet.macroenabled.12                   |   22751|      52.12|    2402.60|
+|  100|AICECIN     |application/pdf                                                  |   91371|      35.35|     405.68|
+|  100|CERNVER     |application/vnd.ms-outlook                                       |   16037|      23.60|    1543.23|
+|  100|BTC0RUNBOOK |application/vnd.ms-excel                                         |   11567|      21.44|    1943.82|
+|  100|BINGOMB     |image/tiff                                                       |  170792|      21.08|     129.47|
+|  100|DAMPORN     |application/pdf                                                  |   14638|      20.14|    1443.08|
+|  100|EERLERO     |application/vnd.ms-outlook                                       |   10034|      19.11|    1997.16|
+-----------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  CREATE_TIME,
+  LPAD(MANDT, 5) MANDT,
+  PHIO_ID,
+  APP_USER,
+  LPAD(FILE_NUM, 8) FILE_NUM,
+  MIME_TYPE,
+  FILE_NAME,
+  LPAD(CNT, 8) "COUNT",
+  LPAD(TO_DECIMAL(SIZE_KB / 1024 / 1024, 10, 2), 11) TOT_SIZE_GB,
+  LPAD(TO_DECIMAL(SIZE_KB / CNT, 10, 2), 11) AVG_SIZE_KB
+FROM
+( SELECT
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), S.CREATE_TIME) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(S.CREATE_TIME, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END CREATE_TIME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MANDT')     != 0 THEN S.MANDT                ELSE MAP(BI.MANDT,     '%', 'any', BI.MANDT)                END MANDT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PHIO_ID')   != 0 THEN S.PHIO_ID              ELSE MAP(BI.PHIO_ID,   '%', 'any', BI.PHIO_ID)              END PHIO_ID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_USER')  != 0 THEN S.APP_USER             ELSE MAP(BI.APP_USER,  '%', 'any', BI.APP_USER)             END APP_USER,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'FILE_NUM')  != 0 THEN TO_VARCHAR(S.FILE_NUM) ELSE MAP(BI.FILE_NUM,   -1, 'any', TO_VARCHAR(BI.FILE_NUM)) END FILE_NUM,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MIME_TYPE') != 0 THEN S.MIME_TYPE            ELSE MAP(BI.MIME_TYPE, '%', 'any', BI.MIME_TYPE)            END MIME_TYPE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'FILE_NAME') != 0 THEN S.FILE_NAME            ELSE MAP(BI.FILE_NAME, '%', 'any', BI.FILE_NAME)            END FILE_NAME,
+    COUNT(*) CNT,
+    SUM(SIZE_KB) SIZE_KB,
+    BI.ORDER_BY
+  FROM
+  ( SELECT
+      CASE
+        WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+        WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+        WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+        WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+        WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+        WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+        WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END BEGIN_TIME,
+      CASE
+        WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+        WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+        WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+        WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+        WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+        WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+        WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+        WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+        WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+        WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+        WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END END_TIME,
+      MANDT,
+      PHIO_ID,
+      APP_USER,
+      FILE_NUM,
+      MIME_TYPE,
+      FILE_NAME,
+      AGGREGATE_BY,
+      MAP(TIME_AGGREGATE_BY,
+        'NONE',        'YYYY/MM/DD HH24:MI:SS',
+        'HOUR',        'YYYY/MM/DD HH24',
+        'DAY',         'YYYY/MM/DD (DY)',
+        'HOUR_OF_DAY', 'HH24',
+        TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+      ORDER_BY
+    FROM
+    ( SELECT                  /* Modification section */
+        'MIN' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+        'MAX' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+        '%' MANDT,
+        '%' PHIO_ID,
+        '%' APP_USER,
+        -1 FILE_NUM,
+        '%' MIME_TYPE,
+        '%' FILE_NAME,
+        'TIME' AGGREGATE_BY,           /* TIME, MANDT, PHIO_ID, APP_USER, FILE_NUM, MIME_TYPE, FILE_NAME or comma separated combinations, NONE for no aggregation */
+        'YYYY' TIME_AGGREGATE_BY,   /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+        'TIME' ORDER_BY                /* TIME, COUNT, SIZE, PHIO_ID, USER, MIME_TYPE, FILE_NAME */
+      FROM
+        DUMMY
+    )
+  ) BI,
+  ( SELECT
+      TO_TIMESTAMP(H.CREA_TIME, 'YYYYMMDDHH24MISS') CREATE_TIME,
+      H.MANDT,
+      H.PHIO_ID,
+      H.CREA_USER APP_USER,
+      TO_DECIMAL(F.FILE_NUM, 10, 0) FILE_NUM,
+      F.MIMETYPE MIME_TYPE,
+      F.FILE_SIZE / 1024 SIZE_KB,
+      F.FILE_NAME
+    FROM
+      SOFFPHIO H,
+      SOFFPHF F
+    WHERE
+      H.MANDT = F.MANDT AND
+      H.PHIO_ID = F.PHIO_ID
+  ) S
+  WHERE
+    TO_VARCHAR(S.CREATE_TIME, 'YYYY/MM/DD HH24:MI:SS') BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+    S.MANDT LIKE BI.MANDT AND
+    S.PHIO_ID LIKE BI.PHIO_ID AND
+    S.APP_USER LIKE BI.APP_USER AND
+    (BI.FILE_NUM = -1 OR S.FILE_NUM = BI.FILE_NUM ) AND
+    S.MIME_TYPE LIKE BI.MIME_TYPE AND
+    S.FILE_NAME LIKE BI.FILE_NAME
+  GROUP BY
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), S.CREATE_TIME) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(S.CREATE_TIME, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MANDT')     != 0 THEN S.MANDT                ELSE MAP(BI.MANDT,     '%', 'any', BI.MANDT)                END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PHIO_ID')   != 0 THEN S.PHIO_ID              ELSE MAP(BI.PHIO_ID,   '%', 'any', BI.PHIO_ID)              END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_USER')  != 0 THEN S.APP_USER             ELSE MAP(BI.APP_USER,  '%', 'any', BI.APP_USER)             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'FILE_NUM')  != 0 THEN TO_VARCHAR(S.FILE_NUM) ELSE MAP(BI.FILE_NUM,   -1, 'any', TO_VARCHAR(BI.FILE_NUM)) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MIME_TYPE') != 0 THEN S.MIME_TYPE            ELSE MAP(BI.MIME_TYPE, '%', 'any', BI.MIME_TYPE)            END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'FILE_NAME') != 0 THEN S.FILE_NAME            ELSE MAP(BI.FILE_NAME, '%', 'any', BI.FILE_NAME)            END,
+    BI.ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'TIME', CREATE_TIME) DESC,
+  MAP(ORDER_BY, 'COUNT', CNT, 'SIZE', SIZE_KB) DESC,
+  MAP(ORDER_BY, 'PHIO_ID', PHIO_ID || FILE_NUM, 'USER', APP_USER, 'MIME_TYPE', MIME_TYPE, 'FILE_NAME', FILE_NAME),
+  CREATE_TIME DESC,
+  SIZE_KB DESC

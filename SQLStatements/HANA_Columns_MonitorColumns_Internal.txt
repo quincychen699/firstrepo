@@ -1,0 +1,197 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Columns_MonitorColumns_Internal
+
+[DESCRIPTION]
+
+- Monitoring view column information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+- M_MONITOR_COLUMNS_ and FILTER_PUSHDOWN_TYPE only available internally
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2020/12/22:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_MONITOR_COLUMNS_
+
+[INPUT PARAMETERS]
+
+- MONITOR_NAME           
+
+  ´Internal monitoring view name (ending with '_') or pattern
+
+  'M_EVENTS_'     --> Monitoring view M_EVENTS
+  'M_CS%'         --> All monitoring views starting with 'M_CS'
+  '%'             --> All monitoring views
+
+- COLUMN_NAME
+
+  Column name
+
+  'MATNR'         --> Column MATNR
+  'Z%'            --> Columns starting with "Z"
+  '%'             --> No restriction related to columns
+
+- DATA_TYPE
+
+  Column data type
+
+  'NCLOB'         --> Type 'NCLOB'
+  '%LOB%'         --> All types containing 'LOB'
+  '%'             --> All types
+
+- PUSHDOWN_TYPE
+
+  Filter pushdown type
+
+  'EXACT MATCH'   --> Display columns with filter pushdown type EXACT MATCH
+  'RANGE SEARCH%' --> Display columns with filter pushdown type starting with 'RANGE SEARCH'
+  '%'             --> No restriction related to filter pushdown type
+
+- MIN_COLUMN_COUNT
+
+  Minimum threshold for number of columns
+
+  100             --> Only show result lines with at least 100 columns
+  -1              --> No restriction related to number of columns
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'MONITOR'        --> Aggregation by monitoring view name
+  'NONE'           --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'COUNT'         --> Sorting by number of columns
+  'NAME'          --> Sorting by monitoring view name
+
+[OUTPUT PARAMETERS]
+
+- MONITOR_NAME:  Monitoring view name
+- COLUMNS:       Number of columns
+- COLUMN_NAME:   Column name
+- POS:           Column position in monitoring view
+- DATA_TYPE:     Data type
+- LENGTH:        Maximum number of digits and characters
+- SCALE:         Maximum number of digits after the decimal point
+- NULLABLE:      TRUE if column can contain NULL values, otherwise FALSE
+- DEFAULT_VALUE: Default value
+- PUSHDOWN_TYPE: Filter pushdown type
+- COMMENT:       Column comment
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|SCHEMA_NAME|OBJECT_NAME                  |COLUMN_NAME                          |POS |DATA_TYPE|LENGTH|SCALE|NULLABLE|DEFAULT_VALUE|DESCRIPTION                                             |
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|SYS        |M_BACKUP_CATALOG             |ENTRY_ID                             |   1|BIGINT   |    19|    0|TRUE    |n/a          |Unique ID of a backup catalog entry (counter)           |
+|SYS        |M_BACKUP_CATALOG             |BACKUP_ID                            |   3|BIGINT   |    19|    0|TRUE    |n/a          |Unique ID of a data backup or a log backup respectively.|
+|SYS        |M_BACKUP_CATALOG             |SYS_START_TIME                       |   4|TIMESTAMP|    27|    7|TRUE    |n/a          |Start time given in server local time                   |
+|SYS        |M_BACKUP_CATALOG             |UTC_START_TIME                       |   5|TIMESTAMP|    27|    7|TRUE    |n/a          |Start time given in UTC                                 |
+|SYS        |M_BACKUP_CATALOG             |SYS_END_TIME                         |   6|TIMESTAMP|    27|    7|TRUE    |n/a          |Stop time given in server local time                    |
+|SYS        |M_BACKUP_CATALOG             |UTC_END_TIME                         |   7|TIMESTAMP|    27|    7|TRUE    |n/a          |Stop time given in UTC                                  |
+|SYS        |M_BACKUP_CATALOG             |COMMENT                              |   9|VARCHAR  |   256|     |TRUE    |n/a          |Additional information                                  |
+|SYS        |M_BACKUP_CATALOG             |MESSAGE                              |  10|VARCHAR  |   512|     |TRUE    |n/a          |Additional information                                  |
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  MONITOR_NAME,
+  LPAD(NUM_COLUMNS, 7) COLUMNS,
+  COLUMN_NAME,
+  LPAD(POSITION, 4) POS,
+  DATA_TYPE,
+  LPAD(LENGTH, 6) LENGTH,
+  IFNULL(LPAD(SCALE, 5), ' ') SCALE,
+  IS_NULLABLE NULLABLE,
+  IFNULL(DEFAULT_VALUE, 'n/a') DEFAULT_VALUE,
+  PUSHDOWN_TYPE,
+  DESCRIPTION COMMENT
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MONITOR_NAME') != 0 THEN M.MONITOR_NAME         ELSE MAP(BI.MONITOR_NAME,  '%', 'any', BI.MONITOR_NAME)  END MONITOR_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'COLUMN')       != 0 THEN M.COLUMN_NAME          ELSE MAP(BI.COLUMN_NAME,   '%', 'any', BI.COLUMN_NAME)   END COLUMN_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE'                                                THEN TO_VARCHAR(M.POSITION) ELSE 'any'                                               END POSITION,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'DATA_TYPE')    != 0 THEN M.DATA_TYPE            ELSE MAP(BI.DATA_TYPE,     '%', 'any', BI.DATA_TYPE)     END DATA_TYPE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE'                                                THEN TO_VARCHAR(M.LENGTH)   ELSE 'any'                                               END LENGTH,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE'                                                THEN TO_VARCHAR(M.SCALE)    ELSE 'any'                                               END SCALE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'NULLABLE')     != 0 THEN M.IS_NULLABLE          ELSE 'any'                                               END IS_NULLABLE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'DEFAULT')      != 0 THEN M.DEFAULT_VALUE        ELSE 'any'                                               END DEFAULT_VALUE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PUSHDOWN')     != 0 THEN M.PUSHDOWN_TYPE        ELSE MAP(BI.PUSHDOWN_TYPE, '%', 'any', BI.PUSHDOWN_TYPE) END PUSHDOWN_TYPE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'DESCRIPTION')  != 0 THEN M.DESCRIPTION          ELSE 'any'                                               END DESCRIPTION,
+    COUNT(*) NUM_COLUMNS,
+    BI.MIN_COLUMN_COUNT,
+    BI.ORDER_BY
+  FROM
+  ( SELECT                   /* Modification section */
+      'M_LOAD_HISTORY_HOST_' MONITOR_NAME,
+      '%' COLUMN_NAME,
+      '%' DATA_TYPE,
+      '%' PUSHDOWN_TYPE,
+      -1 MIN_COLUMN_COUNT,
+      'NONE' AGGREGATE_BY,             /* MONITOR_NAME, COLUMN, DATA_TYPE, NULLABLE, DEFAULT, PUSHDOWN, DESCRIPTION or comma separated combinations */
+      'NAME' ORDER_BY                           /* NAME, COUNT */
+    FROM
+      DUMMY
+  ) BI,
+  ( SELECT
+        VIEW_NAME MONITOR_NAME,
+        VIEW_COLUMN_NAME COLUMN_NAME,
+        POSITION,
+        IFNULL(DATA_TYPE_NAME, '') DATA_TYPE,
+        LENGTH,
+        SCALE,
+        IS_NULLABLE,
+        DEFAULT_VALUE,
+        IFNULL(FILTER_PUSHDOWN_TYPE, '') PUSHDOWN_TYPE,
+        DESCRIPTION || MAP(UNIT, NULL, '', CHAR(32) || '(' || LOWER(UNIT) || ')') DESCRIPTION
+      FROM
+        SYS.M_MONITOR_COLUMNS_
+  ) M
+  WHERE
+    M.MONITOR_NAME LIKE BI.MONITOR_NAME AND
+    M.COLUMN_NAME LIKE BI.COLUMN_NAME AND
+    M.DATA_TYPE LIKE BI.DATA_TYPE AND
+    M.PUSHDOWN_TYPE LIKE BI.PUSHDOWN_TYPE
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MONITOR_NAME') != 0 THEN M.MONITOR_NAME         ELSE MAP(BI.MONITOR_NAME,  '%', 'any', BI.MONITOR_NAME)  END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'COLUMN')       != 0 THEN M.COLUMN_NAME          ELSE MAP(BI.COLUMN_NAME,   '%', 'any', BI.COLUMN_NAME)   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE'                                                THEN TO_VARCHAR(M.POSITION) ELSE 'any'                                               END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'DATA_TYPE')    != 0 THEN M.DATA_TYPE            ELSE MAP(BI.DATA_TYPE,     '%', 'any', BI.DATA_TYPE)     END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE'                                                THEN TO_VARCHAR(M.LENGTH)   ELSE 'any'                                               END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE'                                                THEN TO_VARCHAR(M.SCALE)    ELSE 'any'                                               END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'NULLABLE')     != 0 THEN M.IS_NULLABLE          ELSE 'any'                                               END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'DEFAULT')      != 0 THEN M.DEFAULT_VALUE        ELSE 'any'                                               END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PUSHDOWN')     != 0 THEN M.PUSHDOWN_TYPE        ELSE MAP(BI.PUSHDOWN_TYPE, '%', 'any', BI.PUSHDOWN_TYPE) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'DESCRIPTION')  != 0 THEN M.DESCRIPTION          ELSE 'any'                                               END,
+    BI.MIN_COLUMN_COUNT,
+    BI.ORDER_BY
+)
+WHERE
+  ( MIN_COLUMN_COUNT = -1 OR NUM_COLUMNS >= MIN_COLUMN_COUNT )
+ORDER BY
+  MAP(ORDER_BY, 'NAME', MONITOR_NAME),
+  MAP(ORDER_BY, 'COUNT', NUM_COLUMNS) DESC,
+  LPAD(POSITION, 5)

@@ -1,0 +1,156 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Features_Usage_2.00.050+_MDC
+
+[DESCRIPTION]
+
+- SAP HANA feature usage information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- See SAP Note 2425002 for deprecations starting with SAP HANA 2.00 SPS 01
+- Has to be run in system database of an MDC system, otherwise it terminates with error "[362]: invalid schema name: SYS_DATABASES"
+- Some columns (LAST_USER_NAME, LAST_STATEMENT_HASH, LAST_APPLICATION_USER_NAME, LAST_APPLICATION_NAME, LAST_APPLICATION_SOURCE) part of 
+  monitoring view M_FEATURE_USAGE are not contained in the global SYS_DATABASES view for security reasons
+- Hint OPTIMIZATION_LEVEL(RULE_BASED) to bypass high compilation times and memory requirements (bug 253741, fixed with SAP HANA 2.00.057)
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2017/04/29:  1.0 (initial version)
+- 2017/10/24:  1.1 (TIMEZONE included)
+- 2019/05/18:  1.2 (MAX_HOURS_SINCE_LAST_USED included)
+- 2020/02/03:  1.3 (SKIP_ERRONEOUS_DEPRECATION_MESSAGES added)
+- 2020/05/13:  1.4 (APP_SOURCE and APP_NAME included)
+- 2020/08/03:  1.5 (hint OPTIMIZATION_LEVEL(RULE_BASED) added)
+- 2024/01/15:  1.6 (dedicated MDC version)
+
+[INVOLVED TABLES]
+
+- SYS_DATABASES.M_FEATURE_USAGE
+
+[INPUT PARAMETERS]
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- DB_NAME
+
+  Multitenant database name
+
+  'SYSTEMDB'      --> System database
+  'C11'           --> Tenant C11
+  '%'             --> No restriction to multitenant database
+
+- COMPONENT_NAME
+
+  Component name
+
+  'CALCENGINE'        --> Only show features related to CALCENGINE
+  '%'                 --> No restriction by component
+
+- FEATURE_NAME
+
+  Feature name
+
+  'HINT'              --> Only show information related to feature HINT
+  '%'                 --> No restriction by feature
+
+- IS_DEPRECATED
+
+  Deprecation status
+
+  'TRUE'              --> Only display deprecated features
+  'FALSE'             --> Only display non-deprecated features
+  '%'                 --> No restriction related to deprecation status
+
+- SKIP_ERRONEOUS_DEPRECATION_MESSAGES
+
+  Possibility to skip unjustified deprecation messages
+
+  'X'                 --> Skip features with unjustified deprecation messages
+  ' '                 --> Show all features independent on unjustified deprecation message
+
+- MAX_HOURS_SINCE_LAST_USED
+
+  Maximum time threshold since feature was used last time
+
+  10                  --> Only show features that were used within the last 10 hours
+  -1                  --> No limitation related to last usage time
+  
+[OUTPUT PARAMETERS]
+
+- COMPONENT_NAME:  Component name
+- FEATURE_NAME:    Feature name
+- DEPRECATED:      Deprecation status (TRUE or FALSE)
+- OBJECT_COUNT:    Number of objects related to the feature
+- CALL_COUNT:      Number of usage of feature (since last indexserver restart)
+- LAST_USAGE_TIME: Time of last feature usage
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------------
+|DB_NAME |COMPONENT_NAME|FEATURE_NAME  |DEPRECATED|OBJECT_COUNT|CALL_COUNT|LAST_USAGE_TIME    |
+-----------------------------------------------------------------------------------------------
+|SYSTEMDB|REPOSITORY    |API           |TRUE      |           0|        11|2024/01/13 21:14:24|
+|PQL     |REPOSITORY    |API           |TRUE      |           0|        70|2024/01/15 08:45:16|
+|PQL     |XSC           |JOB: SQLSCRIPT|TRUE      |           0|      5417|2024/01/15 09:20:00|
+-----------------------------------------------------------------------------------------------
+
+*/
+
+  FU.DATABASE_NAME DB_NAME,
+  FU.COMPONENT_NAME,
+  FU.FEATURE_NAME,
+  FU.IS_DEPRECATED DEPRECATED,
+  LPAD(IFNULL(FU.OBJECT_COUNT, 0), 12) OBJECT_COUNT,
+  LPAD(IFNULL(FU.CALL_COUNT, 0), 10) CALL_COUNT,
+  MAP(FU.LAST_TIMESTAMP, NULL, '', TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(FU.LAST_TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE FU.LAST_TIMESTAMP END, 'YYYY/MM/DD HH24:MI:SS')) LAST_USAGE_TIME
+FROM
+( SELECT         /* Modification section */
+    'SERVER' TIMEZONE,                              /* SERVER, UTC */
+    '%' DB_NAME,
+    '%' COMPONENT_NAME,
+    '%' FEATURE_NAME,
+    'TRUE' IS_DEPRECATED,
+    'X' SKIP_ERRONEOUS_DEPRECATION_MESSAGES,
+    24 * 30 MAX_HOURS_SINCE_LAST_USED
+  FROM
+    DUMMY
+) BI,
+  SYS_DATABASES.M_FEATURE_USAGE FU
+WHERE
+  FU.DATABASE_NAME LIKE BI.DB_NAME AND
+  FU.COMPONENT_NAME LIKE BI.COMPONENT_NAME AND
+  FU.FEATURE_NAME LIKE BI.FEATURE_NAME AND
+  FU.IS_DEPRECATED LIKE BI.IS_DEPRECATED AND
+  ( BI.SKIP_ERRONEOUS_DEPRECATION_MESSAGES = ' ' OR BI.IS_DEPRECATED != 'TRUE' OR 
+    ( ( FU.COMPONENT_NAME, FU.FEATURE_NAME ) NOT IN
+      ( ( 'EXPORT', 'SCRAMBLE' ) , ( 'EXPORT', 'STRIP' ), ( 'HIERARCHY', 'HIERARCHY VIEW' ), ( 'HIGH AVAILABILITY', 'HOST AUTO FAILOVER' ), 
+        ( 'HIGH AVAILABILITY', 'STORAGE CONNECTOR' ), ( 'IMPORT FROM', 'NO TYPE CHECK' ), ( 'IMPORT FROM', 'SCHEMA FLEXIBILITY' ), ( 'IMPORT FROM', 'TABLE LOCK' ),
+        ( 'LOB', 'ST_MEMORY_LOB' ), ( 'SECURITY', 'CONFIGURATION PARAMETER: MAXIMUM_UNUSED_INITAL_PASSWORD_LIFETIME' ), ( 'SECURITY', 'DATA ADMIN' ),
+        ( 'SECURITY', 'SAPLOGON AUTHENTICATION' ), ( 'SECURITY', 'X509INTERNAL AUTHENTICATION' ), ( 'SPATIAL', 'GEOCODE INDEXES' ), ( 'SYSTEM', 'ALTER SYSTEM LOGGING OFF' ),
+        ( 'TABLE TYPE', 'FLEXIBLE' ), ( 'TABLE TYPE', 'HISTORY' ), ( 'TABLE TYPE', 'NO LOGGING RETENTION' ) 
+      ) AND
+      FU.COMPONENT_NAME != 'SQL UNQUOTED IDENTIFIER'
+    )
+  ) AND
+  ( BI.MAX_HOURS_SINCE_LAST_USED = -1 OR FU.LAST_TIMESTAMP >= ADD_SECONDS(CURRENT_TIMESTAMP, - 3600 * BI.MAX_HOURS_SINCE_LAST_USED) )
+ORDER BY
+  FU.COMPONENT_NAME,
+  FU.FEATURE_NAME
+WITH HINT (OPTIMIZATION_LEVEL(RULE_BASED))

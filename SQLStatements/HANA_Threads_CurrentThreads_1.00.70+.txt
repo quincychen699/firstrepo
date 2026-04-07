@@ -1,0 +1,244 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Threads_CurrentThreads_1.00.70+
+
+[DESCRIPTION]
+
+- Thread information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- LOCK_OWNER_THREAD_ID available as of revision 70
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.70+
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2014/03/06:  1.0 (initial version)
+- 2015/05/14:  1.1 (THREAD_METHOD, THREAD_DETAIL, CALLER, CALLING and LOCK_WAIT_NAME added)
+
+[INVOLVED TABLES]
+
+- M_SERVICE_THREADS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- ONLY_ACTIVE_THREADS
+
+  Possibility to restrict output to active threads
+
+  'X'            --> Only show threads that are currently active
+  ' '            --> Show all threads
+
+- CONN_ID
+
+  Connection ID
+
+  330655          --> Connection ID 330655
+  -1              --> No connection ID restriction
+
+- AGGREGATION_TYPE
+
+  Type of aggregation (e.g. average, sum, maximum)
+
+  'AVG'           --> Average value
+  'SUM'           --> Total value
+  'MAX'           --> Maximum value
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'THREAD_ID'     --> Aggregation by thread ID
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'THREADS'       --> Sorting by number of threads (useful when aggregating)
+  'CONNECTION'    --> Sorting by connection ID
+
+[OUTPUT PARAMETERS]
+
+- HOST:          Host name
+- PORT:          Port
+- SERVICE:       Service name
+- NUM:           Number of threads (1 if no aggregation is done)
+- CONN_ID:       Connection ID
+- THREAD_ID:     Thread ID
+- BLK_THREAD:    Blocking thread
+- CALLER:        Caller thread (i.e. thread that has triggered the current thread)
+- CALLING:       Called thread (i.e. thread that is triggered by current thread)
+- THREAD_TYPE:   Thread type
+- THREAD_STATE:  Thread state
+- THREAD_METHOD: Thread meathod
+- THREAD_DETAIL: Thread detail
+- LOCK_NAME:     Lock name
+- ACTIVE:        'TRUE' if thread is active, otherwise false
+- APP_USER:      Application user name
+- DURATION_S:    Thread duration (s)
+- CPU_TIME_S:    Thread CPU consumption (s)
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------------------------------------------------------------------
+|HOST     |SERVICE_NAME    |NUM  |CONN_ID   |THREAD_ID|THREAD_TYPE        |THREAD_STATE|ACTIVE|APP_USER   |DURATION_S|CPU_TIME_S|
+---------------------------------------------------------------------------------------------------------------------------------
+|saphana20|preprocessor    |    1|    338803|    24424|Request            |any         |TRUE  |ZSAP_10    |      0.00|      0.00|
+|saphana20|indexserver     |    1|    338803|    24449|Request            |any         |TRUE  |ZSAP_10    |      0.00|      0.00|
+|saphana20|nameserver      |    1|    338803|    28364|Request            |any         |TRUE  |ZSAP_10    |      0.00|      0.00|
+|saphana21|indexserver     |    1|    338803|    52999|SqlExecutor        |any         |TRUE  |ZSAP_10    |      0.03|      0.00|
+|saphana21|indexserver     |    1|    300257|    53005|SqlExecutor        |any         |TRUE  |RT_VENTES  |      0.00|      0.00|
+|saphana21|indexserver     |    1|    301432|    53011|SqlExecutor        |any         |TRUE  |RT_LOG     |      0.00|      0.00|
+|saphana21|indexserver     |    1|    301551|    53024|SqlExecutor        |any         |TRUE  |RT_VENTES  |      0.00|      0.00|
+|saphana21|indexserver     |    1|    300290|    53508|SqlExecutor        |any         |TRUE  |RT_PUSHW045|      0.00|      0.00|
+|saphana21|indexserver     |    1|    300776|    65701|SqlExecutor        |any         |TRUE  |RT_PUSHW045|      0.00|      0.00|
+|saphana20|compileserver   |    1|    338803|    93615|Request            |any         |TRUE  |ZSAP_10    |      0.00|      0.00|
+|saphana21|nameserver      |    1|    338803|   102512|Request            |any         |TRUE  |ZSAP_10    |      0.00|      0.00|
+---------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SERVICE_NAME SERVICE,
+  LPAD(NUM, 5) NUM,
+  CONN_ID,
+  LPAD(THREAD_ID, 9) THREAD_ID,
+  LPAD(MAP(BLK_THREAD, '0', '', BLK_THREAD), 10) BLK_THREAD,
+  CALLER,
+  CALLING,
+  THREAD_TYPE,
+  THREAD_STATE,
+  THREAD_METHOD,
+  THREAD_DETAIL,
+  LOCK_NAME,
+  ACTIVE,
+  APP_USER,
+  DURATION_S,
+  CPU_TIME_S
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')          != 0 THEN T.HOST               ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                 END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')          != 0 THEN TO_VARCHAR(T.PORT)      ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                 END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')       != 0 THEN S.SERVICE_NAME       ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME) END SERVICE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_USER')      != 0 THEN T.APP_USER           ELSE 'any'                                             END APP_USER,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_TYPE')   != 0 THEN T.THREAD_TYPE        ELSE 'any'                                             END THREAD_TYPE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_STATE')  != 0 THEN T.THREAD_STATE       ELSE 'any'                                             END THREAD_STATE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_METHOD') != 0 THEN T.THREAD_METHOD      ELSE 'any'                                             END THREAD_METHOD,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_DETAIL') != 0 THEN T.THREAD_DETAIL      ELSE 'any'                                             END THREAD_DETAIL,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_ID')     != 0 THEN TO_VARCHAR(T.THREAD_ID) ELSE 'any'                                             END THREAD_ID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CALLER')        != 0 THEN T.CALLER             ELSE 'any'                                             END CALLER,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CALLING')       != 0 THEN T.CALLING            ELSE 'any'                                             END CALLING,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOCK_NAME')     != 0 THEN T.LOCK_WAIT_NAME     ELSE 'any'                                             END LOCK_NAME,
+    COUNT(*) NUM,
+    MAP(MIN(T.CONN_ID), MAX(T.CONN_ID), LPAD(MAX(T.CONN_ID), 10), 'any') CONN_ID,
+    MAP(MIN(T.ACTIVE), MAX(T.ACTIVE), MAX(T.ACTIVE), 'any') ACTIVE,
+    LPAD(TO_DECIMAL(MAP(BI.AGGREGATION_TYPE, 'AVG', AVG(T.DURATION_MS), 'MAX', MAX(T.DURATION_MS), 'SUM', SUM(T.DURATION_MS)) / 1000, 10, 2), 10) DURATION_S,
+    LPAD(TO_DECIMAL(MAP(BI.AGGREGATION_TYPE, 'AVG', AVG(T.CPU_TIME_US), 'MAX', MAX(T.CPU_TIME_US), 'SUM', SUM(T.CPU_TIME_US)) / 1000 / 1000, 10, 2), 10) CPU_TIME_S,
+    MAP(MIN(T.BLK_THREAD), TO_VARCHAR(MAX(T.BLK_THREAD)), TO_VARCHAR(MAX(T.BLK_THREAD)), 'various') BLK_THREAD,
+    BI.ORDER_BY
+  FROM
+  ( SELECT                                      /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      '%' SERVICE_NAME,
+      'X' ONLY_ACTIVE_THREADS,
+      '%' THREAD_METHOD,
+      -1 CONN_ID,
+      'SUM' AGGREGATION_TYPE,       /* MAX, AVG, SUM */
+      'NONE' AGGREGATE_BY,          /* HOST, PORT, SERVICE, APP_USER, THREAD_TYPE, THREAD_STATE, THREAD_METHOD, THREAD_DETAIL, THREAD_ID, CALLER, CALLING, LOCK_NAME and comma separated combinations, NONE for no aggregation */
+      'CONNECTION' ORDER_BY         /* THREAD_ID, CONNECTION, THREADS */
+    FROM
+      DUMMY
+  ) BI,
+    M_SERVICES S,
+  ( SELECT
+      HOST,
+      PORT,
+      CONNECTION_ID CONN_ID,
+      THREAD_ID,
+      THREAD_TYPE,
+      THREAD_STATE,
+      THREAD_METHOD,
+      TO_VARCHAR(SUBSTR(THREAD_DETAIL, 1, 5000)) THREAD_DETAIL,
+      CALLER,
+      CALLING,
+      IS_ACTIVE ACTIVE,
+      APPLICATION_USER_NAME APP_USER,
+      DURATION DURATION_MS,
+      CPU_TIME_SELF CPU_TIME_US,
+      LOCK_OWNER_THREAD_ID BLK_THREAD,
+      LOCK_WAIT_NAME
+    FROM
+      M_SERVICE_THREADS
+    WHERE
+      THREAD_METHOD NOT IN ('stat', 'core/stat')
+  ) T
+  WHERE
+    S.HOST LIKE BI.HOST AND
+    TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+    S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+    T.HOST = S.HOST AND
+    T.PORT = S.PORT AND
+    ( BI.ONLY_ACTIVE_THREADS = ' ' OR T.ACTIVE = 'TRUE' ) AND
+    ( BI.CONN_ID = -1 OR T.CONN_ID = BI.CONN_ID ) AND
+    T.THREAD_METHOD LIKE BI.THREAD_METHOD
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')          != 0 THEN T.HOST               ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                 END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')          != 0 THEN TO_VARCHAR(T.PORT)      ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                 END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')       != 0 THEN S.SERVICE_NAME       ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_USER')      != 0 THEN T.APP_USER           ELSE 'any'                                             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_TYPE')   != 0 THEN T.THREAD_TYPE        ELSE 'any'                                             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_STATE')  != 0 THEN T.THREAD_STATE       ELSE 'any'                                             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_METHOD') != 0 THEN T.THREAD_METHOD      ELSE 'any'                                             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_DETAIL') != 0 THEN T.THREAD_DETAIL      ELSE 'any'                                             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_ID')     != 0 THEN TO_VARCHAR(T.THREAD_ID) ELSE 'any'                                             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CALLER')        != 0 THEN T.CALLER             ELSE 'any'                                             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CALLING')       != 0 THEN T.CALLING            ELSE 'any'                                             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOCK_NAME')     != 0 THEN T.LOCK_WAIT_NAME     ELSE 'any'                                             END,
+    BI.ORDER_BY,
+    BI.AGGREGATION_TYPE
+)
+ORDER BY
+  MAP(ORDER_BY, 'THREAD_ID',   THREAD_ID, 'CONNECTION', CONN_ID, 'any'),
+  MAP(ORDER_BY, 'THREADS', NUM) DESC,
+  THREAD_ID,
+  CONN_ID
+

@@ -1,0 +1,126 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Transactions_RollbackTransactions_Internal
+
+[DESCRIPTION]
+
+- Overview of transaction rollback information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+- Large amount of records can result in stack overflow
+- See SAP Note 2099859 ("SAP HANA DB: indexserver cannot start due to "unexpected high number of rolling back DTX found"")
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2015/06/22:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_DEV_ROLLBACK_TRANSACTION_TABLE
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- VOLUME_ID
+
+  Disk volume ID
+
+  3               --> Volume 3
+  -1              --> No restriction related to volume 
+
+[OUTPUT PARAMETERS]
+
+- HOST:        Host name
+- PORT:        Port
+- SERVICE:     Service name
+- VOLUME_ID:   Volume ID
+- TID:         Transaction ID
+- NUM_ENTRIES: Number of related records
+
+[EXAMPLE OUTPUT]
+
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SERVICE_NAME SERVICE,
+  LPAD(VOLUME_ID, 9) VOLUME_ID,
+  LPAD(TID, 5) TID,
+  LPAD(NUM_ENTRIES, 11) NUM_ENTRIES
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')      != 0 THEN R.HOST               ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                   END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(R.PORT)      ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                   END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')   != 0 THEN S.SERVICE_NAME       ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME)   END SERVICE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'VOLUME_ID') != 0 THEN TO_VARCHAR(R.VOLUME_ID) ELSE MAP(BI.VOLUME_ID, -1, 'any', TO_VARCHAR(BI.VOLUME_ID)) END VOLUME_ID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TID')       != 0 THEN TO_VARCHAR(R.TID)       ELSE MAP(BI.TID, -1, 'any', TO_VARCHAR(BI.TID))             END TID,
+    COUNT(*) NUM_ENTRIES
+  FROM
+  ( SELECT            /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      '%' SERVICE_NAME,
+      -1 VOLUME_ID,
+      -1 TID,
+      'HOST, PORT, VOLUME_ID' AGGREGATE_BY             /* HOST, PORT, SERVICE, VOLUME_ID, TID or comma separated combinations, NONE for no aggregation */
+    FROM
+      DUMMY
+  ) BI,
+    M_SERVICES S,
+    SYS.M_DEV_ROLLBACK_TRANSACTION_TABLE R
+  WHERE
+    S.HOST LIKE BI.HOST AND
+    TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+    S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+    R.HOST = S.HOST AND
+    R.PORT = S.PORT AND
+    ( BI.VOLUME_ID = -1 OR R.VOLUME_ID = BI.VOLUME_ID ) AND
+    ( BI.TID = -1 OR R.TID = BI.TID )
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')      != 0 THEN R.HOST               ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(R.PORT)      ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')   != 0 THEN S.SERVICE_NAME       ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME)   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'VOLUME_ID') != 0 THEN TO_VARCHAR(R.VOLUME_ID) ELSE MAP(BI.VOLUME_ID, -1, 'any', TO_VARCHAR(BI.VOLUME_ID)) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TID')       != 0 THEN TO_VARCHAR(R.TID)       ELSE MAP(BI.TID, -1, 'any', TO_VARCHAR(BI.TID))             END
+)

@@ -1,0 +1,166 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_SQL_Statistics_DataStatistics_1.00.120+
+
+[DESCRIPTION]
+
+- Overview of data statistics
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Focus of data statistics were originally remote tables
+- Remote table statistics are relevant in smart data access and dynamic tiering environments
+- Statistics are only available if created via CREATE STATISTICS
+- Smart Data Access was introduced with SAP HANA Rev. 1.00.60
+- Starting with SAP HANA 1.0 SPS 12 the DATA_STATISTICS view replaces the former STATISTICS view
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.120
+
+[SQL COMMAND VERSION]
+
+- 2016/06/14:  1.0 (initial version)
+- 2016/10/10:  1.1 (dedicated Rev120+ version)
+- 2017/10/26:  1.2 (TIMEZONE included)
+- 2018/12/07:  1.3 (EXCLUDE_ACTIVE_ACTIVE included)
+
+[INVOLVED TABLES]
+
+- DATA_STATISTICS
+
+[INPUT PARAMETERS]
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- OBJECT_NAME
+
+  Object name
+
+  'EDIDC'         --> Specific object name EDIDC
+  'A%'            --> All objects starting with 'A'
+  '%'             --> All objects
+
+- OBJECT_TYPE
+
+  Type of object (e.g. 'TABLE', 'SYNONYM', 'VIEW' or 'INDEX')
+
+  'TABLE'         --> Specific object type TABLE
+  '%'             --> All object types
+
+- COLUMN_NAME
+
+  Column name
+
+  'MATNR'         --> Column MATNR
+  'Z%'            --> Columns starting with "Z"
+  '%'             --> No restriction related to columns
+
+- STATISTICS_TYPE
+
+  Type of statistics
+
+  'HISTOGRAM'     --> Histogram statistics
+  '%'             --> No restriction related to statistics type
+
+- EXCLUDE_ACTIVE_ACTIVE
+
+  Possibility to exclude virtual tables linked to system replication with Active/Active (read enabled)
+
+  'X'             --> Do not display SDA tables pointing to secondary stem replication site
+  ' '             --> No restriction related to Active/Active (read enabled)
+
+[OUTPUT PARAMETERS]
+ 
+- SCHEMA_NAME:   Schema name
+- OBJECT_NAME:   Object name
+- OBJECT_TYPE:   Object type
+- COLUMN_NAME:   Column name
+- STAT_TYPE:     Statistics type
+- CREATION_TIME: Creation timestamp
+- REFRESH_TIME:  Refresh timestamp
+- NUM_ROWS:      Number of rows 
+- NUM_DISTINCT:  Number of distinct values
+- NUM_NULL:      Number of NULL values
+
+[EXAMPLE OUTPUT]
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+|SCHEMA_NAME|OBJECT_NAME        |OBJECT_TYPE|COLUMN_NAME|STAT_TYPE|CREATION_TIME      |REFRESH_TIME       |NUM_ROWS   |NUM_DISTINCT|NUM_NULL   |
+------------------------------------------------------------------------------------------------------------------------------------------------
+|SYSTEM     |GG1_AB_SDA1_AB_SDA1|TABLE      |C1VC10     |SIMPLE   |2017/11/15 11:26:45|2017/11/15 11:26:45|          2|           2|          0|
+|SYSTEM     |GG1_AB_SDA1_AB_SDA1|TABLE      |C2INT      |SIMPLE   |2017/11/15 11:26:45|2017/11/15 11:26:45|          2|           2|          0|
+|SYSTEM     |GG1_TEST_SDA_TEST  |TABLE      |A          |HISTOGRAM|2017/11/17 11:14:08|2017/11/17 11:14:08|          2|           2|          0|
+|SYSTEM     |GG1_TEST_SDA_TEST  |TABLE      |B          |HISTOGRAM|2017/11/17 11:14:08|2017/11/17 11:14:08|          2|           2|          0|
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  SCHEMA_NAME,
+  OBJECT_NAME,
+  OBJECT_TYPE,
+  COLUMN_NAME,
+  STAT_TYPE,
+  TO_VARCHAR(CREATION_TIME, 'YYYY/MM/DD HH24:MI:SS') CREATION_TIME,
+  TO_VARCHAR(REFRESH_TIME, 'YYYY/MM/DD HH24:MI:SS') REFRESH_TIME,
+  LPAD(NUM_ROWS, 11) NUM_ROWS,
+  LPAD(NUM_DISTINCT, 12) NUM_DISTINCT,
+  LPAD(NUM_NULL, 11) NUM_NULL
+FROM
+( SELECT
+    S.DATA_SOURCE_SCHEMA_NAME SCHEMA_NAME,
+    S.DATA_SOURCE_OBJECT_NAME OBJECT_NAME,
+    S.DATA_SOURCE_OBJECT_TYPE OBJECT_TYPE,
+    S.DATA_SOURCE_COLUMN_NAMES COLUMN_NAME,
+    S.DATA_STATISTICS_TYPE STAT_TYPE,
+    CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(S.CREATE_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE S.CREATE_TIME END CREATION_TIME,
+    S.LAST_REFRESH_TIME REFRESH_TIME,
+    S.COUNT NUM_ROWS,
+    S.DISTINCT_COUNT NUM_DISTINCT,
+    S.NULL_COUNT NUM_NULL
+  FROM
+  ( SELECT              /* Modification section */
+      'SERVER' TIMEZONE,                              /* SERVER, UTC */
+      '%' SCHEMA_NAME,
+      'RSBATCHDATA' OBJECT_NAME,
+      '%' OBJECT_TYPE,
+      '%' COLUMN_NAME,
+      '%' STATISTICS_TYPE,
+      'X' EXCLUDE_ACTIVE_ACTIVE
+    FROM
+      DUMMY
+  ) BI,
+    DATA_STATISTICS S
+  WHERE
+    S.DATA_SOURCE_OBJECT_TYPE LIKE BI.OBJECT_TYPE AND
+    S.DATA_SOURCE_SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    S.DATA_SOURCE_OBJECT_NAME LIKE BI.OBJECT_NAME AND
+    S.DATA_SOURCE_COLUMN_NAMES LIKE BI.COLUMN_NAME AND
+    S.DATA_STATISTICS_TYPE LIKE BI.STATISTICS_TYPE AND
+    ( BI.EXCLUDE_ACTIVE_ACTIVE = ' ' OR S.DATA_SOURCE_SCHEMA_NAME NOT LIKE '_SYS_SR_SITE%' )
+)
+ORDER BY
+  SCHEMA_NAME,
+  OBJECT_NAME,
+  COLUMN_NAME

@@ -1,0 +1,551 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Memory_TopConsumers_Rev60+
+
+[DESCRIPTION]
+
+- Areas with highest memory requirements (tables, heap, ...)
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- INSTANCE_CODE_SIZE only available as of revision 60
+
+[VALID FOR]
+
+- Revisions:              revision 60 and higher
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2014/03/06:  1.0 (initial version)
+- 2014/11/01:  1.1 (ORDER_BY included)
+- 2015/03/09:  1.2 (row store fragmentation included)
+- 2015/04/27:  1.3 (ONLY_SQL_DATA_AREAS included)
+
+[INVOLVED TABLES]
+
+- M_HEAP_MEMORY
+- M_CS_TABLES
+- M_RS_TABLES
+- M_RS_INDEXES
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- AREA
+
+  Memory area
+
+  'ROW'           --> Row store
+  'COLUMN'        --> Column store
+  'HEAP'          --> Heap area
+  '%'             --> No memory area restriction
+
+- DETAIL
+
+  Memory area detail (e.g. table name, heap area)
+
+  'KONV'          --> Information related to detail KONV (table name on column store)
+  '%'             --> No restriction to memory area details
+
+- ONLY_SQL_DATA_AREAS
+
+  Possibility to restrict results to heap areas linked to SQL statement data processing
+
+  'X'             --> Only display heap areas linked to SQL statement data processing
+  ' '             --> No restriction related to SQL statement data processing areas
+
+- RESULT_ROWS
+
+  Number of records to be returned by the query
+
+  100             --> Return a maximum number of 100 records
+  -1              --> Return all records
+
+- MIN_SIZE_PCT
+
+  Threshold for minimum size (%)
+
+  5               --> Only display areas allocating at least 5 % of the overall memory consumption
+  -1              --> No minimum size restriction
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'NUM'           --> Sorting by number of pieces
+  'SIZE'          --> Sorting by size
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'DETAIL'        --> Aggregation by detail
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- INCLUDE_OVERLAPPING_HEAP_AREAS
+
+  Controls the display of heap areas that are already covered differently (e.g. as part of column store, row store or stack)
+
+  'X'             --> Overlapping heap areas are included (memory can be accounted twice)
+  ' '             --> Overlapping heap areas are excluded
+  
+[OUTPUT PARAMETERS]
+
+- HOST:                        Host name
+- PORT:                        Port
+- SERVICE:                     Service name
+- AREA:                        Memory area (e.g. column store, row store, heap)
+- DETAIL:                      Memory area detail (e.g. table name, heap area)
+- NUM:                         Number of memory objects involved
+- SIZE_GB:                     Memory size (GB)
+- SIZE_PCT:                    Memory size (%)
+- CUM_SIZE_PCT:                Cumulated memory size up to this position (%)
+- DESCRIPTION:                 Description
+- MEMORY_REDUCTION_APPROACHES: Possibilities to reduce this memory area
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|HOST     |SERVICE_NAME|AREA        |DETAIL                                                                 |SIZE_GB   |SIZE_PCT|CUM_SIZE_PCT|DESCRIPTION                           |MEMORY_REDUCTION_APPROACHES                        |
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|saphana21|indexserver |Column store|KONV                                                                   |    293.43|   21.63|       21.63|Size of table KONV in column store    |Application data management and archiving          |
+|saphana21|indexserver |Heap area   |Pool/RowEngine/QueryExecution                                          |     72.72|    5.36|       26.99|SQL execution and result data         |SAP Note 2000792 (OOM with rev. 60 to 70)          |
+|saphana21|indexserver |Heap area   |Pool/Statistics                                                        |     57.73|    4.25|       31.25|                                      |                                                   |
+|saphana21|indexserver |Heap area   |Pool/PersistenceManager/PersistentSpace(0)/DefaultLPA/Page             |     46.84|    3.45|       34.71|Page cache for persistence information|Automatic size reductions by SAP HANA when required|
+|saphana21|indexserver |Column store|BSEG                                                                   |     42.45|    3.13|       37.84|Size of table BSEG in column store    |Application data management and archiving          |
+|saphana21|indexserver |Column store|ZARIXSD5                                                               |     38.03|    2.80|       40.64|Size of table ZARIXSD5 in column store|Application data management and archiving          |
+|saphana21|indexserver |Row store   |A726                                                                   |     36.53|    2.69|       43.33|Size of table A726 in row store       |Application data management and archiving          |
+|saphana21|indexserver |Column store|VBFA                                                                   |     29.57|    2.18|       45.52|Size of table VBFA in column store    |Application data management and archiving          |
+|saphana21|indexserver |Column store|CDPOS                                                                  |     26.86|    1.98|       47.50|Size of table CDPOS in column store   |Application data management and archiving          |
+|saphana21|indexserver |Column store|BSIS                                                                   |     26.84|    1.97|       49.48|Size of table BSIS in column store    |Application data management and archiving          |
+|saphana21|indexserver |Heap area   |Pool/JoinEvaluator/TranslationTable                                    |     25.15|    1.85|       51.33|Join engine column translation cache  |SAP Note 1998599                                   |
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SERVICE_NAME SERVICE,
+  AREA,
+  DETAIL,
+  LPAD(NUM_OBJECTS, 8) NUM,
+  LPAD(SIZE_GB, 10) SIZE_GB,
+  LPAD(SIZE_PCT, 8) SIZE_PCT,
+  LPAD(TO_DECIMAL(SUM(SIZE_PCT) OVER (ORDER BY ROW_NUM), 5, 2), 12) CUM_SIZE_PCT,
+  DESCRIPTION,
+  MEMORY_REDUCTION_APPROACHES
+FROM
+( SELECT
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')    != 0 THEN HOST          ELSE MAP(BI_HOST, '%', 'any', BI_HOST)                 END HOST,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(PORT) ELSE MAP(BI_PORT, '%', 'any', BI_PORT)                 END PORT,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SERVICE') != 0 THEN SERVICE_NAME  ELSE MAP(BI_SERVICE_NAME, '%', 'any', BI_SERVICE_NAME) END SERVICE_NAME,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'AREA')    != 0 THEN AREA          ELSE MAP(BI_AREA, '%', 'any', BI_AREA)                 END AREA,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'DETAIL')  != 0 THEN DETAIL        ELSE 'any'                                             END DETAIL,
+    COUNT(*) NUM_OBJECTS,
+    TO_DECIMAL(SUM(SIZE_BYTE) / 1024 / 1024 / 1024, 12, 2) SIZE_GB,
+    TO_DECIMAL(SUM(SIZE_BYTE) / TOTAL_USED_BYTE * 100, 5, 2) SIZE_PCT,
+    SUM(SIZE_BYTE) / TOTAL_USED_BYTE * 100 SIZE_PCT_ORIG,
+    ROW_NUMBER () OVER (ORDER BY MAP(ORDER_BY, 'NUM', COUNT(*), SUM(SIZE_BYTE)) DESC) ROW_NUM,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'DETAIL') != 0 THEN MAX(DESCRIPTION)                 ELSE 'various' END DESCRIPTION,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'DETAIL') != 0 THEN MAX(MEMORY_REDUCTION_APPROACHES) ELSE 'various' END MEMORY_REDUCTION_APPROACHES,
+    RESULT_ROWS,
+    AGGREGATE_BY,
+    MIN_SIZE_PCT
+  FROM
+  ( SELECT
+      D.HOST,
+      D.PORT,
+      S.SERVICE_NAME,
+      ( SELECT SUM(TOTAL_MEMORY_USED_SIZE) FROM M_SERVICE_MEMORY SM
+        WHERE SM.HOST LIKE BI.HOST AND TO_VARCHAR(SM.PORT) LIKE BI.PORT ) TOTAL_USED_BYTE,
+      D.AREA,
+      D.DETAIL,
+      D.SIZE_BYTE,
+      D.DESCRIPTION,
+      D.MEMORY_REDUCTION_APPROACHES,
+      BI.RESULT_ROWS,
+      BI.AGGREGATE_BY,
+      BI.MIN_SIZE_PCT,
+      BI.HOST BI_HOST,
+      BI.PORT BI_PORT,
+      BI.SERVICE_NAME BI_SERVICE_NAME,
+      BI.AREA BI_AREA,
+      BI.DETAIL BI_DETAIL,
+      BI.ONLY_SQL_DATA_AREAS,
+      BI.ORDER_BY
+    FROM
+    ( SELECT                                          /* Modification section */
+        '%' HOST,
+        '%' PORT,
+        '%' SERVICE_NAME,
+        '%' AREA,                                  /* %, ROW, COLUMN, HEAP, CODE, STACK */
+        '%' DETAIL,
+        ' ' ONLY_SQL_DATA_AREAS,
+        50 RESULT_ROWS,
+        -1 MIN_SIZE_PCT,
+        'DETAIL' AGGREGATE_BY,                          /* HOST, PORT, SERVICE, AREA, DETAIL or comma separated combinations, NONE for no aggregation */
+        'SIZE' ORDER_BY,                               /* NUM, SIZE */
+        ' ' INCLUDE_OVERLAPPING_HEAP_AREAS
+      FROM
+        DUMMY
+    ) BI,
+      M_SERVICES S,
+    ( SELECT
+        HOST,
+        PORT,
+        'Heap area' AREA,
+        CATEGORY DETAIL,
+        EXCLUSIVE_SIZE_IN_USE SIZE_BYTE,
+        IFNULL(HA.DESCRIPTION, '') DESCRIPTION,
+        IFNULL(HA.RECOMMENDATION, '') MEMORY_REDUCTION_APPROACHES
+      FROM
+        M_HEAP_MEMORY H LEFT OUTER JOIN
+      ( SELECT 'AllocateOnlyAllocator-unlimited/FLA-UL<3145728,1>/MemoryMapLevel2Blocks' ALLOCATOR, 'Internal memory management' DESCRIPTION, 'Open SAP incident in case of very large and rising size' RECOMMENDATION FROM DUMMY UNION ALL
+        SELECT 'Pool/AttributeEngine',                               'Column store',                                           'Cleanup, compression and archiving of column store tables' FROM DUMMY UNION ALL
+        SELECT 'Pool/AttributeEngine/idattribute',                   'Column store',                                           'Cleanup, compression and archiving of column store tables' FROM DUMMY UNION ALL
+        SELECT 'Pool/AttributeEngine-IndexVector%',                  'Column store',                                           'Cleanup, compression and archiving of column store tables' FROM DUMMY UNION ALL
+        SELECT 'Pool/AttributeEngine/Delta%',                        'Column store',                                           'Reduce delta storages (SAP Note 2057046)'                  FROM DUMMY UNION ALL
+        SELECT 'Pool/BitVector',                                     'Basic data structure (incl. persistence versions)',      'Avoid long running (update) transactions'                  FROM DUMMY UNION ALL
+        SELECT 'Pool/CS_TableSearch',                                'Query optimizer related data structure',                 'Reduce processed SQL data, avoid "SELECT *"'               FROM DUMMY UNION ALL
+        SELECT 'Pool/DocidValueArray',                               'Join related rowid / value set',                         'Reduce processed join SQL data, avoid "SELECT *"'          FROM DUMMY UNION ALL
+        SELECT 'Pool/itab%',                                         'Intermediate query results',                             'Reduce processed SQL data, avoid "SELECT *"'               FROM DUMMY UNION ALL
+        SELECT 'Pool/JoinEvaluator/JECreateNTuple',                  'Join tuples',                                            'Reduce processed SQL data, avoid "SELECT *"'               FROM DUMMY UNION ALL
+        SELECT 'Pool/JoinEvaluator/JERequestedAttributes/Results',   'Join results',                                           'Reduce processed SQL data, avoid "SELECT *"'               FROM DUMMY UNION ALL
+        SELECT 'Pool/JoinEvaluator/NTuple',                          'Join tuples',                                            'Reduce processed SQL data, avoid "SELECT *"'               FROM DUMMY UNION ALL
+        SELECT 'Pool/JoinEvaluator/TranslationTable',                'Join column mapping',                                    'See SAP Note 1998599'                                      FROM DUMMY UNION ALL
+        SELECT 'Pool/LVCAllocator%',                                 'liveCache data',                                         'liveCache data management'                                 FROM DUMMY UNION ALL
+        SELECT 'Pool/malloc/libhdbcsstore',                          'Column store persistence objects',                       'Optimize locking and garbage collection'                   FROM DUMMY UNION ALL
+        SELECT 'Pool/malloc/libhdbcs%',                              'Column store',                                           'Cleanup, compression and archiving of column store tables' FROM DUMMY UNION ALL
+        SELECT 'Pool/malloc/libhdbrskernel.so',                      'Row store components',                                   'Open SAP incident in case of very large and rising size'   FROM DUMMY UNION ALL
+        SELECT 'Pool/mdx',                                           'MDX query allocations',                                  'Implement SPS 09 or higher'                                FROM DUMMY UNION ALL
+        SELECT 'Pool/parallel%',                                     'OLAP aggregation results',                               'Reduce processed SQL data, avoid "SELECT *"'               FROM DUMMY UNION ALL
+        SELECT 'Pool/PersistenceManager/ContainerFileIDMapping',     'LOB container mapping',                                  'Large in case of many LOBs, improved with Rev. 94'         FROM DUMMY UNION ALL
+        SELECT 'Pool/PersistenceManager/DisasterRecoveryPrimary',    'Async. system replication log shipping buffer',          'See SAP Note 1999880 and increase only on service level'   FROM DUMMY UNION ALL
+        SELECT 'Pool/PersistenceManager/PersistentSpace(0)/DefaultLPA/Page', 'Page cache',                                     'Space is automatically reclaimed if required'              FROM DUMMY UNION ALL
+        SELECT 'Pool/PersistenceManager/PersistentSpace(0)/StaticLPA/Page', 'liveCache page cache',                            'liveCache data management'                                 FROM DUMMY UNION ALL
+        SELECT 'Pool/PersistenceManager/UnifiedTable container',     'L2 delta and paged attribute information',               'See SAP Note 2057046 and check merge configuration'        FROM DUMMY UNION ALL
+        SELECT 'Pool/RowEngine/CpbTree',                             'Row store indexes',                                      'Avoid unnecessary large row store indexes'                 FROM DUMMY UNION ALL
+        SELECT 'Pool/RowEngine/MonitorView',                         'Monitoring view information',                            'See SAP Note 2112732 (SPS 08 and below)'                   FROM DUMMY UNION ALL
+        SELECT 'Pool/RowEngine/QueryExecution',                      'Row engine results',                                     'Reduce processed SQL data, avoid "SELECT *"'               FROM DUMMY UNION ALL
+        SELECT 'Pool/RowEngine/Session',                             'Session management',                                     'Reduce connections and processed SQL data'                 FROM DUMMY UNION ALL
+        SELECT 'Pool/RowEngine/SQLPlan',                             'SQL cache',                                              'See SAP Note 2124112'                                      FROM DUMMY UNION ALL
+        SELECT 'Pool/RowEngine/Version',                             'Row store version management',                           'Avoid long running (update) transactions'                  FROM DUMMY UNION ALL
+        SELECT 'Pool/Statistics',                                    'Internal statistical information',                       'Open SAP incident in case of very large and rising size'   FROM DUMMY UNION ALL
+        SELECT 'Pool/StatisticsServer%',                             'Standalone statistics server data',                      'See SAP Note 1917938 and migrate to embedded stat. server' FROM DUMMY UNION ALL
+        SELECT 'Pool/UdivListMgr/UdivListContainer',                 'Column store version management',                        'Avoid long running (update) transactions'                  FROM DUMMY UNION ALL
+        SELECT 'Pool/ValueArray',                                    'Join results',                                           'Reduce processed SQL data, avoid "SELECT *"'               FROM DUMMY
+      ) HA ON
+          H.CATEGORY LIKE HA.ALLOCATOR
+      UNION ALL
+      ( SELECT
+          S.HOST,
+          S.PORT,
+          'Code' AREA,
+          'Code' DETAIL,
+          ROUND(H.INSTANCE_CODE_SIZE /* / COUNT(*) OVER (PARTITION BY S.HOST) to be disabled because of errors with SPS 08, SAP internal message 764509 2014 */) SIZE_BYTE,
+          'Space allocated for code and shared libraries' DESCRIPTION,
+          'No action required' MEMORY_REDUCTION_APPROACHES
+        FROM
+          M_SERVICE_MEMORY S,
+          M_HOST_RESOURCE_UTILIZATION H
+        WHERE
+          S.HOST = H.HOST
+      )
+      UNION ALL
+      ( SELECT
+          HOST,
+          PORT,
+          'Stack' AREA,
+          'Stack' DETAIL,
+          STACK_SIZE SIZE_BYTE,
+          'Space allocated for stack' DESCRIPTION,
+          'No action required' MEMORY_REDUCTION_APPROACHES
+        FROM
+          M_SERVICE_MEMORY
+      )
+      UNION ALL
+      ( SELECT
+          HOST,
+          PORT,
+          'Row store',
+          'Row store fragmentation',
+          SUM(FREE_SIZE),
+          'Row store fragmentation',
+          'See SAP Note 1813245 and reorganize row store'
+        FROM
+          M_RS_MEMORY
+        GROUP BY
+          HOST,
+          PORT
+      )
+      UNION ALL
+      ( SELECT
+          HOST,
+          PORT,
+          AREA,
+          TABLE_NAME DETAIL,
+          SIZE_BYTE,
+          'Size of table ' || TABLE_NAME || ' in ' || LOWER(AREA) DESCRIPTION,
+          CASE WHEN TABLE_NAME IN
+          ( 'BALHDR', 'BALHDRP', 'BALM', 'BALMP', 'BALDAT', 'BALC', 
+            'BAL_INDX', 'EDIDS', 'EDIDC', 'EDIDOC', 'EDI30C', 'EDI40', 'EDID4',
+            'IDOCREL', 'SRRELROLES', 'SWFGPROLEINST', 'SWP_HEADER', 'SWP_NODEWI', 'SWPNODE',
+            'SWPNODELOG', 'SWPSTEPLOG', 'SWW_CONT', 'SWW_CONTOB', 'SWW_WI2OBJ', 'SWWCNTP0',
+            'SWWCNTPADD', 'SWWEI', 'SWWLOGHIST', 'SWWLOGPARA', 'SWWWIDEADL', 'SWWWIHEAD', 
+            'SWWWIRET', 'SWZAI', 'SWZAIENTRY', 'SWZAIRET', 'SWWUSERWI',                  
+            'BDCP', 'BDCPS', 'BDCP2', 'DBTABLOG', 'DBTABPRT', 
+            'ARFCSSTATE', 'ARFCSDATA', 'ARFCRSTATE', 'TRFCQDATA',
+            'TRFCQIN', 'TRFCQOUT', 'TRFCQSTATE', 'SDBAH', 'SDBAD', 'DBMSGORA', 'DDLOG',
+            'APQD', 'TST01', 'TST03', 'TSPEVJOB', 'TXMILOGRAW', 'TSPEVDEV', 
+            'SNAP', 'SMO8FTCFG', 'SMO8FTSTP', 'SMO8_TMSG', 'SMO8_TMDAT', 
+            'SMO8_DLIST', 'SMW3_BDOC', 'SMW3_BDOC1', 'SMW3_BDOC2', 
+            'SMW3_BDOC4', 'SMW3_BDOC5', 'SMW3_BDOC6', 'SMW3_BDOC7', 'SMW3_BDOCQ', 'SMWT_TRC',
+            'TPRI_PAR', 'RSBMLOGPAR', 'RSBMLOGPAR_DTP', 'RSBMNODES', 'RSBMONMESS',
+            'RSBMONMESS_DTP', 'RSBMREQ_DTP', 'RSCRTDONE', 'RSDELDONE', 'RSHIEDONE',
+            'RSLDTDONE', 'RSMONFACT', 'RSMONICTAB', 'RSMONIPTAB', 'RSMONMESS', 'RSMONRQTAB', 'RSREQDONE',
+            'RSRULEDONE', 'RSSELDONE', 'RSTCPDONE', 'RSUICDONE',
+            'VBDATA', 'VBMOD', 'VBHDR', 'VBERROR', 'ENHLOG',
+            'VDCHGPTR', 'JBDCPHDR2', 'JBDCPPOS2', 'SWELOG', 'SWELTS', 'SWFREVTLOG',
+            'ARDB_STAT0', 'ARDB_STAT1', 'ARDB_STAT2', 'TAAN_DATA', 'TAAN_FLDS', 'TAAN_HEAD', 'QRFCTRACE', 'QRFCLOG',
+            'DDPRS', 'TBTCO', 'TBTCP', 'TBTCS', 'MDMFDBEVENT', 'MDMFDBID', 'MDMFDBPR',
+            'RSRWBSTORE', 'RSRWBINDEX', '/SAPAPO/LISMAP', '/SAPAPO/LISLOG', 
+            'CCMLOG', 'CCMLOGD', 'CCMSESSION', 'CCMOBJLST', 'CCMOBJKEYS',
+            'RSBATCHCTRL', 'RSBATCHCTRL_PAR', 'RSBATCHDATA', 'RSBATCHHEADER', 'RSBATCHPROT', 'RSBATCHSTACK',
+            'SXMSPMAST', 'SXMSPMAST2', 'SXMSPHIST', 'MERGED_TRACES_FOR_COCKPIT',
+            'SXMSPHIST2', 'SXMSPFRAWH', 'SXMSPFRAWD', 'SXMSCLUR', 'SXMSCLUR2', 'SXMSCLUP',
+            'SXMSCLUP2', 'SWFRXIHDR', 'SWFRXICNT', 'SWFRXIPRC', 
+            'XI_AF_MSG', 'XI_AF_MSG_AUDIT', 'BC_MSG', 'BC_MSG_AUDIT',
+            'SMW0REL', 'SRRELROLES', 'COIX_DATA40', 'T811E', 'T811ED', 
+            'T811ED2', 'RSDDSTATAGGR', 'RSDDSTATAGGRDEF', 'RSDDSTATCOND', 'RSDDSTATDTP',
+            'RSDDSTATDELE', 'RSDDSTATDM', 'RSDDSTATEVDATA', 'RSDDSTATHEADER',
+            'RSDDSTATINFO', 'RSDDSTATLOGGING', 'RSERRORHEAD', 'RSERRORLOG',
+            'DFKKDOUBTD_W', 'DFKKDOUBTD_RET_W', 'RSBERRORLOG', 'INDX',
+            'SOOD', 'SOOS', 'SOC3', 'SOFFCONT1', 'BCST_SR', 'BCST_CAM',
+            'SICFRECORDER', 'CRM_ICI_TRACES', 'RSPCINSTANCE', 'RSPCINSTANCET',
+            'GVD_BGPROCESS', 'GVD_BUFF_POOL_ST', 'GVD_LATCH_MISSES', 
+            'GVD_ENQUEUE_STAT', 'GVD_FILESTAT', 'GVD_INSTANCE',    
+            'GVD_PGASTAT', 'GVD_PGA_TARGET_A', 'GVD_PGA_TARGET_H',
+            'GVD_SERVERLIST', 'GVD_SESSION_EVT', 'GVD_SESSION_WAIT',
+            'GVD_SESSION', 'GVD_PROCESS', 'GVD_PX_SESSION',  
+            'GVD_WPTOTALINFO', 'GVD_ROWCACHE', 'GVD_SEGMENT_STAT',
+            'GVD_SESSTAT', 'GVD_SGACURRRESIZ', 'GVD_SGADYNFREE',  
+            'GVD_SGA', 'GVD_SGARESIZEOPS', 'GVD_SESS_IO',     
+            'GVD_SGASTAT', 'GVD_SGADYNCOMP', 'GVD_SEGSTAT',     
+            'GVD_SPPARAMETER', 'GVD_SHAR_P_ADV', 'GVD_SQLAREA',     
+            'GVD_SQL', 'GVD_SQLTEXT', 'GVD_SQL_WA_ACTIV',
+            'GVD_SQL_WA_HISTO', 'GVD_SQL_WORKAREA', 'GVD_SYSSTAT',     
+            'GVD_SYSTEM_EVENT', 'GVD_DATABASE', 'GVD_CURR_BLKSRV', 
+            'GVD_DATAGUARD_ST', 'GVD_DATAFILE', 'GVD_LOCKED_OBJEC',
+            'GVD_LOCK_ACTIVTY', 'GVD_DB_CACHE_ADV', 'GVD_LATCHHOLDER', 
+            'GVD_LATCHCHILDS', 'GVD_LATCH', 'GVD_LATCHNAME',   
+            'GVD_LATCH_PARENT', 'GVD_LIBRARYCACHE', 'GVD_LOCK',        
+            'GVD_MANGD_STANBY', 'GVD_OBJECT_DEPEN', 'GVD_PARAMETER',   
+            'GVD_LOGFILE', 'GVD_PARAMETER2', 'GVD_TEMPFILE',    
+            'GVD_UNDOSTAT', 'GVD_WAITSTAT', 'ORA_SNAPSHOT',
+            '/TXINTF/TRACE', 'RSECLOG', 'RSECUSERAUTH_CL', 'RSWR_DATA',
+            'RSECVAL_CL', 'RSECHIE_CL', 'RSECTXT_CL', 'RSECSESSION_CL',
+            'UPC_STATISTIC', 'UPC_STATISTIC2', 'UPC_STATISTIC3',
+            'RSTT_CALLSTACK', 'RSZWOBJ', 'RSIXWWW', 'RSZWBOOKMARK', 'RSZWVIEW', 
+            'RSZWITEM', 'RSR_CACHE_DATA_B', 'RSR_CACHE_DATA_C', 'RSR_CACHE_DBS_BL',
+            'RSR_CACHE_FFB', 'RSR_CACHE_QUERY', 'RSR_CACHE_STATS',
+            'RSR_CACHE_VARSHB', 'WRI$_OPTSTAT_HISTGRM_HISTORY',
+            'WRI$_OPTSTAT_HISTHEAD_HISTORY', 'WRI$_OPTSTAT_IND_HISTORY',
+            'WRI$_OPTSTAT_TAB_HISTORY', 'WRH$_ACTIVE_SESSION_HISTORY',
+            'RSODSACTUPDTYPE', 'TRFC_I_SDATA', 'TRFC_I_UNIT', 'TRFC_I_DEST', 
+            'TRFC_I_UNIT_LOCK', 'TRFC_I_EXE_STATE', 'TRFC_I_ERR_STATE',
+            'DYNPSOURCE', 'DYNPLOAD', 'D010TAB', 'REPOSRC', 'REPOLOAD',
+            'RSOTLOGOHISTORY', 'SQLMD', '/SDF/ZQLMD', 'RSSTATMANREQMDEL',
+            'RSSTATMANREQMAP', 'RSICPROT', 'RSPCPROCESSLOG',
+            'DSVASRESULTSGEN', 'DSVASRESULTSSEL', 'DSVASRESULTSCHK', 
+            'DSVASRESULTSATTR', 'DSVASREPODOCS', 'DSVASSESSADMIN', 'DOKCLU',
+            'ORA_SQLC_HEAD', 'ORA_SQLC_DATA', 'CS_AUDIT_LOG_', 'RSBKSELECT',
+            'SWN_NOTIF', 'SWN_NOTIFTSTMP', 'SWN_SENDLOG', 'JOB_LOG',
+            'SWNCMONI', 'BC_SLD_CHANGELOG', 'ODQDATA_F', 'STATISTICS_ALERTS', 'STATISTICS_ALERTS_BASE',
+            'SRT_UTIL_ERRLOG', 'SRT_MONILOG_DATA', 'SRT_RTC_DT_RT', 'SRT_RTC_DATA', 'SRT_RTC_DATA_RT', 
+            'SRT_CDTC', 'SRT_MMASTER', 'SRT_SEQ_HDR_STAT', 'SRTM_SUB', 'SRT_SEQ_REORG',
+            'UJ0_STAT_DTL', 'UJ0_STAT_HDR', '/SAPTRX/APPTALOG', '/SAPTRX/AOTREF', 'SSCOOKIE',
+            'UJF_DOC', 'UJF_DOC_CLUSTER', '/AIF/PERS_XML', 'SE16N_CD_DATA', 'SE16N_CD_KEY',
+            'RSBKDATA', 'RSBKDATAINFO', 'RSBKDATAPAKID', 'RSBKDATAPAKSEL',
+            'ECLOG_CALL', 'ECLOG_DATA', 'ECLOG_EXEC', 'ECLOG_EXT', 'ECLOG_HEAD', 'ECLOG_RESTAB', 
+            'ECLOG_SCNT', 'ECLOG_SCR', 'ECLOG_SEL', 'ECLOG_XDAT',
+            'CROSS', 'WBCROSSGT', 'WBCROSSI', 'OBJECT_HISTORY', '/SSF/PTAB',
+            '/IWFND/L_MET_COL', '/IWFND/L_MET_DAT', '/IWFND/SU_STATS'
+          ) OR
+            ( TABLE_NAME LIKE 'GLOBAL%' AND SCHEMA_NAME = '_SYS_STATISTICS' ) OR
+            ( TABLE_NAME LIKE 'HOST%' AND SCHEMA_NAME = '_SYS_STATISTICS' ) OR
+            TABLE_NAME LIKE 'ZARIX%' OR
+            TABLE_NAME LIKE '/BI0/0%' OR
+            TABLE_NAME LIKE '/BIC/B%' OR
+            TABLE_NAME LIKE '/BI_/H%' OR
+            TABLE_NAME LIKE '/BI_/I%' OR
+            TABLE_NAME LIKE '/BI_/J%' OR
+            TABLE_NAME LIKE '/BI_/K%' OR
+            TABLE_NAME LIKE '$BPC$HC$%' OR
+            TABLE_NAME LIKE '$BPC$TMP%'
+          THEN 
+            'SAP Note 2388483 (archiving and cleanup options)' 
+          ELSE
+            'Application data management and archiving'
+          END MEMORY_REDUCTION_APPROACHES
+        FROM
+        ( SELECT
+            HOST,
+            PORT,
+            'Row store' AREA,
+            SCHEMA_NAME,
+            TABLE_NAME,
+            SUM(TABLE_SIZE) SIZE_BYTE
+          FROM
+          ( SELECT
+              HOST,
+              PORT,
+              SCHEMA_NAME,
+              TABLE_NAME,
+              ALLOCATED_FIXED_PART_SIZE + ALLOCATED_VARIABLE_PART_SIZE TABLE_SIZE
+            FROM
+              M_RS_TABLES 
+            UNION ALL
+            ( SELECT
+                HOST,
+                PORT,
+                SCHEMA_NAME,
+                TABLE_NAME,
+                INDEX_SIZE TABLE_SIZE
+              FROM
+                M_RS_INDEXES
+            ) 
+          )  
+          GROUP BY
+            HOST,
+            PORT,
+            SCHEMA_NAME,
+            TABLE_NAME
+          UNION ALL
+          ( SELECT
+              HOST,
+              PORT,
+              'Column store' AREA,
+              SCHEMA_NAME,
+              TABLE_NAME,
+              SUM(MEMORY_SIZE_IN_TOTAL) SIZE_BYTE
+            FROM
+              M_CS_TABLES 	
+            GROUP BY
+              HOST,
+              PORT,
+              SCHEMA_NAME,
+              TABLE_NAME 
+          )
+        )
+      ) 
+    ) D
+    WHERE
+      S.HOST LIKE BI.HOST AND
+      TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+      S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+      D.HOST = S.HOST AND
+      D.PORT = S.PORT AND
+      D.DETAIL LIKE BI.DETAIL AND
+      ( BI.INCLUDE_OVERLAPPING_HEAP_AREAS = 'X' OR
+        ( D.DETAIL NOT LIKE 'Pool/AttributeEngine%' AND
+          D.DETAIL NOT LIKE 'Pool/ColumnStore%' AND
+          D.DETAIL NOT IN 
+          ( 'Pool/malloc/libhdbbasement.so', 
+            'Pool/malloc/libhdbcs.so', 
+            'Pool/NameIdMapping/RoDict',
+            'Pool/RowEngine/CpbTree',
+            'Pool/RowStoreTables/CpbTree',
+            'Pool/SerializedObject',
+            'StackAllocator'
+          )
+       )
+      ) AND
+      ( BI.ONLY_SQL_DATA_AREAS = ' ' OR
+        D.DETAIL LIKE 'Pool/Text/AEText%' OR
+        D.DETAIL IN 
+        ( 'Pool/AttributeEngine/Transient',
+          'Pool/AttributeEngine/Transient/updateContainerConcat',
+          'Pool/itab',
+          'Pool/itab/VectorColumn',
+          'Pool/JoinEvaluator/JEAssembleResults',
+          'Pool/JoinEvaluator/JEAssembleResults/Results',
+          'Pool/JoinEvaluator/JECalculate',
+          'Pool/JoinEvaluator/JECalculate/Results',
+          'Pool/JoinEvaluator/JECreateNTuple',
+          'Pool/JoinEvaluator/JEPlanData/deserialized',
+          'Pool/JoinEvaluator/JEPreAggregate',
+          'Pool/JoinEvaluator/JERequestedAttributes/Results',
+          'Pool/JoinEvaluator/JEStep1',
+          'Pool/JoinEvaluator/JEStep2',
+          'Pool/JoinEvaluator/NTuple', 
+          'Pool/JoinEvaluator/PlanDataAttrVals/Deserialized',
+          'Pool/parallel/aggregates', 
+          'Pool/parallel/align', 
+          'Pool/parallel/compactcol', 
+          'Pool/parallel/ihm',
+          'Pool/parallel/pop',
+          'Pool/parallel/temp_aggregates',
+          'Pool/RowEngine/LOB',
+          'Pool/RowEngine/QueryExecution', 
+          'Pool/SearchAPI/Itab Search',
+          'Pool/ValueArray'
+        )
+      ) AND
+      ( BI.AREA = '%' OR
+        BI.AREA = 'HEAP'   AND D.AREA = 'Heap area' OR
+        BI.AREA = 'ROW'    AND D.AREA = 'Row store' OR
+        BI.AREA = 'COLUMN' AND D.AREA = 'Column store' OR
+        BI.AREA = 'CODE'   AND D.AREA = 'Code' OR
+        BI.AREA = 'STACK'  AND D.AREA = 'Stack'
+      )
+  )
+  GROUP BY
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')    != 0 THEN HOST          ELSE MAP(BI_HOST, '%', 'any', BI_HOST)                 END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(PORT) ELSE MAP(BI_PORT, '%', 'any', BI_PORT)                 END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SERVICE') != 0 THEN SERVICE_NAME  ELSE MAP(BI_SERVICE_NAME, '%', 'any', BI_SERVICE_NAME) END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'AREA')    != 0 THEN AREA          ELSE MAP(BI_AREA, '%', 'any', BI_AREA)                 END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'DETAIL')  != 0 THEN DETAIL        ELSE 'any'                                             END,
+    AGGREGATE_BY,
+    TOTAL_USED_BYTE,
+    RESULT_ROWS,
+    MIN_SIZE_PCT,
+    ORDER_BY
+)
+WHERE
+  ( MIN_SIZE_PCT = -1 OR SIZE_PCT_ORIG >= MIN_SIZE_PCT ) AND
+  ( RESULT_ROWS = -1 OR ROW_NUM <= RESULT_ROWS )
+ORDER BY
+  ROW_NUM
+

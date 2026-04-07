@@ -1,0 +1,227 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Workload
+
+[DESCRIPTION]
+
+- Workload information including number of SQL statements and transactions
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- HOST_WORKLOAD not available before SPS 7
+
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2014/04/28:  1.0 (initial version)
+- 2014/12/19:  1.1 (AGGREGATE_BY included)
+- 2015/03/17:  1.2 (dedicated version for SPS 6 and below)
+
+[INVOLVED TABLES]
+
+- M_WORKLOAD
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  TO_TIMESTAMP('2014/06/05 14:05:00', 'YYYY/MM/DD HH24:MI:SS') --> Set begin time to 5th of June 2014, 14:05 
+  ADD_DAYS(CURRENT_TIMESTAMP, -2)                              --> Set begin time to two days before current time 
+
+- END_TIME
+
+  End time
+
+  TO_TIMESTAMP('2014/06/08 14:05:00', 'YYYY/MM/DD HH24:MI:SS') --> Set end time to 8th of June 2014, 14:05 
+  CURRENT_TIMESTAMP                                            --> Set end time to current time 
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation by time (e.g. hours, days)
+
+  'NONE'          --> No aggregation
+  'DAY'           --> Aggregation by days
+  'WW'            --> Aggregation by calendar week
+  
+[OUTPUT PARAMETERS]
+
+- SNAPSHOT_TIME:   Sample time frame
+- HOST:            Host name
+- PORT:            Port
+- SERVICE:         Service name
+- EXEC_PER_S:      Number of SQL statement executions per second
+- PREP_PER_S:      Number of prepares per second
+- TRANS_PER_S:     Number of transactions per second
+- UPD_TRANS_PER_S: Number of update transactions per second
+- COMMIT_PER_S:    Number of commits per second
+- ROLLBACK_PER_S:  Number of rollbacks per second
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------------------
+|SNAPSHOT_TIME   |HOST     |PORT |EXEC_PER_S|PREP_PER_S|TRANS_PER_S|UPD_TRANS_PER_S|COMMIT_PER_S|ROLLBACK_PER_S|
+----------------------------------------------------------------------------------------------------------------
+|2014/12/19 (FRI)|saphanadb|  any|  15363.65|    103.94|      38.04|          37.73|       38.03|          0.01|
+|2014/12/18 (THU)|saphanadb|  any|  11145.88|     89.44|      26.25|          25.65|       26.22|          0.03|
+|2014/12/17 (WED)|saphanadb|  any|  14473.61|    122.74|      30.05|          26.85|       29.99|          0.06|
+|2014/12/16 (TUE)|saphanadb|  any|  12951.43|     94.15|      28.05|          26.88|       27.97|          0.08|
+|2014/12/15 (MON)|saphanadb|  any|  15908.58|    101.16|      25.51|          24.64|       25.46|          0.04|
+|2014/12/14 (SUN)|saphanadb|  any|   5007.65|      7.43|      17.08|          16.27|       17.06|          0.02|
+|2014/12/13 (SAT)|saphanadb|  any|   7502.89|     12.72|      18.58|          17.52|       18.55|          0.03|
+----------------------------------------------------------------------------------------------------------------
+
+*/
+
+  SNAPSHOT_TIME,
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SERVICE_NAME SERVICE,
+  LPAD(TO_DECIMAL(CURRENT_EXECUTION_RATE / 60, 10, 2), 10) EXEC_PER_S,
+  LPAD(TO_DECIMAL(CURRENT_COMPILATION_RATE / 60, 10, 2), 10) PREP_PER_S,
+  LPAD(TO_DECIMAL(CURRENT_TRANSACTION_RATE / 60, 10, 2), 11) TRANS_PER_S,
+  LPAD(TO_DECIMAL(CURRENT_UPDATE_TRANSACTION_RATE / 60, 10, 2), 15) UPD_TRANS_PER_S,
+  LPAD(TO_DECIMAL(CURRENT_COMMIT_RATE / 60, 10, 2), 12) COMMIT_PER_S,
+  LPAD(TO_DECIMAL(CURRENT_ROLLBACK_RATE / 60, 10, 2), 14) ROLLBACK_PER_S  
+FROM
+( SELECT
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')    != 0 THEN HOST          ELSE MAP(BI_HOST, '%', 'any', BI_HOST)                 END HOST,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(PORT) ELSE MAP(BI_PORT, '%', 'any', BI_PORT)                 END PORT,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SERVICE') != 0 THEN SERVICE_NAME  ELSE MAP(BI_SERVICE_NAME, '%', 'any', BI_SERVICE_NAME) END SERVICE_NAME,
+    SNAPSHOT_TIME,
+    SUM(CURRENT_EXECUTION_RATE) CURRENT_EXECUTION_RATE,
+    SUM(CURRENT_COMPILATION_RATE) CURRENT_COMPILATION_RATE,
+    SUM(CURRENT_TRANSACTION_RATE) CURRENT_TRANSACTION_RATE,
+    SUM(CURRENT_UPDATE_TRANSACTION_RATE) CURRENT_UPDATE_TRANSACTION_RATE,
+    SUM(CURRENT_COMMIT_RATE) CURRENT_COMMIT_RATE,
+    SUM(CURRENT_ROLLBACK_RATE) CURRENT_ROLLBACK_RATE
+  FROM
+  ( SELECT
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME')       != 0 THEN TO_VARCHAR(W.SAMPLE_TIME, TIME_AGGREGATE_BY) ELSE 'any' END SNAPSHOT_TIME,
+      W.HOST,
+      W.PORT,
+      S.SERVICE_NAME,
+      AVG(W.CURRENT_EXECUTION_RATE) CURRENT_EXECUTION_RATE,
+      AVG(W.CURRENT_COMPILATION_RATE) CURRENT_COMPILATION_RATE,
+      AVG(W.CURRENT_TRANSACTION_RATE) CURRENT_TRANSACTION_RATE,
+      AVG(W.CURRENT_UPDATE_TRANSACTION_RATE) CURRENT_UPDATE_TRANSACTION_RATE,
+      AVG(W.CURRENT_COMMIT_RATE) CURRENT_COMMIT_RATE,
+      AVG(W.CURRENT_ROLLBACK_RATE) CURRENT_ROLLBACK_RATE,
+      BI.HOST BI_HOST,
+      BI.PORT BI_PORT,
+      BI.SERVICE_NAME BI_SERVICE_NAME,
+      BI.AGGREGATE_BY
+    FROM
+    ( SELECT
+        BEGIN_TIME,
+        END_TIME,
+        HOST,
+        PORT,
+        SERVICE_NAME,
+        AGGREGATE_BY,
+        MAP(TIME_AGGREGATE_BY,
+          'NONE',        'YYYY/MM/DD HH24:MI:SS',
+          'HOUR',        'YYYY/MM/DD HH24',
+          'DAY',         'YYYY/MM/DD (DY)',
+          'HOUR_OF_DAY', 'HH24',
+          TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY
+      FROM
+      ( SELECT                         /* Modification section */
+          TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS') BEGIN_TIME,
+          TO_TIMESTAMP('9999/12/31 23:59:00', 'YYYY/MM/DD HH24:MI:SS') END_TIME,
+          '%' HOST,
+          '%' PORT,
+          '%' SERVICE_NAME,
+          'TIME' AGGREGATE_BY,          /* HOST, PORT, SERVICE, TIME or comma separated combination, NONE for no aggregation */
+          'DAY' TIME_AGGREGATE_BY      /* HOUR, DAY, HOUR_OF_DAY or database time pattern, NONE for no aggregation */   
+        FROM
+          DUMMY
+      )
+    ) BI,
+      M_SERVICES S,
+    ( SELECT
+        'CURRENT' DATA_SOURCE,
+        CURRENT_TIMESTAMP SAMPLE_TIME,
+        HOST,
+        PORT,
+        CURRENT_EXECUTION_RATE,
+        CURRENT_COMPILATION_RATE,
+        CURRENT_TRANSACTION_RATE,
+        CURRENT_UPDATE_TRANSACTION_RATE,
+        CURRENT_COMMIT_RATE,
+        CURRENT_ROLLBACK_RATE
+      FROM
+        M_WORKLOAD
+    ) W
+    WHERE
+      S.HOST LIKE BI.HOST AND
+      TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+      S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+      W.HOST = S.HOST AND
+      W.PORT = S.PORT AND
+      W.SAMPLE_TIME BETWEEN BI.BEGIN_TIME AND BI.END_TIME
+    GROUP BY
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME')       != 0 THEN TO_VARCHAR(W.SAMPLE_TIME, TIME_AGGREGATE_BY) ELSE 'any' END,
+      W.HOST,
+      W.PORT,
+      S.SERVICE_NAME,
+      BI.HOST,
+      BI.PORT,
+      BI.SERVICE_NAME,
+      BI.AGGREGATE_BY
+  )
+  GROUP BY
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')    != 0 THEN HOST          ELSE MAP(BI_HOST, '%', 'any', BI_HOST)                 END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(PORT) ELSE MAP(BI_PORT, '%', 'any', BI_PORT)                 END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SERVICE') != 0 THEN SERVICE_NAME  ELSE MAP(BI_SERVICE_NAME, '%', 'any', BI_SERVICE_NAME) END,
+    SNAPSHOT_TIME
+)
+ORDER BY
+  SNAPSHOT_TIME DESC,
+  HOST,
+  PORT

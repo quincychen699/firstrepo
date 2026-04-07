@@ -1,0 +1,142 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Tables_DiskSize_UnifiedTables_1.00.90+_Internal
+
+[DESCRIPTION]
+
+- Unified tables disk size information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.90
+
+[SQL COMMAND VERSION]
+
+- 2017/01/05:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_UNIFIED_TABLE_PERSISTENCE_STATISTICS_
+
+[INPUT PARAMETERS]
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- OBJECT_LEVEL
+
+  Controls display of partitions
+
+  'PARTITION'     --> Result is shown on partition level
+  'TABLE'         --> Result is shown on table level
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'SCHEMA'        --> Aggregation by schema name
+  'NONE'          --> No aggregation
+
+- RESULT_ROWS
+
+  Number of records to be returned by the query
+
+  100             --> Return a maximum number of 100 records
+  -1              --> Return all records
+
+[OUTPUT PARAMETERS]
+
+- SCHEMA_NAME:  Schema name
+- TABLE_NAME:   Table name
+- DISK_SIZE_GB: Size on disk (GB)
+- NUM_PAGES:    Number of pages
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------
+|SCHEMA_NAME         |TABLE_NAME                             |DISK_SIZE_GB|NUM_PAGES   |
+----------------------------------------------------------------------------------------
+|SAPSR3              |DOKTL                                  |        0.39|        1619|
+|SAPSR3              |RSMPTEXTS                              |        0.12|         509|
+|SAPSR3              |AGR_HIERT                              |        0.04|         199|
+|SAPSR3              |DOKHL                                  |        0.03|         141|
+|SAPSR3              |REPOTEXT                               |        0.02|         136|
+----------------------------------------------------------------------------------------
+
+*/
+
+  SCHEMA_NAME,
+  TABLE_NAME,
+  LPAD(TO_DECIMAL(DISK_SIZE_GB, 10, 2), 12) DISK_SIZE_GB,
+  LPAD(NUM_PAGES, 12)  NUM_PAGES
+FROM
+( SELECT
+    SCHEMA_NAME,
+    TABLE_NAME,
+    DISK_SIZE_GB,
+    NUM_PAGES,
+    ROW_NUMBER () OVER ( ORDER BY DISK_SIZE_GB  DESC ) ROW_NUM,
+    RESULT_ROWS
+  FROM
+  ( SELECT
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA') != 0 THEN TS.SCHEMA_NAME ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME) END SCHEMA_NAME,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')  != 0 THEN TS.TABLE_NAME || 
+        CASE WHEN BI.OBJECT_LEVEL = 'TABLE' OR TS.INTERNAL_PART_ID <= 0 THEN '' ELSE CHAR(32) || '(' || TS.INTERNAL_PART_ID || ')' END
+        ELSE MAP(BI.TABLE_NAME,  '%', 'any', BI.TABLE_NAME)  END TABLE_NAME,
+      SUM(DISK_SIZE) / 1024 / 1024 / 1024 DISK_SIZE_GB,
+      SUM(PAGE_COUNT) NUM_PAGES,
+      RESULT_ROWS
+    FROM
+    ( SELECT                 /* Modification section */
+        '%' SCHEMA_NAME,
+        '%' TABLE_NAME,
+        -1 PART_ID,
+        'PARTITION' OBJECT_LEVEL,
+        'NONE' AGGREGATE_BY,              /* TABLE, SCHEMA or comma-separated combinations, NONE for no aggregation */
+        100 RESULT_ROWS
+      FROM
+        DUMMY
+    ) BI,
+      SYS.M_UNIFIED_TABLE_PERSISTENCE_STATISTICS_ TS
+    WHERE
+      TS.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+      TS.TABLE_NAME LIKE BI.TABLE_NAME AND
+      ( BI.PART_ID = -1 OR TS.INTERNAL_PART_ID = BI.PART_ID )
+    GROUP BY
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA') != 0 THEN TS.SCHEMA_NAME ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME) END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')  != 0 THEN TS.TABLE_NAME || 
+        CASE WHEN BI.OBJECT_LEVEL = 'TABLE' OR TS.INTERNAL_PART_ID <= 0 THEN '' ELSE CHAR(32) || '(' || TS.INTERNAL_PART_ID || ')' END
+        ELSE MAP(BI.TABLE_NAME,  '%', 'any', BI.TABLE_NAME)  END,
+      RESULT_ROWS
+  )  
+)
+WHERE
+  ( RESULT_ROWS = -1 OR ROW_NUM <= RESULT_ROWS )
+ORDER BY
+  ROW_NUM

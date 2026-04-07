@@ -1,0 +1,171 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Tables_TemporaryTables
+
+[DESCRIPTION]
+
+- Existing (global) temporary tables
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2015/05/11:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_TEMPORARY_TABLE_COLUMNS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'COLUMN'        --> Aggregation by column
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+[OUTPUT PARAMETERS]
+
+- HOST:        Host name
+- PORT:        Port
+- SERVICE:     Service name
+- SCHEMA_NAME: Schema name
+- TABLE_NAME:  Table name
+- COLUMNS:     Column list
+- NUM_TABLES:  Number of tables
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------------------------------------------
+|HOST   |PORT |SCHEMA_NAME|TABLE_NAME|COLUMNS                                                                                  |NUM_TAB|
+----------------------------------------------------------------------------------------------------------------------------------------
+|saphana|30003|SYSTEM     |any       |SNAPSHOT_ID, ALERT_ID, ALERT_RATING, $rowid$, $trex_udiv$                                |      4|
+|saphana|30007|SYSTEM     |any       |SNAPSHOT_ID, ALERT_ID, ALERT_TIMESTAMP, $rowid$, $trex_udiv$                             |      3|
+|saphana|30007|SYSTEM     |any       |SNAPSHOT_ID, ALERT_ID, $rowid$, $trex_udiv$                                              |      3|
+|saphana|30007|SYSTEM     |any       |SNAPSHOT_ID, ALERT_ID, ALERT_RATING, $rowid$, $trex_udiv$                                |      3|
+|saphana|30003|MONITOR    |any       |COL$0$, COL$1$, COL$2$, $rowid$, $trex_udiv$                                             |      1|
+|saphana|30003|MONITOR    |any       |col$0$, col$1$, $rowid$, $trex_udiv$                                                     |      1|
+|saphana|30003|MONITOR    |any       |col$0$, col$1$, col$2$, col$3$, col$4$, col$5$, col$6$, $rowid$, $trex_udiv$             |      1|
+----------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  PORT,
+  SERVICE_NAME SERVICE,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  COLUMNS,
+  LPAD(NUM_TABLES, 10) NUM_TABLES
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')    != 0 THEN TC.HOST        ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                 END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')    != 0 THEN TC.PORT        ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                 END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE') != 0 THEN S.SERVICE_NAME ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME) END SERVICE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')  != 0 THEN TC.SCHEMA_NAME ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)   END SCHEMA_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')   != 0 THEN TC.TABLE_NAME  ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME)     END TABLE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'COLUMN')  != 0 THEN TC.COLUMNS     ELSE 'any'                                             END COLUMNS,
+    COUNT(*) NUM_TABLES
+  FROM
+  ( SELECT                 /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      '%' SERVICE_NAME,
+      '%' SCHEMA_NAME,
+      '%' TABLE_NAME,
+      'NONE' AGGREGATE_BY                /* HOST, PORT, SERVICE, SCHEMA, TABLE, COLUMN or comma separated combinations, NONE for no aggregation */
+    FROM
+      DUMMY
+  ) BI,
+    M_SERVICES S,
+  ( SELECT
+      HOST,
+      TO_VARCHAR(PORT) PORT,
+      SCHEMA_NAME,
+      TABLE_NAME,
+      STRING_AGG(COLUMN_NAME, ', ') COLUMNS
+    FROM
+      M_TEMPORARY_TABLE_COLUMNS
+    GROUP BY
+      HOST,
+      TO_VARCHAR(PORT),
+      SCHEMA_NAME,
+      TABLE_NAME
+  ) TC
+  WHERE
+    S.HOST LIKE BI.HOST AND
+    TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+    S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+    TC.HOST = S.HOST AND
+    TC.PORT = S.PORT AND
+    TC.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    TC.TABLE_NAME LIKE BI.TABLE_NAME
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')    != 0 THEN TC.HOST        ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                 END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')    != 0 THEN TC.PORT        ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                 END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE') != 0 THEN S.SERVICE_NAME ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')  != 0 THEN TC.SCHEMA_NAME ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')   != 0 THEN TC.TABLE_NAME  ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME)     END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'COLUMN')  != 0 THEN TC.COLUMNS     ELSE 'any'                                             END
+)
+ORDER BY
+  NUM_TABLES DESC,
+  HOST,
+  PORT,
+  SCHEMA_NAME,
+  TABLE_NAME

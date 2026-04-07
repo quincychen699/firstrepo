@@ -1,0 +1,369 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Configuration_MiniChecks_Internal_2.00.000+
+
+[DESCRIPTION]
+
+- SAP HANA mini checks accessing internal views
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+- M_DEV_JOBEXWAITING replaced by M_DEV_JOBEX_THREADGROUPS with SAP HANA 2.0
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.000
+
+[SQL COMMAND VERSION]
+
+- 2017/01/07:  1.0 (initial version)
+- 2017/05/10:  1.1 (dedicated 2.00 version)
+- 2018/03/03:  1.2 (CHECK_ID_PREFIX included)
+
+[INVOLVED TABLES]
+
+- various
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- ONLY_POTENTIALLY_CRITICAL_ISSUES
+
+  Possibility to restrict the output to potentially critical issues
+
+  'X'             --> Output only contains issues that can potentially indicate a problem
+  ' '             --> no output restriction
+
+- MAX_VALUE_LENGTH
+
+  Maximum length of VALUE output column
+
+  48              --> Maximum length of 48 characters
+  -1              --> no length limitation
+
+- CHECK_ID_PREFIX
+
+  Prefix for CHID value
+
+  'M'             --> Prefix check ID number with 'M' (e.g. 'M1234')
+  ''              --> No prefix for check ID numbers
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'HOST'          --> Sorting by host name
+  'CHECK'         --> Sorting by check identifier (CHID column)
+  
+[OUTPUT PARAMETERS]
+
+- CHID:           Check identifier (defined and used by this Mini Check command)
+- DESCRIPTION:    Check description
+- HOST:           Host name (empty if not host specific)
+- VALUE:          Check value found on the system
+- EXPECTED_VALUE: Expected check values 
+- C:              'X' if value found on the system is outside of the expected values (indication for potentially critical problem)
+- SAP_NOTE:       Related SAP Note
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------------------
+|CHID |DESCRIPTION                     |HOST    |VALUE                    |EXPECTED_VALUE|C|SAP_NOTE|
+-----------------------------------------------------------------------------------------------------
+|**** |SAP HANA INTERNAL MINI CHECKS   |        |                         |              | | 2082221|
+|     |                                |        |                         |              | |        |
+|  I10|Analysis date                   |        |2017/03/11 12:56:48 (UTC)|              | |        |
+|  I11|Database name                   |        |F9A                      |              | |        |
+|     |                                |        |                         |              | |        |
+|**** |MEMORY                          |        |                         |              | |        |
+|     |                                |        |                         |              | |        |
+| I410|Heap memory fragmentation (%)   |emlhd040|16.53                    |<= 15.00      |X| 1999997|
+|     |                                |        |                         |              | |        |
+|**** |TABLES                          |        |                         |              | |        |
+|     |                                |        |                         |              | |        |
+| I510|Transient row store containers  |        |97                       |<= 500000     | | 2222277|
+| I511|Persistent row store containers |        |524191                   |<= 1000000    | | 2222277|
+|     |                                |        |                         |              | |        |
+|**** |TRANSACTIONS AND THREADS        |        |                         |              | |        |
+|     |                                |        |                         |              | |        |
+| I886|Sockets with high JobWorker load|        |0                        |0             | | 2100040|
+-----------------------------------------------------------------------------------------------------
+
+*/
+
+  CASE 
+    WHEN NAME = 'BLANK_LINE' THEN ''
+    WHEN NAME = 'INFO_LINE' THEN '****' 
+    WHEN ONLY_POTENTIALLY_CRITICAL_RESULTS = 'X' OR ROW_NUM = 1 OR ORDER_BY = 'HOST' THEN LPAD(MAP(CHECK_ID_PREFIX, '', CHECK_ID, CHECK_ID_PREFIX || LPAD(CHECK_ID, 4, 0)), 5) 
+    ELSE '' 
+  END CHID,
+  CASE WHEN ONLY_POTENTIALLY_CRITICAL_RESULTS = 'X' OR ROW_NUM = 1 OR ORDER_BY = 'HOST' THEN DESCRIPTION ELSE '' END DESCRIPTION,
+  IFNULL(HOST, '') HOST,
+  MAP(VALUE, '999999', 'never', NULL, 'n/a', 
+    CASE WHEN MAX_VALUE_LENGTH = -1 OR LENGTH(VALUE) <= MAX_VALUE_LENGTH THEN VALUE 
+      ELSE SUBSTR(VALUE, 1, VALUE_FRAGMENT_LENGTH) || '...' || SUBSTR(VALUE, LENGTH(VALUE) - (VALUE_FRAGMENT_LENGTH - 1), VALUE_FRAGMENT_LENGTH) END) VALUE,
+  CASE
+    WHEN EXPECTED_OP = 'any'  THEN ''
+    WHEN EXPECTED_OP = '='    THEN EXPECTED_VALUE
+    WHEN EXPECTED_OP = 'like' THEN EXPECTED_OP || CHAR(32) || CHAR(39) || EXPECTED_VALUE || CHAR(39)
+    ELSE EXPECTED_OP || CHAR(32) || EXPECTED_VALUE
+  END EXPECTED_VALUE,
+  POTENTIALLY_CRITICAL C,
+  LPAD(SAP_NOTE, 8) SAP_NOTE
+FROM
+( SELECT
+    CC.CHECK_NUM CHECK_ID,
+    CC.NAME,
+    CC.DESCRIPTION,
+    C.HOST,
+    C.VALUE,
+    CC.SAP_NOTE,
+    CC.EXPECTED_OP,
+    CC.EXPECTED_VALUE,
+    CASE
+      WHEN CC.EXPECTED_OP = 'any' OR UPPER(C.VALUE) = 'NONE' OR UPPER(C.VALUE) = 'N/A'                            THEN ' '
+      WHEN CC.EXPECTED_OP = 'not'      AND LPAD(UPPER(C.VALUE), 100) =        LPAD(UPPER(CC.EXPECTED_VALUE), 100) THEN 'X'
+      WHEN CC.EXPECTED_OP = '='        AND LPAD(UPPER(C.VALUE), 100) !=       LPAD(UPPER(CC.EXPECTED_VALUE), 100) THEN 'X'
+      WHEN CC.EXPECTED_OP = '>='       AND LPAD(UPPER(C.VALUE), 100) <        LPAD(UPPER(CC.EXPECTED_VALUE), 100) THEN 'X'
+      WHEN CC.EXPECTED_OP = '>'        AND LPAD(UPPER(C.VALUE), 100) <=       LPAD(UPPER(CC.EXPECTED_VALUE), 100) THEN 'X'
+      WHEN CC.EXPECTED_OP = CHAR(60) || '=' AND LPAD(UPPER(C.VALUE), 100) >   LPAD(UPPER(CC.EXPECTED_VALUE), 100) THEN 'X'
+      WHEN CC.EXPECTED_OP = CHAR(60)   AND LPAD(UPPER(C.VALUE), 100) >=       LPAD(UPPER(CC.EXPECTED_VALUE), 100) THEN 'X'
+      WHEN CC.EXPECTED_OP = 'like'     AND UPPER(C.VALUE)            NOT LIKE UPPER(CC.EXPECTED_VALUE)            THEN 'X'
+      WHEN CC.EXPECTED_OP = 'not like' AND UPPER(C.VALUE)            LIKE     UPPER(CC.EXPECTED_VALUE)            THEN 'X'
+      ELSE ''
+    END POTENTIALLY_CRITICAL,
+    BI.ONLY_POTENTIALLY_CRITICAL_RESULTS,
+    BI.MAX_VALUE_LENGTH,
+    FLOOR(BI.MAX_VALUE_LENGTH / 2 - 0.5) VALUE_FRAGMENT_LENGTH,
+    BI.CHECK_ID_PREFIX,
+    BI.ORDER_BY,
+    ROW_NUMBER () OVER ( PARTITION BY CC.DESCRIPTION ORDER BY C.HOST, C.VALUE ) ROW_NUM
+  FROM
+  ( SELECT TOP 1
+        'ANALYSIS_DATE' NAME,
+        '' HOST,
+        TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYY/MM/DD HH24:MI:SS') || CHAR(32) || '(' || VALUE || ')' VALUE
+      FROM
+        M_HOST_INFORMATION
+      WHERE
+        KEY = 'timezone_name'
+    UNION ALL
+    ( SELECT
+        'CHECK_VERSION',
+        '',
+        '2.00+ / 1.1.4 (2019/02/19)'
+      FROM
+        DUMMY
+    )
+    UNION ALL
+    ( SELECT
+        'BLANK_LINE',
+        '',
+        ''
+      FROM
+        DUMMY
+    )
+    UNION ALL
+    ( SELECT
+        'INFO_LINE',
+        '',
+        ''
+      FROM
+        DUMMY
+    )
+    UNION ALL
+    ( SELECT
+        'DATABASE_NAME',
+        '',
+        DATABASE_NAME
+      FROM
+        M_DATABASE
+    )
+    UNION ALL
+    ( SELECT
+        'HEAP_MEMORY_FRAGMENTATION',
+        PM.HOST,
+        TO_VARCHAR(TO_DECIMAL(MAX(MAP(SM.EFFECTIVE_ALLOCATION_LIMIT, 0, 0, ( PM.CURRENT_ALLOCATED_SIZE - SM.HEAP_MEMORY_USED_SIZE - PM.BIGBLOCK_FREE_SIZE ) / SM.EFFECTIVE_ALLOCATION_LIMIT * 100)), 10, 2))
+      FROM
+        SYS.M_DEV_PROCESS_MEMORY PM,
+        M_SERVICE_MEMORY SM
+      WHERE
+        PM.HOST = SM.HOST AND
+        PM.PORT = SM.PORT AND
+        ( PM.CURRENT_ALLOCATED_SIZE - SM.HEAP_MEMORY_USED_SIZE - PM.BIGBLOCK_FREE_SIZE ) / 1024 / 1024 / 1024 > 10
+      GROUP BY
+        PM.HOST
+    )
+    UNION ALL
+    ( SELECT
+        L.NAME,
+        '',
+        TO_VARCHAR(MAP(L.NAME, 'RS_TRANSIENT_CONTAINERS', MAX(C.TRANSIENT), MAX(C.PERSISTENT)))
+      FROM
+      ( SELECT 'RS_TRANSIENT_CONTAINERS' NAME FROM DUMMY UNION ALL
+        SELECT 'RS_PERSISTENT_CONTAINERS'     FROM DUMMY
+      ) L LEFT OUTER JOIN
+      ( SELECT
+          MAX(TRANSIENT) TRANSIENT,
+          MAX(PERSISTENT) PERSISTENT
+        FROM
+        ( SELECT
+            SUM(CASE WHEN CID >= 1073741824 THEN 1 ELSE 0 END) TRANSIENT,
+            SUM(CASE WHEN CID < 1073741824 THEN 1 ELSE 0 END) PERSISTENT
+          FROM
+            SYS.M_DEV_RS_CONTAINER_INFO
+          GROUP BY
+            HOST,
+            PORT
+        )
+      ) C ON
+        1 = 1
+      GROUP BY
+        L.NAME
+    )
+    UNION ALL
+    ( SELECT /* Uneven JobWorker distribution can result in under-utilized CPU resources, see e.g. SAP HANA bug 130520 */
+        'JOBWORKER_DISTRIBUTION',
+        '',
+        TO_VARCHAR(COUNT(*))
+      FROM
+        SYS.M_DEV_JOBEX_THREADGROUPS
+      WHERE
+        STATISTICS_NAME LIKE 'jx-tg%' AND
+        OPEN_NOSTEAL_PRIMARY_COUNT > 50
+    )
+    UNION ALL
+    ( SELECT
+        'OPEN_EXTERNAL_CONNECTIONS',
+        HOST,
+        TO_VARCHAR(TO_DECIMAL(MAP(MAX_CONNECTIONS, 0, 0, NUM_CONNECTIONS / MAX_CONNECTIONS * 100), 10, 2))
+      FROM
+      ( SELECT
+          C.HOST,
+          C.NUM_CONNECTIONS,
+          IFNULL(P.SYSTEM_VALUE, IFNULL(P.HOST_VALUE, IFNULL(P.DEFAULT_VALUE, 65536))) MAX_CONNECTIONS
+        FROM
+        ( SELECT
+            HOST,
+            SUM(SESSION_COUNT) NUM_CONNECTIONS
+          FROM
+            SYS.M_DEV_SESSION_PARTITIONS
+          GROUP BY
+            HOST
+        ) C LEFT OUTER JOIN
+        ( SELECT 
+            HOST,
+            MAX(MAP(LAYER_NAME, 'DEFAULT', VALUE)) DEFAULT_VALUE,
+            MAX(MAP(LAYER_NAME, 'HOST',    VALUE)) HOST_VALUE,
+            MAX(MAP(LAYER_NAME, 'SYSTEM',  VALUE)) SYSTEM_VALUE
+          FROM
+            M_INIFILE_CONTENTS 
+          WHERE 
+            FILE_NAME = 'indexserver.ini' AND
+            SECTION = 'session' AND
+            KEY = 'maximum_external_connections'
+          GROUP BY
+            HOST
+        ) P ON
+          C.HOST = P.HOST
+      )
+    )
+    UNION ALL
+    ( SELECT
+        'INACTIVE_TABLE_REP_VOLUMES',
+        '',
+        MAP(REPLICA_TABLE_NAME, NULL, 'n/a', TO_VARCHAR(COUNT(*)))
+      FROM
+        SYS.M_DEV_REPLICATION_VOLUME_STATUS_HISTORY A LEFT OUTER JOIN
+        ( SELECT TOP 1 REPLICA_TABLE_NAME FROM TABLE_REPLICAS ) R ON
+          1 = 1
+      WHERE
+        A.TIMESTAMP = 
+        ( SELECT
+            MAX(B.TIMESTAMP)
+          FROM
+            SYS.M_DEV_REPLICATION_VOLUME_STATUS_HISTORY B
+          WHERE
+            B.VOLUME_ID = A.VOLUME_ID
+        ) AND
+        A.REPLICATION_STATUS != 'ENABLED'
+      GROUP BY
+        R.REPLICA_TABLE_NAME
+    )
+  ) C,
+  ( SELECT                                               /* Modification section */
+      '%' HOST,
+      ' ' ONLY_POTENTIALLY_CRITICAL_RESULTS,
+      52 MAX_VALUE_LENGTH,
+      'I' CHECK_ID_PREFIX,
+      'CHECK' ORDER_BY                            /* HOST, CHECK */
+    FROM
+      DUMMY
+  ) BI,
+  ( SELECT
+      TO_NUMBER(SUBSTR(VALUE, LOCATE(VALUE, '.', 1, 2) + 1, LOCATE(VALUE, '.', 1, 3) - LOCATE(VALUE, '.', 1, 2) - 1) ||
+      MAP(LOCATE(VALUE, '.', 1, 4), 0, '', '.' || SUBSTR(VALUE, LOCATE(VALUE, '.', 1, 3) + 1, LOCATE(VALUE, '.', 1, 4) - LOCATE(VALUE, '.', 1, 3) - 1 ))) REVISION 
+    FROM 
+      M_SYSTEM_OVERVIEW 
+    WHERE 
+      SECTION = 'System' AND 
+      NAME = 'Version' 
+  ) REL,
+  ( SELECT -1 CHECK_NUM, '' NAME,                  '' DESCRIPTION,                                    '' SAP_NOTE, '' EXPECTED_OP, '' EXPECTED_VALUE, -1 MIN_REV, -1 MAX_REV FROM DUMMY WHERE 1 = 0 UNION ALL
+    ( SELECT    1, 'INFO_LINE',                    'SAP HANA INTERNAL MINI CHECKS',                   '1969700', 'any',      'any',           -1,    -1 FROM DUMMY ) UNION ALL
+    ( SELECT    2, 'BLANK_LINE',                   '',                                                '',        'any',      'any',           -1,    -1 FROM DUMMY ) UNION ALL
+    ( SELECT    9, 'CHECK_VERSION',                'Mini check version',                              '',        'any',      'any',           -1,    -1 FROM DUMMY ) UNION ALL
+    ( SELECT   10, 'ANALYSIS_DATE',                'Analysis date',                                   '',        'any',      'any',           -1,    -1 FROM DUMMY ) UNION ALL
+    ( SELECT   11, 'DATABASE_NAME',                'Database name',                                   '',        'any',      'any',           -1,    -1 FROM DUMMY ) UNION ALL
+
+    ( SELECT  400, 'BLANK_LINE',                   '',                                                '',        'any',      'any',           -1,    -1 FROM DUMMY ) UNION ALL
+    ( SELECT  401, 'INFO_LINE',                    'MEMORY',                                          '',        'any',      'any',           -1,    -1 FROM DUMMY ) UNION ALL
+    ( SELECT  402, 'BLANK_LINE',                   '',                                                '',        'any',      'any',           -1,    -1 FROM DUMMY ) UNION ALL
+    ( SELECT  410, 'HEAP_MEMORY_FRAGMENTATION',    'Heap memory fragmentation (%)',                   '1999997', '<=',       '15.00',         -1,    -1 FROM DUMMY ) UNION ALL
+
+    ( SELECT  500, 'BLANK_LINE',                   '',                                                '',        'any',      'any',           -1,    -1 FROM DUMMY ) UNION ALL
+    ( SELECT  501, 'INFO_LINE',                    'TABLES',                                          '',        'any',      'any',           -1,    -1 FROM DUMMY ) UNION ALL
+    ( SELECT  502, 'BLANK_LINE',                   '',                                                '',        'any',      'any',           -1,    -1 FROM DUMMY ) UNION ALL
+    ( SELECT  510, 'RS_TRANSIENT_CONTAINERS',      'Transient row store containers',                  '2222277', '<=',       '500000',        -1,    -1 FROM DUMMY ) UNION ALL
+    ( SELECT  511, 'RS_PERSISTENT_CONTAINERS',     'Persistent row store containers',                 '2222277', '<=',       '1000000',       -1,    -1 FROM DUMMY ) UNION ALL
+
+    ( SELECT  800, 'BLANK_LINE',                   '',                                                '',        'any',      'any',           -1,    -1 FROM DUMMY ) UNION ALL
+    ( SELECT  801, 'INFO_LINE',                    'TRANSACTIONS AND THREADS',                        '',        'any',      'any',           -1,    -1 FROM DUMMY ) UNION ALL
+    ( SELECT  802, 'BLANK_LINE',                   '',                                                '',        'any',      'any',           -1,    -1 FROM DUMMY ) UNION ALL
+    ( SELECT  881, 'OPEN_EXTERNAL_CONNECTIONS',    'Open external connections (%)',                   '',        '<=',       '50.00',         -1,    -1 FROM DUMMY ) UNION ALL
+    ( SELECT  886, 'JOBWORKER_DISTRIBUTION',       'Sockets with high JobWorker load',                '2100040', '=',        '0',             -1,    -1 FROM DUMMY ) UNION ALL
+
+    ( SELECT 2400, 'BLANK_LINE',                   '',                                                '',        'any',      'any',           -1,    -1 FROM DUMMY ) UNION ALL
+    ( SELECT 2401, 'INFO_LINE',                    'TABLE REPLICATION',                               '',        'any',      'any',           -1,    -1 FROM DUMMY ) UNION ALL
+    ( SELECT 2402, 'BLANK_LINE',                   '',                                                '',        'any',      'any',           -1,    -1 FROM DUMMY ) UNION ALL
+    ( SELECT 2415, 'INACTIVE_TABLE_REP_VOLUMES',   'Inactive table replica volumes',                  '2340450', '=',        '0',             -1,    -1 FROM DUMMY )
+  ) CC
+  WHERE
+    C.NAME = CC.NAME AND
+    ( IFNULL(C.HOST, '') = '' OR C.HOST LIKE BI.HOST ) AND	
+    REL.REVISION BETWEEN CC.MIN_REV AND MAP(CC.MAX_REV, -1, 99999, CC.MAX_REV)
+) M
+WHERE
+  ONLY_POTENTIALLY_CRITICAL_RESULTS = ' ' OR POTENTIALLY_CRITICAL = 'X'
+ORDER BY
+  MAP(M.ORDER_BY, 'CHECK', M.CHECK_ID),
+  M.HOST,
+  M.VALUE
+WITH HINT (NO_SUBPLAN_SHARING)

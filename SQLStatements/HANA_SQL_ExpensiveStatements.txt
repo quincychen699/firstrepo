@@ -1,0 +1,171 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_SQL_ExpensiveStatements
+
+[DESCRIPTION]
+
+- Load information for expensive SQL statements
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Only populated if expensive SQL statement trace is activated
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2014/03/29:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_EXPENSIVE_STATEMENTS
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  TO_TIMESTAMP('2014/06/05 14:05:00', 'YYYY/MM/DD HH24:MI:SS') --> Set begin time to 5th of June 2014, 14:05 
+  ADD_DAYS(CURRENT_TIMESTAMP, -2)                              --> Set begin time to two days before current time 
+
+- END_TIME
+
+  End time
+
+  TO_TIMESTAMP('2014/06/08 14:05:00', 'YYYY/MM/DD HH24:MI:SS') --> Set end time to 8th of June 2014, 14:05 
+  CURRENT_TIMESTAMP                                            --> Set end time to current time 
+
+- SQL_PATTERN
+
+  Pattern for SQL text (case insensitive)
+
+  'INSERT%'       --> SQL statements starting with INSERT
+  '%DBTABLOG%'    --> SQL statements containing DBTABLOG
+  '%'             --> All SQL statements
+
+- APP_USER
+
+  Application user
+
+  'SAPSYS'        --> Application user 'SAPSYS'
+  '%'             --> No application user restriction
+
+- SQL_TEXT_LENGTH
+
+  Maximum displayed size of SQL statement text
+
+  50              --> SQL text is truncated to 50 characters
+  -1              --> No SQL text size limitation
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HASH'          --> Aggregation by statement hash
+  'USER'          --> Aggregation by application user
+  'NONE'          --> No aggregation
+
+- RESULT_ROWS
+
+  Number of records to be returned by the query
+
+  100             --> Return a maximum number of 100 records
+  -1              --> Return all records
+
+[OUTPUT PARAMETERS]
+
+- EXECUTIONS:       Number of executions
+- ELAPSED_MS:       Elapsed time (ms)
+- ELA_PER_EXEC_MS:  Elapsed time per execution (ms)
+- LOCK_PER_EXEC_MS: Lock wait time per execution (ms)
+- CPU_PER_EXEC_MS:  CPU time per execution (ms)
+- ROWS_PER_EXEC:    Rows returned per execution (ms)
+- LAST_START_TIME:  Last start time of SQL statement
+- APP_USER:         Application user name
+- SQL_TEXT:         SQL statement text
+
+[EXAMPLE OUTPUT]
+
+STATEMENT_HASH                  |EXECUTIONS|ELAPSED_MS  |ELA_PER_EXEC_MS|LOCK_PER_EXEC_MS|CPU_PER_EXEC_MS|ROWS_PER_EXEC|LAST_START_TIME    |APP_USER|SQL_TEXT                                                                    
+
+51f62795010e922370bf897325148783|      4262|250552316.50|       58787.49|         2197.65|           2.01|         0.58|2014/03/29 09:28:01|        |Insert into MUTSIMP2 (MUTSIMP2_ID,k2,k3,i1,cuni) VALUES ( X , X , X, X, X ) 
+fc7de6d7b8942251ee52a5d4e0af728f|      1907|113510262.16|       59522.94|         2408.48|           6.84|         0.39|2014/03/29 09:28:28|        |Delete from MUTSIMP2 where MUTSIMP2_ID = X                                  
+96d5f96162346709b244ba275464a424|      3960| 99590616.55|       25149.14|        20966.19|           1.05|         0.37|2014/03/29 09:30:02|        |Insert into MUTSIMP1 (MUTSIMP1_ID,k2,k3,i1,cuni) VALUES ( X , X , X, X, X ) 
+1f8299f6cb5099095ea71882f84e2cd4|      1169| 68965401.75|       58995.21|         1993.43|          11.46|         0.41|2014/03/29 09:28:45|        |Update MUTSIMP2 set I1 = X WHERE MUTSIMP2_ID = X                            
+0138c7c0763b0f2628b099e162d93577|      1942| 44933810.32|       23137.90|        20026.79|           1.89|         0.65|2014/03/29 09:29:00|        |Delete from MUTSIMP1 where MUTSIMP1_ID = X                                  
+d4376b59b01a3331e9cd8dc79439719e|       697| 41814105.37|       59991.54|         1111.53|           8.88|         0.41|2014/03/29 09:25:00|        |Update MUTSIMP2 set I1 = X WHERE k2 = X                                     
+e6e085968ffe7d33d94aa608a5aeda4a|       950| 41050549.96|       43211.10|         9292.07|           1.34|         0.62|2014/03/29 09:29:23|        |Insert into MUTSIMP3 (MUTSIMP3_ID,k2,k3,i1,cuni) VALUES ( X , X , X, X, X ) 
+95cacbc7861af94903e3a13e1b6f3651|      2736| 40238885.42|       14707.19|        14541.57|           0.85|         0.19|2014/03/29 09:30:08|        |INSERT INTO TJDB3 (I5,I6,C4,C5) VALUES ( X,  X, X, X)                       
+1176b3d30df979b721838bf9f8c7804a|       747| 36426104.03|       48763.19|        29287.90|           0.97|         0.55|2014/03/29 09:25:39|        |Insert into MUTSIMP6 (MUTSIMP6_ID,k2,k3,i1,cuni) VALUES ( X , X , X, X, X ) 
+e639283f4965b48d64b1140e49e2b78c|       744| 35520789.78|       47742.99|        27436.68|           0.38|         0.52|2014/03/29 09:28:01|        |Insert into MUTSIMP7 (MUTSIMP7_ID,k2,k3,i1,cuni) VALUES ( X , X , X, X, X ) 
+
+*/
+
+  EXECUTIONS,
+  ELAPSED_MS,
+  ELA_PER_EXEC_MS,
+  LOCK_PER_EXEC_MS,
+  CPU_PER_EXEC_MS,
+  ROWS_PER_EXEC,
+  LAST_START_TIME,
+  APP_USER,
+  SUBSTR(CASE
+    WHEN LOCATE(UPPER(SQL_TEXT), 'FROM') <= 15 THEN
+      SQL_TEXT
+    ELSE
+      SUBSTR(SQL_TEXT, 1, LOCATE(SQL_TEXT, CHAR(32))) || '...' || SUBSTR(SQL_TEXT, LOCATE(UPPER(SQL_TEXT), 'FROM') - 1)
+  END, 1, MAP(SQL_TEXT_LENGTH, -1, 9999, SQL_TEXT_LENGTH)) SQL_TEXT
+FROM
+( SELECT 
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'USER') != 0 THEN ES.APP_USER                                         ELSE MAP(BI.APP_USER, '%', 'any', BI.APP_USER)             END APP_USER,
+    LPAD(COUNT(*), 10) EXECUTIONS,
+    LPAD(TO_DECIMAL(SUM(ES.DURATION_MICROSEC) / 1000, 12, 2), 12) ELAPSED_MS,
+    LPAD(TO_DECIMAL(SUM(ES.DURATION_MICROSEC) / COUNT(*) / 1000, 12, 2), 15) ELA_PER_EXEC_MS,
+    LPAD(TO_DECIMAL(SUM(ES.LOCK_WAIT_DURATION) / COUNT(*) / 1000, 12, 2), 16) LOCK_PER_EXEC_MS,
+    LPAD(TO_DECIMAL(SUM(GREATEST(ES.CPU_TIME, 0)) / COUNT(*) / 1000, 12, 2), 15) CPU_PER_EXEC_MS,
+    LPAD(TO_DECIMAL(SUM(GREATEST(ES.RECORDS, 0)) / COUNT(*), 12, 2), 13) ROWS_PER_EXEC,
+    TO_VARCHAR(MAX(ES.START_TIME), 'YYYY/MM/DD HH24:MI:SS') LAST_START_TIME,
+    MAP(MIN(TO_VARCHAR(ES.STATEMENT_STRING)), MAX(TO_VARCHAR(ES.STATEMENT_STRING)), MIN(TO_VARCHAR(ES.STATEMENT_STRING)), 'various') SQL_TEXT,
+    BI.RESULT_ROWS,
+    BI.SQL_TEXT_LENGTH,
+    ROW_NUMBER () OVER (ORDER BY SUM(DURATION_MICROSEC) DESC) ROW_NUM
+  FROM
+  ( SELECT                                       /* Modification section */
+      TO_TIMESTAMP('2014/03/30 00:00:00', 'YYYY/MM/DD HH24:MI:SS') BEGIN_TIME,
+      TO_TIMESTAMP('9999/01/13 12:00:00', 'YYYY/MM/DD HH24:MI:SS') END_TIME,
+      '%' APP_USER,
+      '%' SQL_PATTERN,
+      40  SQL_TEXT_LENGTH,
+      'NONE' AGGREGATE_BY,                       /* USER, NONE for no aggregation */
+      'DURATION' ORDER_BY,                           /* DURATION, TIME */
+      20 RESULT_ROWS
+    FROM
+      DUMMY
+  ) BI,
+    M_EXPENSIVE_STATEMENTS ES
+  WHERE                                                             
+    ES.START_TIME BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+    ES.APP_USER LIKE BI.APP_USER AND
+    UPPER(TO_VARCHAR(ES.STATEMENT_STRING)) LIKE UPPER(BI.SQL_PATTERN)
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'USER') != 0 THEN ES.APP_USER                                         ELSE MAP(BI.APP_USER, '%', 'any', BI.APP_USER)             END,
+    BI.ORDER_BY,
+    BI.RESULT_ROWS,
+    BI.SQL_TEXT_LENGTH
+  ORDER BY
+    MAP(BI.ORDER_BY, 'DURATION', SUM(ES.DURATION_MICROSEC)) DESC,
+    MAP(BI.ORDER_BY, 'TIME', MAX(ES.START_TIME)) DESC
+)
+WHERE
+  ( RESULT_ROWS = -1 OR ROW_NUM <= RESULT_ROWS )

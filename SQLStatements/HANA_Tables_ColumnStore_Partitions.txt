@@ -1,0 +1,249 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Tables_ColumnStore_Partitions
+
+[DESCRIPTION]
+
+- Table partition information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Partitions only available in column store
+- Tables with naming convention TR_<id> or TR_<id>_SIMULATION are DTP error stack tables
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2014/03/06:  1.0 (initial version)
+- 2014/07/10:  1.1 (EXCLUDE_BW_TABLES included)
+- 2015/02/05:  1.2 (LOADED included)
+- 2017/12/06:  1.3 (SUBPART_RANGE included)
+- 2018/03/09:  1.4 (MAX_PARTITION_SPEC_LENGTH added)
+- 2018/06/26:  1.5 (SPEC and RANGE columns to DEF column merged)
+- 2018/09/25:  1.6 (RSPM* and TR_* tables as BW tables included)
+- 2020/05/18:  1.7 (PART_ID and SUBPART_ID filters included)
+- 2020/05/29:  1.8 (ONLY_OVERFLOW_PARTITIONS and MIN_RECORD_COUNT filters included)
+
+[INVOLVED TABLES]
+
+- M_CS_PARTITIONS
+- M_CS_TABLES
+- M_TABLE_PERSISTENCE_STATISTICS
+
+[INPUT PARAMETERS]
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- PART_ID
+
+  Partition number
+
+  2               --> Only show information for partition number 2
+  -1              --> No restriction related to partition number
+
+- SUBPART_ID
+
+  Sub-partition number
+
+  2               --> Only show information for partition number 2
+  -1              --> No restriction related to partition number
+
+- MIN_RECORD_COUNT
+
+  Minimum number of records
+
+  100000          --> Only display results with at least 100,000 records
+  -1              --> No restriction related to record count
+
+- EXCLUDE_BW_TABLES
+
+  Possibility to exclude BW tables from analysis (following naming convention /B%/%)
+
+  'X'             --> Only display non BW tables
+  ' '             --> Display all tables
+
+- ONLY_OVERFLOW_PARTITIONS
+
+  Possibility to restrict the output to overflow partitions (for all records that do not fit to any existing range partition)
+
+  'X'             --> Only display overflow partitions
+  ' '             --> No restriction related to overflow partitions
+
+- MAX_PARTITION_SPEC_LENGTH
+
+  Maximum length of partition specification
+
+  60              --> Truncate partition specification to 60 characters
+  -1              --> No limit of partition specification length
+
+[OUTPUT PARAMETERS]
+
+- SCHEMA_NAME:    Schema name
+- TABLE_NAME:     Table name
+- SIZE_DISK_MB:   Size on disk (MB)
+- PART:           Partition number
+- PART_DEF:       Partition definition
+- SUBPART:        Sub partition number
+- SUBPART_DEF:    Sub partition definition
+- HOST:           Host name
+- SIZE_MEM_MB:    Size in memory (MB)
+- RECORDS:       Number of records
+
+[EXAMPLE OUTPUT]
+
+--------------------------------------------------------------------------------------------------------------------------
+|SCHEMA_NAME|TABLE_NAME |SIZE_DISK_MB|PART|PART_DEF    |SUBPART|SUBPART_DEF       |HOST   |LOADED|SIZE_MEM_MB|NUM_ROWS   |
+--------------------------------------------------------------------------------------------------------------------------
+|SAPQM7     |/BIC/EZRRTO|        0.02|   1|ROUNDROBIN 1|      1|RANGE KEY_ZRRTOP 0|saphana|NO    |       0.00|          0|
+|           |           |            |    |ROUNDROBIN 1|      2|RANGE KEY_ZRRTOP 1|saphana|NO    |       0.00|          0|
+|           |           |            |    |ROUNDROBIN 1|      3|RANGE KEY_ZRRTOP  |saphana|NO    |       0.00|          0|
+--------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  MAP(ROW_NUMBER () OVER (PARTITION BY SCHEMA_NAME, TABLE_NAME ORDER BY PARTITION, SUBPARTITION), 1, SCHEMA_NAME, ' ') SCHEMA_NAME,
+  MAP(ROW_NUMBER () OVER (PARTITION BY SCHEMA_NAME, TABLE_NAME ORDER BY PARTITION, SUBPARTITION), 1, TABLE_NAME, ' ') TABLE_NAME,
+  MAP(ROW_NUMBER () OVER (PARTITION BY SCHEMA_NAME, TABLE_NAME ORDER BY PARTITION, SUBPARTITION), 1, LPAD(TO_DECIMAL(SIZE_DISK_MB, 10, 2), 12), ' ') SIZE_DISK_MB,
+  MAP(ROW_NUMBER () OVER (PARTITION BY SCHEMA_NAME, TABLE_NAME, PARTITION ORDER BY SUBPARTITION), 1, LPAD(PARTITION, 4), ' ') PART,
+  CASE
+    WHEN PART_SPEC LIKE 'RANGE%' THEN SUBSTR(PART_SPEC, 1, LOCATE(PART_SPEC, CHAR(32), -1)) || TO_VARCHAR(RANGE) 
+    ELSE PART_SPEC
+  END PART_DEF,
+  LPAD(SUBPARTITION, 7) SUBPART,
+  CASE
+    WHEN SUBPART_SPEC LIKE 'RANGE%' THEN SUBSTR(SUBPART_SPEC, 1, LOCATE(SUBPART_SPEC, CHAR(32), -1)) || TO_VARCHAR(MAP(SUBRANGE, '', RANGE, SUBRANGE))
+    ELSE SUBPART_SPEC
+  END SUBPART_DEF,
+  HOST,
+  LOADED,
+  LPAD(TO_DECIMAL(SIZE_MEM_MB, 10, 2), 11) SIZE_MEM_MB,
+  LPAD(TO_DECIMAL(ROUND(NUM_ROWS), 11, 0), 11) RECORDS
+FROM
+( SELECT
+    P.SCHEMA_NAME,
+    P.TABLE_NAME,
+    P.PARTITION,
+    MAP(BI.MAX_PARTITION_SPEC_LENGTH, -1, T.PART_SPEC, SUBSTR(T.PART_SPEC, 1, BI.MAX_PARTITION_SPEC_LENGTH)) PART_SPEC,
+    P.SUBPARTITION,
+    MAP(BI.MAX_PARTITION_SPEC_LENGTH, -1, T.SUBPART_SPEC, SUBSTR(T.SUBPART_SPEC, 1, BI.MAX_PARTITION_SPEC_LENGTH)) SUBPART_SPEC,
+    CT.HOST,
+    CT.LOADED,
+    CT.MEMORY_SIZE_IN_TOTAL / 1024 / 1024 SIZE_MEM_MB,
+    CT.RECORD_COUNT NUM_ROWS,
+    TP.DISK_SIZE / 1024 / 1024 SIZE_DISK_MB,
+    P.RANGE,
+    P.SUBRANGE
+  FROM
+  ( SELECT                                                       /* Modification section */
+      '%' SCHEMA_NAME,
+      '%' TABLE_NAME,
+      -1 PART_ID,
+      -1 SUBPART_ID,
+      -1 MIN_RECORD_COUNT,
+      'X' EXCLUDE_BW_TABLES,
+      ' ' ONLY_OVERFLOW_PARTITIONS,
+      -1 MAX_PARTITION_SPEC_LENGTH
+    FROM
+      DUMMY
+  ) BI,
+  ( SELECT
+      SCHEMA_NAME,
+      TABLE_NAME,
+      PART_ID,
+      PARTITION,
+      SUBPARTITION,
+      RANGE,
+      SUBRANGE
+    FROM
+      M_CS_PARTITIONS
+  ) P,
+  ( SELECT
+      HOST,
+      SCHEMA_NAME,
+      TABLE_NAME,
+      PART_ID,
+      MEMORY_SIZE_IN_TOTAL,
+      RECORD_COUNT,
+      LOADED
+    FROM
+      M_CS_TABLES
+  ) CT,
+  ( SELECT
+      SCHEMA_NAME,
+      TABLE_NAME, 
+      PART_SPEC,
+      SUBPART_SPEC
+    FROM
+    ( SELECT
+        SCHEMA_NAME,
+        TABLE_NAME,
+        MAP(LOCATE(PARTITION_SPEC, CHAR(59)), 0, PARTITION_SPEC, RTRIM(SUBSTR(PARTITION_SPEC, 1, LOCATE(PARTITION_SPEC, CHAR(59))), CHAR(59))) PART_SPEC,
+        MAP(LOCATE(PARTITION_SPEC, CHAR(59)), 0, CHAR(32), LTRIM(SUBSTR(PARTITION_SPEC, LOCATE(PARTITION_SPEC, CHAR(59)) + 1))) SUBPART_SPEC
+      FROM
+        TABLES
+      WHERE
+        PARTITION_SPEC IS NOT NULL
+    )
+  ) T,
+  ( SELECT
+      SCHEMA_NAME,
+      TABLE_NAME,
+      DISK_SIZE
+    FROM
+      M_TABLE_PERSISTENCE_STATISTICS
+  ) TP
+  WHERE
+    P.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    P.TABLE_NAME LIKE BI.TABLE_NAME AND
+    ( BI.PART_ID = -1 OR P.PARTITION = BI.PART_ID ) AND
+    ( BI.SUBPART_ID = -1 OR P.SUBPARTITION = BI.SUBPART_ID ) AND
+    ( BI.EXCLUDE_BW_TABLES = ' ' OR 
+      P.TABLE_NAME LIKE '/BA1/%' OR 
+      ( P.TABLE_NAME NOT LIKE '/B%/%' AND
+        P.TABLE_NAME NOT LIKE 'ZBICZ%' AND
+        P.TABLE_NAME NOT LIKE '/1B0/%' AND
+        P.TABLE_NAME NOT LIKE 'RSPM%' AND 
+        SUBSTR(P.TABLE_NAME, 1, 3) != 'TR_' 
+      ) 
+    ) AND
+    ( BI.ONLY_OVERFLOW_PARTITIONS = ' ' OR 
+      ( T.PART_SPEC LIKE '%RANGE%' AND T.PART_SPEC NOT LIKE '%RANGE[DYNAMIC%' AND P.RANGE = '' AND P.SUBRANGE = '' ) 
+    ) AND
+    ( BI.MIN_RECORD_COUNT = -1 OR CT.RECORD_COUNT >= BI.MIN_RECORD_COUNT ) AND
+    CT.SCHEMA_NAME = P.SCHEMA_NAME AND
+    CT.TABLE_NAME = P.TABLE_NAME AND
+    CT.PART_ID = P.PART_ID AND
+    T.SCHEMA_NAME = P.SCHEMA_NAME AND
+    T.TABLE_NAME = P.TABLE_NAME AND
+    TP.SCHEMA_NAME = P.SCHEMA_NAME AND
+    TP.TABLE_NAME = P.TABLE_NAME
+) TP
+ORDER BY
+  TP.SCHEMA_NAME,
+  TP.TABLE_NAME,
+  TP.PARTITION,
+  TP.SUBPARTITION

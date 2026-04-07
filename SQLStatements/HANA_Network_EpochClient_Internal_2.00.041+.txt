@@ -1,0 +1,119 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Network_EpochClient_Internal_2.00.041+
+
+[DESCRIPTION]
+
+- Epoch client requests (timestamp synchronization)
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+- M_EPOCHCLIENT_.MEAN_COMMUNICATION_DELAY replaced by M_TIMESTAMP_CLIENT_REQUESTS_.MEAN_SYNC_DELAY with SAP HANA 2.00.041
+- M_EPOCHCLIENT_.REQUEST_COUNT replaced by M_TIMESTAMP_CLIENT_REQUESTS_.SYNC_COUNT with SAP HANA 2.00.041
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.041
+
+[SQL COMMAND VERSION]
+
+- 2019/02/20:  1.0 (initial version)
+- 2019/08/12:  1.1 (dedicated 2.00.041+ version using M_TIMESTAMP_CLIENT_REQUESTS_ instead of M_EPOCHCLIENT_)
+- 2020/03/05:  1.2 (REQUEST_CATEGORY added)
+
+[INVOLVED TABLES]
+
+- M_TIMESTAMP_CLIENT_REQUESTS_
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- REQUEST_CATEGORY
+
+  Request category
+
+  'READ_TIMESTAMP' --> Filter for category READ_TIMESTAMP (i.e. consistent reads)
+  '%'              --> No restriction related to request category
+
+[OUTPUT PARAMETERS]
+
+- HOST:             Host name
+- PORT:             Port
+- REQUEST_CATEGORY: Request category
+- LATENCY_MS:       Average communication latency (ms)
+- REQUESTS:         Total requests
+- UPTIME_S:         Host uptime (s)
+- REQ_PER_S:        Average requests per second
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------
+|HOST        |PORT |LATENCY_MS|REQUESTS    |UPTIME_S |REQ_PER_S|
+----------------------------------------------------------------
+|saphanahost1|30207|      0.26|    51796895|  6469369|     8.00|
+|saphanahost2|30203|      0.41|   148052868|  6469369|    22.88|
+|saphanahost3|30203|      0.78|   166106804|  6469369|    25.67|
+|saphanahost4|30203|      0.91|   146346567|  6469369|    22.62|
+|saphanahost6|30203|      1.98|    64684210|  6469369|   445.19|
+----------------------------------------------------------------
+
+*/
+
+  E.HOST,
+  E.PORT,
+  E.REQUEST_CATEGORY,
+  LPAD(TO_DECIMAL(E.MEAN_SYNC_DELAY / 1000, 10, 2), 10) LATENCY_MS,
+  LPAD(E.SYNC_COUNT, 12) REQUESTS,
+  LPAD(H.UPTIME_S, 9) UPTIME_S,
+  LPAD(TO_DECIMAL(MAP(H.UPTIME_S, 0, 0, E.SYNC_COUNT / H.UPTIME_S), 10, 2), 9) REQ_PER_S
+FROM
+( SELECT                   /* Modification section */
+    '%' HOST,
+    '%' PORT,
+    '%' REQUEST_CATEGORY
+  FROM
+    DUMMY
+) BI,
+( SELECT
+    HOST,
+    SECONDS_BETWEEN(MIN(VALUE) OVER (), CURRENT_TIMESTAMP) UPTIME_S
+  FROM
+    M_HOST_INFORMATION
+  WHERE
+    KEY = 'start_time'
+) H,
+  SYS.M_TIMESTAMP_CLIENT_REQUESTS_ E
+WHERE
+  E.HOST LIKE BI.HOST AND
+  TO_VARCHAR(E.PORT) LIKE BI.PORT AND
+  E.REQUEST_CATEGORY LIKE BI.REQUEST_CATEGORY AND
+  H.HOST = E.HOST
+ORDER BY
+  E.HOST,
+  E.PORT

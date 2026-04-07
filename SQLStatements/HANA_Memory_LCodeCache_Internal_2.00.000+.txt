@@ -1,0 +1,103 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Memory_LCodeCache_Internal_2.00.000+
+
+[DESCRIPTION]
+
+- Details for cache with compiled L programs
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Heap allocator: Pool/L/jit/CodeCache
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+- M_DEV_LLANG_STATISTICS is available starting with SAP HANA 2.00.000
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.000
+
+[SQL COMMAND VERSION]
+
+- 2019/11/26:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_DEV_LLANG_STATISTICS
+
+[INPUT PARAMETERS]
+
+- LLANG_CONTEXT
+
+  Context o L program
+
+  'hex'           --> Display information related to HEX programs
+  '%'             --> No context restriction
+
+- IS_JITTED
+
+  Boolean flag for jitted
+
+  'TRUE'          --> Show jitted programs (i.e. programs translated in machine code)
+  'FALSE'         --> Show non-jitted programs (i.e. programs that can be executed via llang interpreter)
+  '%'             --> Show all programs
+
+- EXCLUDE_ZERO_LINES
+
+  Possibility to exclude completely zero lines
+
+  'X'             --> Only show view lines with actual data
+  ' '             --> Display all lines of the view
+
+[OUTPUT PARAMETERS]
+
+- LLANG_CONTEXT: Context of L program
+- IS_JITTED:     Boolean value for jitted programs
+- CACHE_MISSES:  Number of cache misses
+- CACHE_HITS:    Number of cache hits
+- HIT_PCT:       Cache quality (%)
+- AVG_SIZE_KB:   Average size of cache entry (KB)
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------
+|LLANG_CONTEXT|IS_JITTED|CACHE_MISSES|CACHE_HITS|HIT_PCT|AVG_SIZE_KB|
+---------------------------------------------------------------------
+|hex          |TRUE     |     3107144|  33170880|  90.63|      53.47|
+|hex          |FALSE    |      182165|   5459119|  96.66|      81.74|
+|sp           |TRUE     |           9|       256|  96.48|      13.62|
+|ce           |TRUE     |           8|       297|  97.30|      41.30|
+---------------------------------------------------------------------
+
+*/
+
+  LC.LLANG_CONTEXT,
+  LC.IS_JITTED,
+  LPAD(LC.CACHE_MISS_COUNT, 12) CACHE_MISSES,
+  LPAD(LC.CACHE_HIT_COUNT, 10) CACHE_HITS,
+  LPAD(TO_DECIMAL(MAP(LC.CACHE_HIT_COUNT, 0, 0, (LC.CACHE_HIT_COUNT - LC.CACHE_MISS_COUNT) / LC.CACHE_HIT_COUNT * 100) , 10, 2), 7) HIT_PCT,
+  LPAD(TO_DECIMAL(LC.AVG_PROGRAM_SIZE / 1024, 10, 2), 11) AVG_SIZE_KB
+FROM
+( SELECT                        /* Modification section */
+    '%' LLANG_CONTEXT,
+    '%' IS_JITTED,
+    'X' EXCLUDE_ZERO_LINES
+  FROM
+    DUMMY
+) BI,
+  SYS.M_DEV_LLANG_STATISTICS LC
+WHERE
+  LC.LLANG_CONTEXT LIKE BI.LLANG_CONTEXT AND
+  LC.IS_JITTED LIKE BI.IS_JITTED AND
+  ( BI.EXCLUDE_ZERO_LINES = ' ' OR LC.CACHE_MISS_COUNT > 0 OR LC.CACHE_HIT_COUNT > 0 OR LC.AVG_PROGRAM_SIZE > 0 )
+ORDER BY
+  LC.CACHE_MISS_COUNT DESC

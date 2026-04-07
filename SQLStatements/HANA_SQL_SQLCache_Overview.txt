@@ -1,0 +1,121 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_SQL_SQLCache_Overview
+
+[DESCRIPTION]
+
+- General SQL cache information including evictions
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2014/05/28:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_SQL_PLAN_CACHE_OVERVIEW
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+[OUTPUT PARAMETERS]
+
+- HOST:               Host name
+- PORT:               Port
+- SERVICE:            Service name
+- CONF_GB:            Configured SQL cache size (GB)
+- USED_GB:            Used SQL cache size (GB)
+- USED_PCT:           Used compared to configured SQL cache size (%)
+- CACHED_SQLS:        Number of currently cached plans
+- AVG_SIZE_KB:        Average size of a currently cached plan (KB)
+- EVICT_PER_H:        Number of evictions per hour
+- EVICT_OVERHEAD_PCT: Response time overhead due to evictions (%)
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------
+|HOST    |PORT |CONF_GB|USED_GB|USED_PCT|CACHED_SQLS |AVG_SIZE_KB|EVICT_PER_H|EVICT_OVERHEAD_PCT|
+-------------------------------------------------------------------------------------------------
+|saphana7|33003|   2.00|   1.99|   99.99|        7267|     288.56|         96|              1.63|
+|saphana5|33003|   2.00|   1.99|   99.99|        8811|     238.00|         54|              2.83|
+|saphana9|33003|   2.00|   1.83|   91.53|        8891|     215.90|          3|             27.75|
+|saphana3|33003|   2.00|   1.99|   99.99|       12908|     162.46|       1289|             19.02|
+|saphana3|33005|   0.03|   0.03|   99.93|         308|     106.32|          0|              0.00|
+|saphana3|33007|   0.50|   0.00|    1.08|          73|      77.82|          0|              0.00|
+|saphana4|33003|   2.00|   1.99|   99.99|        8453|     248.08|         86|              2.48|
+|saphana0|33003|   2.00|   1.99|   99.99|        9001|     232.98|         17|              3.35|
+|saphana8|33003|   2.00|   1.99|   99.97|        7839|     267.45|          6|             23.68|
+|saphana1|33003|   2.00|   1.99|   99.99|        9336|     224.62|         16|              3.57|
+|saphana6|33003|   2.00|   1.99|   99.99|        6074|     345.24|         53|              1.05|
+-------------------------------------------------------------------------------------------------
+
+*/
+
+  SO.HOST,
+  LPAD(SO.PORT, 5) PORT,
+  S.SERVICE_NAME SERVICE,
+  LPAD(TO_DECIMAL(SO.PLAN_CACHE_CAPACITY / 1024 / 1024 / 1024, 10, 2), 7) CONF_GB,
+  LPAD(TO_DECIMAL(SO.CACHED_PLAN_SIZE / 1024 / 1024 / 1024, 10, 2), 7) USED_GB,
+  LPAD(TO_DECIMAL(MAP(SO.PLAN_CACHE_CAPACITY, 0, 0, SO.CACHED_PLAN_SIZE / SO.PLAN_CACHE_CAPACITY * 100), 10, 2), 8) USED_PCT,
+  LPAD(SO.CACHED_PLAN_COUNT, 12) CACHED_SQLS,
+  LPAD(TO_DECIMAL(MAP(SO.CACHED_PLAN_COUNT, 0 , 0, SO.CACHED_PLAN_SIZE / SO.CACHED_PLAN_COUNT / 1024), 10, 2), 11) AVG_SIZE_KB,
+  LPAD(ROUND(SO.EVICTED_PLAN_COUNT / SECONDS_BETWEEN(SS.START_TIME, CURRENT_TIMESTAMP) * 3600), 11) EVICT_PER_H,
+  LPAD(TO_DECIMAL(MAP(SO.CACHED_PLAN_PREPARATION_TIME + SO.EVICTED_PLAN_PREPARATION_TIME + SO.CACHED_PLAN_TOTAL_EXECUTION_TIME + SO.EVICTED_PLAN_TOTAL_EXECUTION_TIME, 0, 0,
+    SO.EVICTED_PLAN_PREPARATION_TIME / (SO.CACHED_PLAN_PREPARATION_TIME + SO.EVICTED_PLAN_PREPARATION_TIME + 
+    SO.CACHED_PLAN_TOTAL_EXECUTION_TIME + SO.EVICTED_PLAN_TOTAL_EXECUTION_TIME) * 100), 10, 2), 18) EVICT_OVERHEAD_PCT
+FROM
+( SELECT                 /* Modification section */
+    '%' HOST,
+    '%' PORT,
+    '%' SERVICE_NAME
+  FROM
+    DUMMY
+) BI,
+  M_SERVICES S,
+  M_SQL_PLAN_CACHE_OVERVIEW SO,
+  M_SERVICE_STATISTICS SS
+WHERE
+  S.HOST LIKE BI.HOST AND
+  TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+  S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+  SO.HOST = S.HOST AND
+  SO.PORT = S.PORT AND
+  SS.HOST = SO.HOST AND
+  SS.PORT = SO.PORT 

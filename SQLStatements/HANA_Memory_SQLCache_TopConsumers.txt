@@ -1,0 +1,270 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Memory_SQLCache_TopConsumers
+
+[DESCRIPTION]
+
+- List of table constellations responsible for highest amount of SQL plan cache allocation
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2015/01/27:  1.0 (initial version)
+- 2015/02/25:  1.1 (INLIST evaluation included)
+- 2015/05/18:  1.2 (AGGREGATE_BY = 'PREFIX' added)
+- 2015/09/16:  1.3 (MIN_ENTRIES added, AGGREGATE_BY vs. COMP_AGGREGATE_BY)
+- 2015/12/03:  1.4 (SHARING_TYPE added)
+- 2015/12/15:  1.5 (REFERENCE_COUNT added)
+
+[INVOLVED TABLES]
+
+- M_SQL_PLAN_CACHE
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- SQL_PATTERN
+
+  Pattern for SQL text (case insensitive)
+
+  'INSERT%'       --> SQL statements starting with INSERT
+  '%DBTABLOG%'    --> SQL statements containing DBTABLOG
+  '%'             --> All SQL statements
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOST'          --> Aggregation by host
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+  'ALL'           --> Complete aggregation
+
+- COMP_AGGREGATE_BY
+
+  SQL cache component aggregation approach
+
+  'HASH'          --> Aggregation by statement hash
+  'INLIST'        --> Aggregation by IN LIST length (related to rsdb/max_in_blocking_factor format)
+  'OBJECT'        --> Aggregation by table name / object ID
+  'PREFIX'        --> Aggregate by SQL text prefix (25 characters)
+  'SHARING_TYPE'  --> Aggregation by plan sharing type
+
+- MIN_SIZE_PCT
+
+  Threshold for minimum size (%)
+
+  5               --> Only display areas allocating at least 5 % of the overall memory consumption
+  -1              --> No minimum size restriction
+
+- MIN_ENTRIES
+
+  Threshold for minimum number of SQL cache entries
+
+  100             --> Only display areas with at least 100 SQL cache entries
+  -1              --> No restriction related to SQL cache entries
+
+-[OUTPUT PARAMETERS]
+
+- HOST:                 Host name
+- PORT:                 Port
+- SERVICE:              Service name
+- SIZE_GB:              Size of statements (GB)
+- SIZE_PCT:             Size compared to overall size (%)
+- CUM_GB:               Cumulated size of statements (GB)
+- CUM_PCT:              Cumulated size compared to overall size (%)
+- PIN_GB:               Amount of memory pinned, i.e. REFERENCE_COUNT > 0 (GB)
+- NUM_SQL:              Number of statements
+- KB_PER_SQL:           Average size of statement (KB)
+- AVG_PREP_MS:          Average preparation time (ms)
+- STATEMENT_HASH_1:     Example statement hash 1
+- STATEMENT_HASH_2:     Example statement hash 2
+- AGGREGATION_CATEGORY: Depends on AGGREGATE_BY value:
+                        'HASH'            -> Statement hash
+                        'INLIST'          -> Length categories of IN lists
+                        'OBJECT'          -> List of accessed table names
+                        'PREFIX'          -> List of SQL statement prefixes (25 characters)
+                        'REFERENCE_COUNT' -> Number of references (0 if statement is not pinned)
+                        'SHARING_TYPE'    -> List of plan sharing types
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------
+|HOST|PORT |SIZE_GB|SIZE_PCT|CUM_GB |CUM_PCT|PIN_GB|NUM_SQL|KB_PER_SQL|STATEMENT_HASH_1                |STATEMENT_HASH_2                |ACCESSED_OBJECTS|
+----------------------------------------------------------------------------------------------------------------------------------------------------------
+|any |  any|   5.20|   28.02|   5.20|  28.02|  1.49|   3452|   1580.07|000d33e42f5ea82247bd6ae43cc59c3d|fff5632b78c6f6a87a5b51026665565b|1897516(24)     |
+|any |  any|   2.21|   11.93|   7.41|  39.96|  1.74|   1083|   2145.31|00ac7cf034375d673acb29a0b6a6d858|ffdfc209f257b4f06ee42718ebdf0050|1853516(22)     |
+|any |  any|   0.75|    4.04|   8.16|  44.00|  0.73|    309|   2550.15|001d035bca1ce9213e6e7d07b99bab47|fe191a791d43b811c2938b53a23a23c6|1922186(23)     |
+|any |  any|   0.37|    2.00|   8.54|  46.01|  0.11|    345|   1130.54|01aebf5d28221b036bb32b6c14baaf87|ff87f0016b44af9f085ef6cad3bc4a29|8819697(25)     |
+|any |  any|   0.35|    1.91|   8.89|  47.93|  0.12|   1256|    297.50|0065edfe488899b6990acfe4a6103538|ffe1af7caeecd9ffcd05c9f0e27c68e5|1993363(19)     |
+|any |  any|   0.21|    1.18|   9.11|  49.11|  0.15|    472|    488.02|0323158766ede39d68e6981739f6c70a|ff4267f1d6f22569e6834240d781c143|1902132(20)     |
+|any |  any|   0.21|    1.14|   9.32|  50.26|  0.07|    326|    684.90|02e389ba01a4ffec30ad470183403ef1|fee2e8b7db03fc7f44ee726e98cda6a8|1842092(28)     |
+|any |  any|   0.20|    1.12|   9.53|  51.38|  0.05|    341|    640.37|03c0a7fc0a0fca2da757031d8ad76d23|fff5dea8e3cb3f0631b003baec0c9d22|1852793(119)    |
+|any |  any|   0.20|    1.09|   9.74|  52.48|  0.11|    421|    507.13|0018b4be213b6db20b5dff6155879a53|ffbbcf1865276c9faacb65a7afc68f38|1953762(24)     |
+----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SERVICE_NAME SERVICE,
+  LPAD(TO_DECIMAL(SIZE_GB, 10, 2), 7) SIZE_GB,
+  LPAD(TO_DECIMAL(SIZE_PCT, 10, 2), 8) SIZE_PCT,
+  LPAD(TO_DECIMAL(SUM(SIZE_GB) OVER (ORDER BY SIZE_GB DESC), 10, 2), 7) CUM_GB,
+  LPAD(TO_DECIMAL(SUM(SIZE_PCT) OVER (ORDER BY SIZE_GB DESC), 10, 2), 7) CUM_PCT,
+  LPAD(TO_DECIMAL(PINNED_GB, 10, 2), 6) PIN_GB,
+  LPAD(NUM_STATEMENTS, 7) NUM_SQL,
+  LPAD(TO_DECIMAL(AVG_PREP_MS, 10, 2), 11) AVG_PREP_MS,
+  LPAD(TO_DECIMAL(KB_PER_STATEMENT, 10, 2), 10) KB_PER_SQL,
+  STATEMENT_HASH_1,
+  STATEMENT_HASH_2,
+  AGGREGATION_CATEGORY
+FROM
+( SELECT
+    HOST,
+    PORT,
+    SERVICE_NAME,
+    AGGREGATION_CATEGORY,
+    SIZE_GB,
+    PINNED_GB,
+    MAP(TOTAL_SIZE_GB, 0, 0, SIZE_GB / TOTAL_SIZE_GB * 100) SIZE_PCT,
+    NUM_STATEMENTS,
+    AVG_PREP_MS,
+    MAP(NUM_STATEMENTS, 0, 0, SIZE_GB / NUM_STATEMENTS * 1024 * 1024) KB_PER_STATEMENT,
+    STATEMENT_HASH_1,
+    STATEMENT_HASH_2,
+    MIN_SIZE_PCT,
+    MIN_ENTRIES
+  FROM
+  ( SELECT
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')    != 0 THEN C.HOST          ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                 END HOST,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(C.PORT) ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                 END PORT,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE') != 0 THEN S.SERVICE_NAME  ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME) END SERVICE_NAME,
+      CASE COMP_AGGREGATE_BY 
+        WHEN 'OBJECT' THEN C.ACCESSED_OBJECTS
+        WHEN 'HASH'   THEN C.STATEMENT_HASH
+        WHEN 'PREFIX' THEN SUBSTR(C.STATEMENT_STRING, 1, 25)
+        WHEN 'SHARING_TYPE' THEN C.PLAN_SHARING_TYPE
+        WHEN 'REFERENCE_COUNT' THEN TO_VARCHAR(C.REFERENCE_COUNT)
+        WHEN 'INLIST' THEN 
+          CASE
+            WHEN LOCATE(STATEMENT_STRING, '(' || CHAR(63) || ',' || CHAR(32) || CHAR(63), 1, 100) != 0 THEN 'MULTI VALUE IN LIST (100 and above)'
+            WHEN LOCATE(STATEMENT_STRING, '(' || CHAR(63) || ',' || CHAR(32) || CHAR(63), 1,  50) != 0 THEN 'MULTI VALUE IN LIST (50 and above)'
+            WHEN LOCATE(STATEMENT_STRING, '(' || CHAR(63) || ',' || CHAR(32) || CHAR(63), 1,  20) != 0 THEN 'MULTI VALUE IN LIST (20 and above)'
+            WHEN LOCATE(STATEMENT_STRING, '(' || CHAR(63) || ',' || CHAR(32) || CHAR(63), 1,  10) != 0 THEN 'MULTI VALUE IN LIST (10 and above)'
+            WHEN TO_VARCHAR(STATEMENT_STRING) LIKE '%' || RPAD('', 396, CHAR(63) || CHAR(32) || ',' || CHAR(32)) || '%' THEN 'SINGLE VALUE IN LIST (100 and above)'
+            WHEN TO_VARCHAR(STATEMENT_STRING) LIKE '%' || RPAD('', 196, CHAR(63) || CHAR(32) || ',' || CHAR(32)) || '%' THEN 'SINGLE VALUE IN LIST (50 - 99)'
+            WHEN TO_VARCHAR(STATEMENT_STRING) LIKE '%' || RPAD('',  76, CHAR(63) || CHAR(32) || ',' || CHAR(32)) || '%' THEN 'SINGLE VALUE IN LIST (20 - 49)'
+            WHEN TO_VARCHAR(STATEMENT_STRING) LIKE '%' || RPAD('',  36, CHAR(63) || CHAR(32) || ',' || CHAR(32)) || '%' THEN 'SINGLE VALUE IN LIST (10 - 19)'
+            WHEN TO_VARCHAR(STATEMENT_STRING) LIKE '%(' || CHAR(32) || CHAR(63) || '%' THEN 'IN LIST (1 - 9)'
+            ELSE 'NO IN LIST'
+          END
+      END AGGREGATION_CATEGORY,
+      SUM(C.PLAN_MEMORY_SIZE) / 1024 / 1024 / 1024 SIZE_GB,
+      SUM(MAP(C.REFERENCE_COUNT, 0, 0, C.PLAN_MEMORY_SIZE)) / 1024 / 1024 / 1024 PINNED_GB,
+      C.TOTAL_SIZE_GB,
+      MAP(SUM(C.PREPARATION_COUNT), 0, 0, SUM(C.TOTAL_PREPARATION_TIME) / SUM(C.PREPARATION_COUNT) / 1000) AVG_PREP_MS,
+      COUNT(*) NUM_STATEMENTS,
+      MIN(C.STATEMENT_HASH) STATEMENT_HASH_1,
+      MAX(C.STATEMENT_HASH) STATEMENT_HASH_2,
+      BI.MIN_SIZE_PCT,
+      BI.MIN_ENTRIES
+    FROM
+    ( SELECT                    /* Modification section */
+        '%' HOST,
+        '%' PORT,
+        '%' SERVICE_NAME,
+        '%' SQL_PATTERN,
+        'ALL' AGGREGATE_BY,                  /* HOST, PORT, SERVICE or comma separated combinations, NONE for no aggregation, ALL for complete aggregation */
+        'INLIST' COMP_AGGREGATE_BY,             /* OBJECT, INLIST, PREFIX, HASH, SHARING_TYPE, REFERENCE_COUNT */
+        -1 MIN_SIZE_PCT,
+        -1 MIN_ENTRIES
+      FROM
+        DUMMY
+    ) BI,
+      M_SERVICES S,
+    ( SELECT
+        SUM(PLAN_MEMORY_SIZE) OVER () / 1024 / 1024 / 1024 TOTAL_SIZE_GB,
+        *
+      FROM
+        M_SQL_PLAN_CACHE
+    ) C
+    WHERE
+      S.HOST LIKE BI.HOST AND
+      TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+      S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+      C.HOST = S.HOST AND
+      C.PORT = S.PORT AND
+      TO_VARCHAR(C.STATEMENT_STRING) LIKE BI.SQL_PATTERN
+    GROUP BY
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')    != 0 THEN C.HOST          ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                 END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(C.PORT) ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                 END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE') != 0 THEN S.SERVICE_NAME  ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME) END,
+      CASE COMP_AGGREGATE_BY 
+        WHEN 'OBJECT' THEN C.ACCESSED_OBJECTS
+        WHEN 'HASH'   THEN C.STATEMENT_HASH
+        WHEN 'PREFIX' THEN SUBSTR(C.STATEMENT_STRING, 1, 25)
+        WHEN 'SHARING_TYPE' THEN C.PLAN_SHARING_TYPE
+        WHEN 'REFERENCE_COUNT' THEN TO_VARCHAR(C.REFERENCE_COUNT)
+        WHEN 'INLIST' THEN 
+          CASE
+            WHEN LOCATE(STATEMENT_STRING, '(' || CHAR(63) || ',' || CHAR(32) || CHAR(63), 1, 100) != 0 THEN 'MULTI VALUE IN LIST (100 and above)'
+            WHEN LOCATE(STATEMENT_STRING, '(' || CHAR(63) || ',' || CHAR(32) || CHAR(63), 1,  50) != 0 THEN 'MULTI VALUE IN LIST (50 and above)'
+            WHEN LOCATE(STATEMENT_STRING, '(' || CHAR(63) || ',' || CHAR(32) || CHAR(63), 1,  20) != 0 THEN 'MULTI VALUE IN LIST (20 and above)'
+            WHEN LOCATE(STATEMENT_STRING, '(' || CHAR(63) || ',' || CHAR(32) || CHAR(63), 1,  10) != 0 THEN 'MULTI VALUE IN LIST (10 and above)'
+            WHEN TO_VARCHAR(STATEMENT_STRING) LIKE '%' || RPAD('', 396, CHAR(63) || CHAR(32) || ',' || CHAR(32)) || '%' THEN 'SINGLE VALUE IN LIST (100 and above)'
+            WHEN TO_VARCHAR(STATEMENT_STRING) LIKE '%' || RPAD('', 196, CHAR(63) || CHAR(32) || ',' || CHAR(32)) || '%' THEN 'SINGLE VALUE IN LIST (50 - 99)'
+            WHEN TO_VARCHAR(STATEMENT_STRING) LIKE '%' || RPAD('',  76, CHAR(63) || CHAR(32) || ',' || CHAR(32)) || '%' THEN 'SINGLE VALUE IN LIST (20 - 49)'
+            WHEN TO_VARCHAR(STATEMENT_STRING) LIKE '%' || RPAD('',  36, CHAR(63) || CHAR(32) || ',' || CHAR(32)) || '%' THEN 'SINGLE VALUE IN LIST (10 - 19)'
+            WHEN TO_VARCHAR(STATEMENT_STRING) LIKE '%(' || CHAR(32) || CHAR(63) || '%' THEN 'IN LIST (1 - 9)'
+            ELSE 'NO IN LIST'
+          END
+      END,
+      C.TOTAL_SIZE_GB,
+      BI.MIN_SIZE_PCT,
+      BI.MIN_ENTRIES
+  )
+)
+WHERE
+  ( MIN_SIZE_PCT = -1 OR SIZE_PCT >= MIN_SIZE_PCT ) AND
+  ( MIN_ENTRIES = -1 OR NUM_STATEMENTS >= MIN_ENTRIES )
+ORDER BY
+  SIZE_GB DESC
+  

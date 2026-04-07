@@ -1,0 +1,158 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_SQL_Statistics_RemoteTables_1.00.60-1.00.119
+
+[DESCRIPTION]
+
+- Overview of optimizer statistics for remote tables
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Remote table statistics are relevant in smart data access and dynamic tiering environments
+- Statistics are only available if created via CREATE STATISTICS
+- Smart Data Access was introduced with SAP HANA Rev. 1.00.60
+- Starting with SAP HANA 1.0 SPS 12 the STATISTICS view is deprecated and replaced with the DATA_STATISTICS view
+
+[VALID FOR]
+
+- Revisions:              1.00.60 - 1.00.119
+
+[SQL COMMAND VERSION]
+
+- 2016/06/14:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- STATISTICS
+
+[INPUT PARAMETERS]
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME          
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- COLUMN_NAME
+
+  Column name
+
+  'MATNR'         --> Column MATNR
+  'Z%'            --> Columns starting with "Z"
+  '%'             --> No restriction related to columns
+
+[OUTPUT PARAMETERS]
+ 
+- SCHEMA_NAME:  Schema name
+- TABLE_NAME:   Table name
+- COLUMN_NAME:  Column name
+- BUCKET:       Histogram bucket information
+- MIN_VALUE:    Minimum histogram value (or number of buckets)
+- MAX_VALUE:    Maximum histogram value
+- NUM_ROWS:     Number of rows 
+- NUM_DISTINCT: Number of distinct values
+- NUM_NULL:     Number of NULL values
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------------------------------------------------------------------
+|SCHEMA_NAME|TABLE_NAME           |COLUMN_NAME              |BUCKET    |MIN_VALUE|MAX_VALUE|NUM_ROWS   |NUM_DISTINCT|NUM_NULL   |
+---------------------------------------------------------------------------------------------------------------------------------
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_-1 |20       |20150101 |        202|           1|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_000|         |20150201 |      12676|          31|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_001|         |20150301 |      11827|          28|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_002|         |20150401 |      13008|          31|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_003|         |20150430 |      12138|          29|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_004|         |20150501 |        466|           1|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_005|         |20150530 |      11680|          29|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_006|         |20150601 |        683|           2|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_007|         |20150620 |       8023|          19|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_008|         |20150701 |       4564|          11|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_009|         |20150720 |       8010|          19|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_010|         |20150730 |       4377|          10|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_011|         |20150801 |        942|           2|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_012|         |20150820 |       7799|          19|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_013|         |20150901 |       5060|          12|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_014|         |20151001 |      12900|          30|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_015|         |20151030 |      12072|          29|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_016|         |20151101 |        919|           2|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_017|         |20151201 |      12413|          30|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALDAY                  |_proxy_018|         |20151231 |      12619|          31|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALMONTH                |_proxy_-1 |12       |201501   |        506|           1|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALMONTH                |_proxy_000|         |201502   |        506|           1|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALMONTH                |_proxy_001|         |201503   |        511|           1|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALMONTH                |_proxy_002|         |201504   |        508|           1|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALMONTH                |_proxy_003|         |201505   |        508|           1|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALMONTH                |_proxy_004|         |201506   |        509|           1|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALMONTH                |_proxy_005|         |201507   |        507|           1|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALMONTH                |_proxy_006|         |201508   |        509|           1|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALMONTH                |_proxy_007|         |201509   |        517|           1|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALMONTH                |_proxy_008|         |201510   |        513|           1|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALMONTH                |_proxy_009|         |201511   |        517|           1|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALMONTH                |_proxy_010|         |201512   |       1013|           2|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALQUARTER              |_proxy_-1 |4        |20151    |        529|           1|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALQUARTER              |_proxy_000|         |20152    |        529|           1|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALQUARTER              |_proxy_001|         |20154    |       1051|           2|          0|
+|SR3        |A9B_TEST_CP01_RI_0002|0CALQUARTER              |_proxy_002|         |20154    |        530|           1|          0|
+---------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  SCHEMA_NAME,
+  TABLE_NAME,
+  COLUMN_NAME,
+  BUCKET,
+  MIN_VALUE,
+  MAX_VALUE,
+  LPAD(NUM_ROWS, 11) NUM_ROWS,
+  LPAD(NUM_DISTINCT, 12) NUM_DISTINCT,
+  LPAD(NUM_NULL, 11) NUM_NULL
+FROM
+( SELECT
+    S.SCHEMA_NAME,
+    S.TABLE_NAME,
+    SUBSTR(S.COLUMN_NAME, 1, LOCATE(S.COLUMN_NAME, '_proxy_') - 1) COLUMN_NAME,
+    SUBSTR(S.COLUMN_NAME, LOCATE(S.COLUMN_NAME, '_proxy_')) BUCKET,
+    S.POSITION,
+    S.MINVALUE_STR MIN_VALUE,
+    S.MAXVALUE_STR MAX_VALUE,
+    S.COUNT NUM_ROWS,
+    S.DCOUNT NUM_DISTINCT,
+    S.NULLCOUNT NUM_NULL
+  FROM
+  ( SELECT              /* Modification section */
+      '%' SCHEMA_NAME,
+      '%' TABLE_NAME,
+      '%' COLUMN_NAME
+    FROM
+      DUMMY
+  ) BI,
+    STATISTICS S
+  WHERE
+    S.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    S.TABLE_NAME LIKE BI.TABLE_NAME AND
+    S.COLUMN_NAME LIKE BI.COLUMN_NAME
+)
+ORDER BY
+  SCHEMA_NAME,
+  TABLE_NAME,
+  COLUMN_NAME,
+  POSITION

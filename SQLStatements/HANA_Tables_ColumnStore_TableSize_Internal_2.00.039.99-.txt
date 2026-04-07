@@ -1,0 +1,338 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Tables_ColumnStore_TableSize_Internal
+
+[DESCRIPTION]
+
+- Overview of current and historic table sizes in column store
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+- NUMA_NODE only available in internal view M_CS_TABLES_
+- Starting with SAP HANA 2.0 SPS 04 NUMA_NODE information is available for public in M_CS_ALL_COLUMNS and 
+  you can use SQL: "HANA_Tables_ColumnStore_Columns" for evaluation.
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2014/03/06:  1.0 (initial version)
+- 2015/01/08:  1.1 (AGGREGATE_BY, ORDER_BY and RESULT_ROWS included)
+- 2015/06/22:  1.2 (RECORDS_HISTORY included)
+- 2015/07/17:  1.3 (RECORDS vs. RAW_REC separation)
+- 2016/12/31:  1.4 (TIME_AGGREGATE_BY = 'TS<seconds>' included)
+- 2017/02/02:  1.5 (DATA_SOURCE = 'CURRENT' included)
+- 2017/05/08:  1.6 (dedicated internal variante including NUMA_NODE)
+
+[INVOLVED TABLES]
+
+- M_CS_TABLES_
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- NUMA_NODE
+
+  NUMA node
+
+  4               --> Display information for NUMA node 4
+  -1              --> No restriction related to NUMA node
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- PART_ID
+
+  Partition number
+
+  2               --> Only show information for partition number 2
+  -1              --> No restriction related to partition number
+
+- MIN_TOTAL_SIZE_GB
+
+  Lower limit for total memory size (GB)
+
+  5               --> Only consider sizes of at least 5 GB
+  -1              --> No restriction related to size
+
+- OBJECT_LEVEL
+
+  Controls display of partitions
+
+  'PARTITION'     --> Result is shown on partition level
+  'TABLE'         --> Result is shown on table level
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'SIZE'          --> Sorting by size 
+  'TABLE'         --> Sorting by table name
+
+- RESULT_ROWS
+
+  Number of records to be returned by the query
+
+  100             --> Return a maximum number of 100 records
+  -1              --> Return all records
+
+[OUTPUT PARAMETERS]
+
+- SNAPSHOT_TIME:   Timestamp
+- HOST:            Host name
+- PORT:            Port
+- SCHEMA_NAME:     Schema name
+- TABLE_NAME:      Table name
+- TABLES:          Number of tables / partitions
+- RECORDS:         Total number of rows
+- RAW_REC_TOTAL:   Total number of raw rows
+- RAW_REC_MAIN:    Number of raw rows in main storage
+- RAW_REC_DELTA:   Number of raw rows in delta storage
+- RAW_REC_HISTORY: Number of rows in history
+- LAST_CMP_REC:    Number of rows at time of last optimize compression
+- TOTAL_GB:        Total memory table size (GB)
+- MAIN_GB:         Total memory table size in main (GB)
+- DELTA_GB:        Total memory table size in delta (GB)
+- DELTA_PCT:       Percentage of table size in delta
+- MERGES:          Number of delta merges on table
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|HOST|PORT |NUMA_NODE|SCHEMA_NAME|TABLE_NAME|TABLES|RECORDS    |RAW_REC_TOTAL|RAW_REC_MAIN|RAW_REC_DELTA|RAW_REC_HISTORY|LAST_CMP_REC|TOTAL_GB    |MAIN_GB     |DELTA_GB    |DELTA_PCT|MERGES|
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|any |  any|       11|any        |any       |  2923| 7711291030|   7713738008|  7708962321|      4775687|              0|  7524037476|      858.42|      857.04|        1.38|     0.16|   123|
+|any |  any|        7|any        |any       |  2769|11816057456|  11818857807| 11815820695|      3037112|              0| 11526061316|      606.70|      605.83|        0.87|     0.14|    35|
+|any |  any|        9|any        |any       |  2737|10487810079|  10488265387| 10487423699|       841688|              0| 10193928062|      593.59|      593.11|        0.47|     0.08|    50|
+|any |  any|       15|any        |any       |  2920|11539137557|  11540768367| 11536199067|      4569300|              0| 11250007246|      564.14|      562.77|        1.36|     0.24|    83|
+|any |  any|        8|any        |any       |  2811| 8974770303|   8974792214|  8974451690|       340524|              0|  8642337689|      558.48|      558.10|        0.38|     0.06|    61|
+|any |  any|        1|any        |any       |  2844|10703578106|  10704130765| 10702580789|      1549976|              0| 10410538741|      554.81|      553.95|        0.86|     0.15|   142|
+|any |  any|       13|any        |any       |  2770| 9017815665|   9018227948|  9015039316|      3188632|              0|  8735386926|      459.75|      458.36|        1.38|     0.30|    61|
+|any |  any|        5|any        |any       |  2798| 8992834518|   8993639498|  8988551147|      5088351|              0|  8766533730|      448.67|      446.92|        1.75|     0.39|    61|
+|any |  any|       14|any        |any       |  2883| 8620844372|   8621715336|  8617010215|      4705121|              0|  8250145493|      442.25|      440.91|        1.33|     0.30|    65|
+|any |  any|       10|any        |any       |  2821| 8469747834|   8469775912|  8469634892|       141020|              0|  8323171877|      427.41|      427.07|        0.33|     0.07|    46|
+|any |  any|        3|any        |any       |  2923| 7659044218|   7659414238|  7658918336|       495902|              0|  7411432025|      424.29|      423.86|        0.42|     0.10|    95|
+|any |  any|        6|any        |any       |  2842| 7142284511|   7142302834|  7142111190|       191644|              0|  6935421462|      419.10|      418.75|        0.34|     0.08|    45|
+|any |  any|       12|any        |any       |  2809| 9295323779|   9295792945|  9294515789|      1277156|              0|  9058042473|      398.28|      397.67|        0.60|     0.15|    86|
+|any |  any|        4|any        |any       |  2749| 7650329379|   7653603746|  7649762591|      3841155|              0|  7400620206|      381.04|      379.92|        1.12|     0.29|    73|
+|any |  any|        2|any        |any       |  2943| 4960476157|   4961277761|  4959240544|      2037217|              0|  4684974428|      282.24|      281.49|        0.74|     0.26|    87|
+|any |  any|        0|any        |any       |  2823| 5996955287|   5997155148|  5996621673|       533475|              0|  5835099951|      257.59|      257.21|        0.38|     0.14|    72|
+|any |  any|       -1|any        |any       | 80266|      46646|        46646|       46646|            0|              0|       46645|        0.00|        0.00|        0.00|     0.00|     0|
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  LPAD(NUMA_NODE, 9) NUMA_NODE,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  LPAD(TABLES, 6) TABLES,
+  LPAD(TO_DECIMAL(ROUND(RECORDS), 11, 0), 11) RECORDS,
+  LPAD(TO_DECIMAL(ROUND(RAW_REC_TOTAL), 13, 0), 13) RAW_REC_TOTAL,
+  LPAD(TO_DECIMAL(ROUND(RAW_REC_MAIN), 12, 0), 12) RAW_REC_MAIN,
+  LPAD(TO_DECIMAL(ROUND(RAW_REC_DELTA), 13, 0), 13) RAW_REC_DELTA,
+  LPAD(TO_DECIMAL(ROUND(RAW_REC_HISTORY), 15, 0), 15) RAW_REC_HISTORY,
+  LPAD(TO_DECIMAL(ROUND(LAST_CMP_REC), 12, 0), 12) LAST_CMP_REC,
+  LPAD(TO_DECIMAL(TOTAL_BYTE / 1024 / 1024 / 1024, 10, 2), 12) TOTAL_GB,
+  LPAD(TO_DECIMAL(MAIN_BYTE / 1024 / 1024 / 1024, 10, 2), 12) MAIN_GB,
+  LPAD(TO_DECIMAL(DELTA_BYTE / 1024 / 1024 / 1024, 10, 2), 12) DELTA_GB,
+  LPAD(TO_DECIMAL(DELTA_PCT, 5, 2), 9) DELTA_PCT,
+  LPAD(MERGES, 6) MERGES
+FROM
+( SELECT
+    HOST,
+    PORT,
+    SCHEMA_NAME,
+    TABLE_NAME,
+    NUMA_NODE,
+    TABLES,
+    RECORDS,
+    RAW_REC_TOTAL,
+    RAW_REC_MAIN,
+    RAW_REC_DELTA,
+    RAW_REC_HISTORY,
+    LAST_CMP_REC,
+    TOTAL_BYTE,
+    MAIN_BYTE,
+    DELTA_BYTE,
+    DELTA_PCT,
+    MERGES,
+    ROW_NUMBER () OVER (ORDER BY 
+      MAP(ORDER_BY, 'NAME', SCHEMA_NAME || TABLE_NAME || HOST || PORT),
+      MAP(ORDER_BY, 'NUMA_NODE', HOST || NUMA_NODE || SCHEMA_NAME || TABLE_NAME),
+      MAP(ORDER_BY, 
+        'REC_TOTAL', RAW_REC_TOTAL, 
+        'REC_MAIN', RAW_REC_MAIN, 
+        'REC_DELTA', RAW_REC_DELTA,
+        'SIZE_TOTAL', TOTAL_BYTE / 1024 / 1024 / 1024, 
+        'SIZE_MAIN', MAIN_BYTE / 1024 / 1024 / 1024, 
+        'SIZE_DELTA', DELTA_BYTE / 1024 / 1024 / 1024 ) DESC) ROW_NUM,
+    MIN_TOTAL_SIZE_GB,
+    RESULT_ROWS
+  FROM
+  ( SELECT
+      HOST,
+      PORT,
+      SCHEMA_NAME,
+      TABLE_NAME,
+      NUMA_NODE,
+      TABLES,
+      RECORDS,
+      RAW_REC_MAIN + RAW_REC_DELTA RAW_REC_TOTAL,
+      RAW_REC_MAIN,
+      RAW_REC_DELTA,
+      RAW_REC_HISTORY,
+      LAST_CMP_REC,
+      TOTAL_BYTE,
+      MAIN_BYTE,
+      DELTA_BYTE,
+      MAP(TOTAL_BYTE, 0, 0, DELTA_BYTE / TOTAL_BYTE * 100) DELTA_PCT,
+      MERGES,
+      MIN_TOTAL_SIZE_GB,
+      ORDER_BY,
+      RESULT_ROWS
+    FROM
+    ( SELECT
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')   != 0 THEN CT.HOST                  ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                      END HOST,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')   != 0 THEN TO_VARCHAR(CT.PORT)      ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                      END PORT,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA') != 0 THEN CT.SCHEMA_NAME           ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)        END SCHEMA_NAME,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'NUMA')   != 0 THEN TO_VARCHAR(CT.NUMA_NODE) ELSE MAP(BI.NUMA_NODE, -1, 'any', TO_VARCHAR(BI.NUMA_NODE)) END NUMA_NODE,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')  != 0 THEN CT.TABLE_NAME || CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND CT.PART_ID != 0 THEN ' (' || CT.PART_ID || ')' ELSE '' END ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME || CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND CT.PART_ID != 0 THEN ' (' || CT.PART_ID || ')' ELSE '' END ) END TABLE_NAME,
+        COUNT(*) TABLES,
+        SUM(CT.RECORD_COUNT) RECORDS,
+        SUM(CT.RAW_RECORD_COUNT_IN_MAIN) RAW_REC_MAIN,
+        SUM(CT.RAW_RECORD_COUNT_IN_DELTA) RAW_REC_DELTA,
+        SUM(CT.RAW_RECORD_COUNT_IN_HISTORY_MAIN + CT.RAW_RECORD_COUNT_IN_HISTORY_DELTA) RAW_REC_HISTORY,
+        SUM(CT.LAST_COMPRESSED_RECORD_COUNT) LAST_CMP_REC,
+        SUM(CT.MEMORY_SIZE_IN_TOTAL) TOTAL_BYTE,
+        SUM(CT.MEMORY_SIZE_IN_MAIN) MAIN_BYTE,
+        SUM(CT.MEMORY_SIZE_IN_DELTA) DELTA_BYTE,
+        SUM(CT.MERGES) MERGES,
+        BI.MIN_TOTAL_SIZE_GB,
+        BI.AGGREGATE_BY,
+        BI.ORDER_BY,
+        BI.RESULT_ROWS
+      FROM
+      ( SELECT
+          HOST,
+          PORT,
+          SCHEMA_NAME,
+          TABLE_NAME,
+          PART_ID,
+          NUMA_NODE,
+          MIN_TOTAL_SIZE_GB,
+          OBJECT_LEVEL,
+          AGGREGATE_BY,
+          ORDER_BY,
+          RESULT_ROWS
+        FROM
+        ( SELECT                                                      /* Modification section */
+            '%' HOST,
+            '%' PORT,
+            -1 NUMA_NODE,
+            '%' SCHEMA_NAME,
+            '%' TABLE_NAME,
+            -1 PART_ID,
+            -1 MIN_TOTAL_SIZE_GB,
+            'PARTITION' OBJECT_LEVEL,
+            'NONE' AGGREGATE_BY,         /* HOST, PORT, SCHEMA, TABLE, NUMA_NODE or comma separated combinations, NONE for no aggregation */
+            'SIZE_TOTAL' ORDER_BY,                /* NAME, REC_TOTAL, REC_MAIN, REC_DELTA, SIZE_TOTAL, SIZE_MAIN, SIZE_DELTA, NUMA_NODE */
+            -1 RESULT_ROWS
+          FROM
+            DUMMY
+        )
+      ) BI,
+      ( SELECT
+          'CURRENT' DATA_SOURCE,
+          HOST,
+          PORT,
+          SCHEMA_NAME,
+          TABLE_NAME,
+          PART_ID,
+          RECORD_COUNT,
+          RAW_RECORD_COUNT_IN_MAIN,
+          RAW_RECORD_COUNT_IN_DELTA,
+          RAW_RECORD_COUNT_IN_HISTORY_MAIN,
+          RAW_RECORD_COUNT_IN_HISTORY_DELTA,
+          LAST_COMPRESSED_RECORD_COUNT,
+          MEMORY_SIZE_IN_TOTAL,
+          MEMORY_SIZE_IN_MAIN,
+          MEMORY_SIZE_IN_DELTA,
+          MERGE_COUNT MERGES,
+          NUMA_NODE
+        FROM
+          SYS.M_CS_TABLES_
+      ) CT
+      WHERE
+        CT.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+        CT.TABLE_NAME LIKE BI.TABLE_NAME AND
+        ( BI.PART_ID = -1 OR CT.PART_ID = BI.PART_ID ) AND
+        ( BI.NUMA_NODE = -1 OR CT.NUMA_NODE = BI.NUMA_NODE ) AND
+        CT.HOST LIKE BI.HOST AND
+        TO_VARCHAR(CT.PORT) LIKE BI.PORT
+      GROUP BY
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')   != 0 THEN CT.HOST                  ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                      END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')   != 0 THEN TO_VARCHAR(CT.PORT)      ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                      END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA') != 0 THEN CT.SCHEMA_NAME           ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)        END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'NUMA')   != 0 THEN TO_VARCHAR(CT.NUMA_NODE) ELSE MAP(BI.NUMA_NODE, -1, 'any', TO_VARCHAR(BI.NUMA_NODE)) END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')  != 0 THEN CT.TABLE_NAME || CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND CT.PART_ID != 0 THEN ' (' || CT.PART_ID || ')' ELSE '' END ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME || CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND CT.PART_ID != 0 THEN ' (' || CT.PART_ID || ')' ELSE '' END ) END,
+        BI.MIN_TOTAL_SIZE_GB,
+        BI.AGGREGATE_BY,
+        BI.ORDER_BY,
+        BI.RESULT_ROWS
+    )
+  )
+)
+WHERE
+  ( RESULT_ROWS = -1 OR ROW_NUM <= RESULT_ROWS ) AND
+  ( MIN_TOTAL_SIZE_GB = -1 OR TOTAL_BYTE / 1024 / 1024 / 1024 >= MIN_TOTAL_SIZE_GB )
+ORDER BY
+  ROW_NUM

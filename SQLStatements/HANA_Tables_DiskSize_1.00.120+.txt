@@ -1,0 +1,286 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Tables_DiskSize_1.00.120+
+
+[DESCRIPTION]
+
+- Table disk space allocation
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- M_TABLE_PERSISTENCE_STATISTICS does not contain host information, so several views are used and summarized
+- M_TABLE_LOB_STATISTICS available starting with Rev. 120
+
+[VALID FOR]
+
+- Revisions:              1.00.120+
+
+[SQL COMMAND VERSION]
+
+- 2015/09/18:  1.0 (initial version)
+- 2016/12/06:  1.1 (switch from M_TABLE_LOB_FILES to M_TABLE_LOB_STATISTICS)
+- 2017/03/15:  1.2 (SIZE_NOLOB_GB included)
+
+[INVOLVED TABLES]
+
+- M_TABLE_VIRTUAL_FILES
+- M_RS_TABLES
+- M_TABLE_LOB_STATISTICS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- STORE
+
+  Restriction to store 
+
+  'ROW'           --> Only row store information
+  'COLUMN'        --> Only column store information
+  '%'             --> No store restriction
+
+- VIRTUAL_FILE_NAME
+
+  Virtual file name or pattern
+
+  '$container$'   --> Only consider entries related to virtual files names $container$
+  'att%'          --> Only consider entries with virtual file names starting with 'att'
+  '%'             --> No restriction related to virtual file names
+
+- OBJECT_LEVEL
+
+  Controls display of partitions
+
+  'PARTITION'     --> Result is shown on partition level
+  'TABLE'         --> Result is shown on table level
+
+- MIN_SIZE_GB
+
+  Minimum size in GB
+
+  10              --> Minimum size of 10 GB
+  -1              --> No minimum size limitation
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'SCHEMA'        --> Aggregation by schema
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+[OUTPUT PARAMETERS]
+
+- HOST:              Host name
+- PORT:              Port
+- SERVICE:           Service name
+- SCHEMA_NAME:       Schema name
+- TABLE_NAME:        Table name
+- VIRTUAL_FILE_NAME: Name of virtual file on disk
+- COUNT:             Number of entries aggregated for each line
+- SIZE_GB:           Disk size (GB)
+- SIZE_NOLOB_GB:     Disk size without disk LOBs (GB)
+
+[EXAMPLE OUTPUT]
+
+--------------------------------------------------------------
+|HOST    |PORT |SCHEMA_NAME|TABLE_NAME      |S|COUNT |SIZE_GB|
+--------------------------------------------------------------
+|saphana1|30003|SAPBWP     |RSWR_DATA       |R|265634|  86.19|
+|saphana1|30003|SAPBWP     |SOFFCONT1       |C|152555|  37.36|
+|saphana6|30003|SAPBWP     |/BIC/B0001534001|C| 12600|  29.25|
+|saphana5|30003|SAPBWP     |/BIC/FZRRNNC14F |C|   274|  25.82|
+|saphana5|30003|SAPBWP     |/BIC/AZRRNNO0100|C|   203|  25.51|
+|saphana4|30003|SAPBWP     |/BIC/AZRRNNO0100|C|   203|  25.41|
+|saphana6|30003|SAPBWP     |/BIC/AZRRNNO0100|C|   203|  24.89|
+|saphana2|30003|SAPBWP     |/BIC/AZRRNNO0100|C|   203|  24.56|
+|saphana3|30003|SAPBWP     |/BIC/AZRRNNO0100|C|   203|  24.10|
+|saphana7|30003|SAPBWP     |/BIC/AZRRNNO0100|C|   203|  24.06|
+|saphana5|30003|SAPBWP     |/BIC/FZSCNNCO15 |C|   386|  23.31|
+|saphana1|30003|SAPBWP     |/XA10/0ASA_DS01 |C|    14|  22.29|
+--------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SERVICE_NAME SERVICE,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  STORE S,
+  VIRTUAL_FILE_NAME,
+  LPAD(NUM, 6) COUNT,
+  LPAD(TO_DECIMAL(SIZE_BYTE / 1024 / 1024 / 1024, 10, 2), 8) SIZE_GB,
+  LPAD(TO_DECIMAL(NOLOB_SIZE_BYTE / 1024 / 1024 / 1024, 10, 2), 13) SIZE_NOLOB_GB
+FROM
+( SELECT
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')    != 0 THEN HOST              ELSE MAP(BI_HOST, '%', 'any', BI_HOST)                           END HOST,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(PORT)     ELSE MAP(BI_PORT, '%', 'any', BI_PORT)                           END PORT,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SERVICE') != 0 THEN SERVICE_NAME      ELSE MAP(BI_SERVICE_NAME, '%', 'any', BI_SERVICE_NAME)           END SERVICE_NAME,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SCHEMA')  != 0 THEN SCHEMA_NAME       ELSE MAP(BI_SCHEMA_NAME, '%', 'any', BI_SCHEMA_NAME)             END SCHEMA_NAME,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TABLE')   != 0 THEN TABLE_NAME        ELSE MAP(BI_TABLE_NAME, '%', 'any', BI_TABLE_NAME)               END TABLE_NAME,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'STORE')   != 0 THEN STORE             ELSE MAP(BI_STORE, '%', 'any', BI_STORE)                         END STORE,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'VFILE')   != 0 THEN VIRTUAL_FILE_NAME ELSE MAP(BI_VIRTUAL_FILE_NAME, '%', 'any', BI_VIRTUAL_FILE_NAME) END VIRTUAL_FILE_NAME,
+    COUNT(*) NUM,
+    SUM(SIZE_BYTE) SIZE_BYTE,
+    SUM(NOLOB_SIZE_BYTE) NOLOB_SIZE_BYTE,
+    MIN_SIZE_GB
+  FROM
+  ( SELECT
+      T.HOST,
+      T.PORT,
+      S.SERVICE_NAME,
+      T.SCHEMA_NAME,
+      MAP(BI.OBJECT_LEVEL, 'TABLE', T.TABLE_NAME, T.TABLE_NAME || MAP(T.PART_ID, 0, '', ' (' || T.PART_ID || ')')) TABLE_NAME,
+      T.VIRTUAL_FILE_NAME,
+      T.SIZE_BYTE,
+      T.NOLOB_SIZE_BYTE,
+      MAP(TB.IS_COLUMN_TABLE, 'TRUE', 'C', 'R') STORE,
+      BI.AGGREGATE_BY,
+      BI.HOST BI_HOST,
+      BI.PORT BI_PORT,
+      BI.SERVICE_NAME BI_SERVICE_NAME,
+      BI.SCHEMA_NAME BI_SCHEMA_NAME,
+      BI.TABLE_NAME BI_TABLE_NAME,
+      BI.VIRTUAL_FILE_NAME BI_VIRTUAL_FILE_NAME,
+      BI.STORE BI_STORE,
+      BI.MIN_SIZE_GB
+    FROM
+    ( SELECT                /* Modification section */
+        '%' HOST,
+        '%' PORT,
+        '%' SERVICE_NAME,
+        '%' SCHEMA_NAME,
+        '%' TABLE_NAME,
+        '%' STORE,
+        '%' VIRTUAL_FILE_NAME,
+        'TABLE' OBJECT_LEVEL,
+        -1 MIN_SIZE_GB,
+        'HOST, PORT, SCHEMA, TABLE, STORE' AGGREGATE_BY       /* HOST, PORT, SERVICE, SCHEMA, TABLE, VFILE, STORE and comma separated combinations, NONE for no aggregation */
+      FROM
+        DUMMY
+    ) BI,
+      M_SERVICES S,
+    ( SELECT
+        HOST,
+        PORT,
+        SCHEMA_NAME,
+        TABLE_NAME,
+        PART_ID,
+        NAME VIRTUAL_FILE_NAME,
+        PHYSICAL_SIZE SIZE_BYTE,
+        PHYSICAL_SIZE NOLOB_SIZE_BYTE
+      FROM
+        M_TABLE_VIRTUAL_FILES
+      UNION ALL
+      ( SELECT
+          HOST,
+          PORT,
+          SCHEMA_NAME,
+          TABLE_NAME,
+          0 PART_ID,
+          'n/a (row store)',
+          ALLOCATED_FIXED_PART_SIZE + ALLOCATED_VARIABLE_PART_SIZE SIZE_BYTE,
+          ALLOCATED_FIXED_PART_SIZE + ALLOCATED_VARIABLE_PART_SIZE NOLOB_SIZE_BYTE
+        FROM
+          M_RS_TABLES
+      )
+      UNION ALL
+      ( SELECT
+          L.HOST,
+          L.PORT,
+          L.SCHEMA_NAME,
+          L.TABLE_NAME,
+          0 PART_ID,
+          'LOB',
+          L.DISK_SIZE SIZE_BYTE,
+          0 NOLOB_SIZE_BYTE
+        FROM
+          M_HOST_RESOURCE_UTILIZATION H,
+          M_TABLE_LOB_STATISTICS L
+        WHERE
+          L.HOST = H.HOST
+      )
+    ) T,
+      TABLES TB
+    WHERE
+      S.HOST LIKE BI.HOST AND
+      TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+      S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+      T.HOST = S.HOST AND
+      T.PORT = S.PORT AND
+      T.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+      T.TABLE_NAME LIKE BI.TABLE_NAME AND
+      T.VIRTUAL_FILE_NAME LIKE BI.VIRTUAL_FILE_NAME AND
+      TB.SCHEMA_NAME = T.SCHEMA_NAME AND
+      TB.TABLE_NAME = T.TABLE_NAME AND
+      ( BI.STORE = '%' OR
+        BI.STORE = 'ROW' AND TB.IS_COLUMN_TABLE = 'FALSE' OR
+        BI.STORE = 'COLUMN' AND TB.IS_COLUMN_TABLE = 'TRUE'
+      )
+  )
+  GROUP BY
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')    != 0 THEN HOST              ELSE MAP(BI_HOST, '%', 'any', BI_HOST)                           END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(PORT)     ELSE MAP(BI_PORT, '%', 'any', BI_PORT)                           END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SERVICE') != 0 THEN SERVICE_NAME      ELSE MAP(BI_SERVICE_NAME, '%', 'any', BI_SERVICE_NAME)           END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SCHEMA')  != 0 THEN SCHEMA_NAME       ELSE MAP(BI_SCHEMA_NAME, '%', 'any', BI_SCHEMA_NAME)             END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TABLE')   != 0 THEN TABLE_NAME        ELSE MAP(BI_TABLE_NAME, '%', 'any', BI_TABLE_NAME)               END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'STORE')   != 0 THEN STORE             ELSE MAP(BI_STORE, '%', 'any', BI_STORE)                         END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'VFILE')   != 0 THEN VIRTUAL_FILE_NAME ELSE MAP(BI_VIRTUAL_FILE_NAME, '%', 'any', BI_VIRTUAL_FILE_NAME) END,
+    MIN_SIZE_GB
+)
+WHERE
+( MIN_SIZE_GB = -1 OR SIZE_BYTE / 1024 / 1024 / 1024 >= MIN_SIZE_GB )
+ORDER BY
+  SIZE_BYTE DESC,
+  HOST,
+  PORT,
+  SCHEMA_NAME,
+  TABLE_NAME
+
+

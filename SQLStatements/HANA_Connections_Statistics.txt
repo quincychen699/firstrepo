@@ -1,0 +1,198 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Connections_Statistics
+
+[DESCRIPTION]
+
+- Connection information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2014/04/11:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_CONNECTION_STATISTICS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- CONN_ID
+
+  Connection ID
+
+  330655          --> Connection ID 330655
+  -1              --> No connection ID restriction
+ 
+[OUTPUT PARAMETERS]
+
+- HOST:             Host name
+- PORT:             Port
+- SERVICE:          Service name
+- SQL_TYPE:         SQL statement type
+- EXECUTIONS:       Number of executions
+- ELAPSED_S:        Total elapsed time (s)
+- ELA_PER_EXEC_MS:  Elapsed time per execution (ms)
+- LOCK_PER_EXEC_MS: Lock wait time per execution (ms)
+- MAX_ELA_MS:       Maximum elapsed time (ms)
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------
+|SQL_TYPE             |EXECUTIONS|ELAPSED_S |ELA_PER_EXEC_MS|LOCK_PER_EXEC_MS|MAX_ELA_MS|
+-----------------------------------------------------------------------------------------
+|SELECT               |5871154196|    941502|           0.16|            0.00|    196826|
+|SELECT FOR UPDATE    |  18387280|     68778|           3.74|            3.43|   1025969|
+|UPDATE               | 295796401|    552598|           1.86|            0.25|    938187|
+|READ ONLY TRANSACTION|      1793|         0|           0.22|            0.00|        15|
+|UPDATE TRANSACTION   |  32736065|      6838|           0.20|            0.00|     60068|
+|ROLLBACK             |    149358|      6838|          45.78|            0.00|     60068|
+|OTHERS               |        26|        19|         738.01|            0.00|     12622|
+|PREPARE              |  12831682|  73351833|        5716.46|            0.00|1028637197|
+-----------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  PORT,
+  SERVICE_NAME SERVICE,
+  SQL_TYPE,
+  LPAD(EXECUTIONS, 10) EXECUTIONS,
+  LPAD(ROUND(ELAPSED_S), 10) ELAPSED_S,
+  LPAD(TO_DECIMAL(ELA_PER_EXEC_MS, 10, 2), 15) ELA_PER_EXEC_MS,
+  LPAD(TO_DECIMAL(LOCK_PER_EXEC_MS, 10, 2), 16) LOCK_PER_EXEC_MS,
+  LPAD(ROUND(MAX_ELA_MS), 10) MAX_ELA_MS
+FROM
+( SELECT
+    S.HOST,
+    S.PORT,
+    S.SERVICE_NAME,
+    L.SQL_TYPE,
+    CASE L.SQL_TYPE
+      WHEN 'SELECT'                THEN SUM(C.SELECT_EXECUTION_COUNT)
+      WHEN 'SELECT FOR UPDATE'     THEN SUM(C.SELECT_FOR_UPDATE_COUNT)
+      WHEN 'INSERT/UPDATE/DELETE'  THEN SUM(C.UPDATE_COUNT)
+      WHEN 'READ ONLY TRANSACTION' THEN SUM(C.READ_ONLY_TRANSACTION_COUNT)
+      WHEN 'UPDATE TRANSACTION'    THEN SUM(C.UPDATE_TRANSACTION_COUNT)
+      WHEN 'ROLLBACK'              THEN SUM(C.ROLLBACK_COUNT)
+      WHEN 'OTHERS'                THEN SUM(C.OTHERS_COUNT)
+      WHEN 'PREPARE'               THEN SUM(C.TOTAL_PREPARATION_COUNT)
+    END EXECUTIONS,
+    CASE L.SQL_TYPE
+      WHEN 'SELECT'                THEN SUM(C.SELECT_TOTAL_EXECUTION_TIME)                / 1000 / 1000
+      WHEN 'SELECT FOR UPDATE'     THEN SUM(C.SELECT_FOR_UPDATE_TOTAL_EXECUTION_TIME)     / 1000 / 1000
+      WHEN 'INSERT/UPDATE/DELETE'  THEN SUM(C.UPDATE_TOTAL_EXECUTION_TIME)                / 1000 / 1000
+      WHEN 'READ ONLY TRANSACTION' THEN SUM(C.READ_ONLY_TRANSACTION_TOTAL_EXECUTION_TIME) / 1000 / 1000
+      WHEN 'UPDATE TRANSACTION'    THEN SUM(C.UPDATE_TRANSACTION_TOTAL_EXECUTION_TIME)    / 1000 / 1000
+      WHEN 'ROLLBACK'              THEN SUM(C.ROLLBACK_TOTAL_EXECUTION_TIME)              / 1000 / 1000
+      WHEN 'OTHERS'                THEN SUM(C.OTHERS_TOTAL_EXECUTION_TIME)                / 1000 / 1000
+      WHEN 'PREPARE'               THEN SUM(C.TOTAL_PREPARATION_TIME)                     / 1000 / 1000
+    END ELAPSED_S,
+    CASE L.SQL_TYPE
+      WHEN 'SELECT'                THEN MAP(SUM(C.SELECT_EXECUTION_COUNT),      0, 0, SUM(C.SELECT_TOTAL_EXECUTION_TIME)                / 1000 / SUM(C.SELECT_EXECUTION_COUNT))
+      WHEN 'SELECT FOR UPDATE'     THEN MAP(SUM(C.SELECT_FOR_UPDATE_COUNT),     0, 0, SUM(C.SELECT_FOR_UPDATE_TOTAL_EXECUTION_TIME)     / 1000 / SUM(C.SELECT_FOR_UPDATE_COUNT))
+      WHEN 'INSERT/UPDATE/DELETE'  THEN MAP(SUM(C.UPDATE_COUNT),                0, 0, SUM(C.UPDATE_TOTAL_EXECUTION_TIME)                / 1000 / SUM(C.UPDATE_COUNT))
+      WHEN 'READ ONLY TRANSACTION' THEN MAP(SUM(C.READ_ONLY_TRANSACTION_COUNT), 0, 0, SUM(C.READ_ONLY_TRANSACTION_TOTAL_EXECUTION_TIME) / 1000 / SUM(C.READ_ONLY_TRANSACTION_COUNT))
+      WHEN 'UPDATE TRANSACTION'    THEN MAP(SUM(C.UPDATE_TRANSACTION_COUNT),    0, 0, SUM(C.UPDATE_TRANSACTION_TOTAL_EXECUTION_TIME)    / 1000 / SUM(C.UPDATE_TRANSACTION_COUNT))
+      WHEN 'ROLLBACK'              THEN MAP(SUM(C.ROLLBACK_COUNT),              0, 0, SUM(C.ROLLBACK_TOTAL_EXECUTION_TIME)              / 1000 / SUM(C.ROLLBACK_COUNT))
+      WHEN 'OTHERS'                THEN MAP(SUM(C.OTHERS_COUNT),                0, 0, SUM(C.OTHERS_TOTAL_EXECUTION_TIME)                / 1000 / SUM(C.OTHERS_COUNT))
+      WHEN 'PREPARE'               THEN MAP(SUM(C.TOTAL_PREPARATION_COUNT),     0, 0, SUM(C.TOTAL_PREPARATION_TIME)                     / 1000 / SUM(C.TOTAL_PREPARATION_COUNT))
+    END ELA_PER_EXEC_MS,
+    CASE L.SQL_TYPE
+      WHEN 'SELECT' THEN 0
+      WHEN 'SELECT FOR UPDATE'     THEN MAP(SUM(C.SELECT_FOR_UPDATE_COUNT), 0, 0, SUM(C.SELECT_FOR_UPDATE_TOTAL_LOCK_WAIT_TIME) / 1000 / SUM(C.SELECT_FOR_UPDATE_COUNT))
+      WHEN 'INSERT/UPDATE/DELETE'  THEN MAP(SUM(C.UPDATE_COUNT),            0, 0, SUM(C.UPDATE_TOTAL_LOCK_WAIT_TIME)            / 1000 / SUM(C.UPDATE_COUNT))
+      WHEN 'READ ONLY TRANSACTION' THEN 0
+      WHEN 'UPDATE TRANSACTION'    THEN 0
+      WHEN 'ROLLBACK'              THEN 0
+      WHEN 'OTHERS'                THEN MAP(SUM(C.OTHERS_COUNT),            0, 0, SUM(C.OTHERS_TOTAL_LOCK_WAIT_TIME)            / 1000 / SUM(C.OTHERS_COUNT))
+      WHEN 'PREPARE'               THEN 0
+    END LOCK_PER_EXEC_MS,
+    CASE L.SQL_TYPE
+      WHEN 'SELECT'                THEN MAX(C.SELECT_MAX_EXECUTION_TIME)                / 1000
+      WHEN 'SELECT FOR UPDATE'     THEN MAX(C.SELECT_FOR_UPDATE_MAX_EXECUTION_TIME)     / 1000
+      WHEN 'INSERT/UPDATE/DELETE'  THEN MAX(C.UPDATE_MAX_EXECUTION_TIME)                / 1000
+      WHEN 'READ ONLY TRANSACTION' THEN MAX(C.READ_ONLY_TRANSACTION_MAX_EXECUTION_TIME) / 1000
+      WHEN 'UPDATE TRANSACTION'    THEN MAX(C.UPDATE_TRANSACTION_MAX_EXECUTION_TIME)    / 1000
+      WHEN 'ROLLBACK'              THEN MAX(C.ROLLBACK_MAX_EXECUTION_TIME)              / 1000
+      WHEN 'OTHERS'                THEN MAX(C.OTHERS_MAX_EXECUTION_TIME)                / 1000
+      WHEN 'PREPARE'               THEN MAX(C.MAX_PREPARATION_TIME)                     / 1000
+    END MAX_ELA_MS
+  FROM
+  ( SELECT                                /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      '%' SERVICE_NAME,
+      -1 CONN_ID
+    FROM
+      DUMMY
+  ) BI,
+    M_SERVICES S,
+  ( SELECT 1 LINE_NO, 'SELECT' SQL_TYPE FROM DUMMY UNION ALL
+    ( SELECT 2, 'SELECT FOR UPDATE'     FROM DUMMY ) UNION ALL
+    ( SELECT 3, 'INSERT/UPDATE/DELETE'  FROM DUMMY ) UNION ALL
+    ( SELECT 4, 'READ ONLY TRANSACTION' FROM DUMMY ) UNION ALL
+    ( SELECT 5, 'UPDATE TRANSACTION'    FROM DUMMY ) UNION ALL
+    ( SELECT 6, 'ROLLBACK'              FROM DUMMY ) UNION ALL
+    ( SELECT 7, 'OTHERS'                FROM DUMMY ) UNION ALL
+    ( SELECT 8, 'PREPARE'               FROM DUMMY )
+  ) L,
+    M_CONNECTION_STATISTICS C
+  WHERE
+    S.HOST LIKE BI.HOST AND
+    TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+    S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+    C.HOST = S.HOST AND
+    C.PORT = S.PORT AND
+    ( BI.CONN_ID = -1 OR C.CONNECTION_ID = BI.CONN_ID )
+  GROUP BY
+    S.HOST,
+    S.PORT,
+    S.SERVICE_NAME,
+    L.SQL_TYPE,
+    L.LINE_NO
+)
+ORDER BY
+  HOST,
+  PORT,
+  SQL_TYPE
+
+  

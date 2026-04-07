@@ -1,0 +1,420 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_ABAP_SDFSMON_Sessions
+
+[DESCRIPTION]
+
+- ABAP user session information based on /SDF/SMON data
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- /SDF/SMON only available in SAP ABAP environments
+- Data only available if /SDF/SMON is enabled, /SDF/MON is not sufficient
+- /SDF/SMON checkbox "Memory per modes" needs to be activated to collect the information (not activated per default)
+- Available historic data depends on configured /SDF/SMON retention time. It is only available via SQL if the /SDF/SMON data is extracted.
+  This typically applies for the current and a few recent days. For older data (Status = Clustered), you have to extract the data in 
+  /SDF/SMON at first by displaying the relevant historic days.
+- You have to be connected to the SAP<sid> schema otherwise the following error is issued:
+
+  [259]: invalid table name: Could not find table/view /SDF/SMON_SESS in schema
+
+- If access to ABAP objects is possible but you cannot log on as ABAP user, you can switch the default schema before executing the command:
+
+  SET SCHEMA SAP<sid>
+
+[VALID FOR]
+
+- Revisions:              all
+- Client application:     ABAP
+
+[SQL COMMAND VERSION]
+
+- 2025/03/23:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- /SDF/SMON_SESS
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- APP_SERVER
+
+  SAP application server
+
+  'sapabap01'      --> Restrict output to application server sapabap01
+  '%'              --> No restriction related to SAP application server
+
+- CLIENT
+
+  ABAP client (MANDT)
+
+  '100'            --> Only display information related to client 100
+  '%'              --> No restriction related to ABAP client
+
+- APP_USER
+
+  Application user
+
+  'SAPSYS'        --> Application user 'SAPSYS'
+  '%'             --> No application user restriction
+
+- TRANSACTION
+
+  Name of ABAP transaction
+
+  'VA01'          --> Transaction name VA01
+  '%'             --> No application name restriction
+
+- APP_PROGRAM
+
+  Name of ABAP program / report
+
+  'RFITEMAR'      --> AVAP program RFITEMAR
+  '%'             --> No restriction related to ABAP program name
+
+- APP_INFO
+
+  Extended application information
+
+  '%GENERATE%'    --> Application information containint 'GENERATE'
+  '%'             --> No restriction related to application information
+
+- MIN_EXTMEM_MB
+
+  Minimum extended memory size (MB)
+
+  100              --> Only display lines with at least 100 MB of extended memory used
+  -1               --> No limitation related to extended memory size
+
+- MIN_HEAPMEM_MB
+
+  Minimum heap memory size (MB)
+
+  100              --> Only display lines with at least 100 MB of heap memory used
+  -1               --> No limitation related to heap memory size
+
+- MIN_OPEN_TASKS
+
+  Minimum number of open tasks
+
+  50               --> Only display lines with at least 50 open tasks
+  -1               --> No restriction related to open tasks
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'SERVER'        --> Aggregation by application server
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'TIME'          --> Sorting by sample time 
+  'SAMPLES'       --> Sorting by number of samples
+  
+[OUTPUT PARAMETERS]
+
+- START_TIME:   Start time of considered time interval
+- APP_SERVER:   Application server name
+- CLIENT:       ABAP client name
+- EXTMEM_MB:    Extended memory used (MB)
+- HEAPMEM_MB:   Heap memory used (MB)
+- APP_USER:     Application user name
+- TRANSACTION:  Transaction name
+- APP_PROGRAM:  Application program / report name
+- APP_INFO:     Detailed application information
+- OPEN_TASKS:   Open tasks
+- SESSIONS:     Average number of sessions
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|START_TIME         |APP_SERVER         |CLIENT|EXTMEM_MB|HEAPMEM_MB|APP_USER    |TRANSACTION|APP_PROGRAM   |APP_INFO                                                                                                      |OPEN_TASKS|SAMPLES|
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|2025/03/23 09:59:50|abapserver01_P11_02|   100|     0.51|      0.00|BLAAAWA     |           |              |                                                                                                              |         0|      1|
+|2025/03/23 09:59:50|abapserver01_P11_02|   100|    56.58|      0.00|BLAAAWA     |           |SAPMHTTP      |R=15 P=/sap/bc/bsp/sap/crm_ui_frame/BSPWDApplication.do                                                       |         0|      1|
+|2025/03/23 09:59:50|abapserver01_P11_02|   100|    36.60|      0.00|BLAAAWA     |           |SAPMHTTP      |R=5 P=/sap/bc/bsp/sap/crm_ui_frame/BSPWDApplication.do                                                        |         0|      1|
+|2025/03/23 09:59:50|abapserver01_P11_02|   100|     8.63|      0.00|BLAAAWA     |           |SAPMHTTP      |R=51 P=/sap/bc/bsp/sap/sam_sess_queue/sam_js2bsp_sender.htm                                                   |         0|      1|
+|2025/03/23 09:59:50|abapserver01_P11_02|   100|     4.46|      0.00|BTCXALLCTC  |           |SAPMSSY1      |                                                                                                              |         2|      1|
+|2025/03/23 09:59:50|abapserver01_P11_02|   100|    36.15|      0.00|SAP_P11_100S|DB50       |RSADADBC      |                                                                                                              |         0|      3|
+|2025/03/23 09:59:50|abapserver01_P11_02|   100|    56.34|      0.00|SAP_P11_100S|SE38       |SAP_TIMER_DEMO|                                                                                                              |         0|      1|
+|2025/03/23 09:59:50|abapserver01_P11_02|   100|     8.37|      0.00|SMDAGENT_C11|           |SAPMSSY1      |R=180 T=S S=abapserver01_P11_02 I=/SDF/SAPLEFWK_EXTENSION F=/SDF/E2E_DISPATCHED_COLLECTOR C=100 U=SMDAGENT_C11|         0|      1|
+|2025/03/23 09:59:50|abapserver01_P11_02|   100|     2.83|      0.00|SMDAGENT_C11|           |SAPMSSY1      |R=3 T=S S=sap44v036632 I= F=/SDF/IS_PROXY C= U=                                                               |         0|      1|
+|2025/03/23 09:59:50|abapserver01_P11_02|   100|     8.40|      0.00|SMDAGENT_C11|           |SAPMSSY1      |R=652 T=S S=sap44v036632 I= F=/SDF/IS_PROXY C= U=                                                             |         0|      1|
+|2025/03/23 09:59:50|abapserver02_P11_02|   100|    36.02|      0.00|ALHASAR     |VA03       |SAPMV45A      |R=2 P=/sap/bc/gui/sap/its/webgui/state/ur                                                                     |         0|      1|
+|2025/03/23 09:59:50|abapserver02_P11_02|   100|     4.46|      0.00|BTCXALLCTC  |           |SAPMSSY1      |                                                                                                              |         3|      1|
+|2025/03/23 09:59:50|abapserver02_P11_02|   100|     4.46|      0.00|SAP_SYSTEM  |           |SAPMSSY1      |R=49 T=a S=abapserver03_P11_02 I=CL_ODQ_DAEMON_NOTIFY_DISP=====CP F=ODQ_TASK_EXECUTE C=100 U=SAP_SYSTEM       |         0|      1|
+|2025/03/23 09:59:50|abapserver02_P11_02|   100|     8.40|      0.00|SMDAGENT_C11|           |SAPMSSY1      |R=4639 T=S S=sap44v036661 I= F=/SDF/IS_PROXY C= U=                                                            |         0|      1|
+|2025/03/23 09:59:50|abapserver02_P11_02|   100|     8.34|      0.00|SMDAGENT_C11|           |SAPMSSY1      |R=776 T=S S=abapserver02_P11_02 I=/SDF/SAPLEFWK_EXTENSION F=/SDF/E2E_DISPATCHED_COLLECTOR C=100 U=SMDAGENT_C11|         0|      1|
+|2025/03/23 09:59:50|abapserver03_P11_02|   100|    46.60|      0.00|BBDULAB     |FBL5N      |RFITEMAR      |                                                                                                              |         0|      1|
+|2025/03/23 09:59:50|abapserver03_P11_02|   100|    11.53|      0.00|BBDULAB     |SP02       |RSPOSP01NR    |                                                                                                              |         0|      1|
+|2025/03/23 09:59:50|abapserver03_P11_02|   100|     0.00|      0.00|BLSAGLA     |           |              |                                                                                                              |         0|      1|
+|2025/03/23 09:59:50|abapserver03_P11_02|   100|     1.45|      0.00|BLSAGLA     |           |SAPMHTTP      |T=Stateless A=WEBGUI_SERVICES P=/sap/bc/apc/sap/webgui_services I=10.222.1.111 C=wss://myhost.com             |         0|      1|
+|2025/03/23 09:59:50|abapserver03_P11_02|   100|    52.29|      0.00|BLTUABD     |           |SAPMSSY1      |R=3 T=S S=abapserver03_P11_02 I=CL_UKM_MA_DCD=================CP F=UKM_SD_DOCUMENT_ACTION C=100 U=BLTUABD     |         0|      1|
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  START_TIME,
+  APP_SERVER,
+  LPAD(CLIENT, 6) CLIENT,
+  LPAD(TO_DECIMAL(EXTMEM_MB, 10, 2), 9) EXTMEM_MB,
+  LPAD(TO_DECIMAL(HEAPMEM_MB, 10, 2), 10) HEAPMEM_GB,
+  APP_USER,
+  TRANSACTION,
+  APP_PROGRAM,
+  APP_INFO,
+  LPAD(TO_DECIMAL(OPEN_TASKS, 10, 0), 10) OPEN_TASKS,
+  LPAD(TO_DECIMAL(CNT, 10, 0), 8) SESSIONS
+FROM
+( SELECT
+    CASE 
+      WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), START_TIME) / SUBSTR(TIME_AGGREGATE_BY, 3)) * SUBSTR(TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(START_TIME, TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END START_TIME,
+    APP_SERVER,
+    CLIENT,
+    APP_USER,
+    TRANSACTION,
+    APP_PROGRAM,
+    APP_INFO,
+    AVG(CNT) CNT,
+    AVG(EXTMEM_MB) EXTMEM_MB,
+    AVG(HEAPMEM_MB) HEAPMEM_MB,
+    AVG(OPEN_TASKS) OPEN_TASKS,
+    MIN_EXTMEM_MB,
+    MIN_HEAPMEM_MB,
+    MIN_OPEN_TASKS,
+    ORDER_BY
+  FROM
+  ( SELECT
+      START_TIME,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SERVER')      != 0 THEN S.APP_SERVER  ELSE MAP(BI.APP_SERVER,  '%', 'any', BI.APP_SERVER)  END APP_SERVER,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'CLIENT')      != 0 THEN S.CLIENT      ELSE MAP(BI.CLIENT,      '%', 'any', BI.CLIENT)      END CLIENT,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'APP_USER')    != 0 THEN S.APP_USER    ELSE MAP(BI.APP_USER,    '%', 'any', BI.APP_USER)    END APP_USER,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TRANSACTION') != 0 THEN S.TRANSACTION ELSE MAP(BI.TRANSACTION, '%', 'any', BI.TRANSACTION) END TRANSACTION,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'APP_PROGRAM') != 0 THEN S.APP_PROGRAM ELSE MAP(BI.APP_PROGRAM, '%', 'any', BI.APP_PROGRAM) END APP_PROGRAM,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'APP_INFO')    != 0 THEN S.APP_INFO    ELSE MAP(BI.APP_INFO,    '%', 'any', BI.APP_INFO)    END APP_INFO,
+      COUNT(*) CNT,
+      SUM(S.EXTMEM_MB) EXTMEM_MB,
+      SUM(S.HEAPMEM_MB) HEAPMEM_MB,
+      SUM(S.OPEN_TASKS) OPEN_TASKS, 
+      BI.MIN_EXTMEM_MB,
+      BI.MIN_HEAPMEM_MB,
+      BI.MIN_OPEN_TASKS,
+      BI.AGGREGATE_BY,
+      BI.TIME_AGGREGATE_BY,
+      BI.ORDER_BY
+    FROM
+    ( SELECT
+        CASE
+          WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+          WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+          WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+          WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+          WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+          WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+          WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+          WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+          WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+          WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+          WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+          WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+          WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+        END BEGIN_TIME,
+        CASE
+          WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+          WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+          WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+          WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+          WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+          WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+          WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+          WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+          WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+          WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+          WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+          WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+          WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+        END END_TIME,
+        APP_SERVER,
+        CLIENT,
+        APP_USER,
+        TRANSACTION,
+        APP_PROGRAM,
+        APP_INFO,
+        MIN_EXTMEM_MB,
+        MIN_HEAPMEM_MB,
+        MIN_OPEN_TASKS,
+        AGGREGATE_BY,
+        MAP(TIME_AGGREGATE_BY,
+          'NONE',        'YYYY/MM/DD HH24:MI:SS',
+          'HOUR',        'YYYY/MM/DD HH24',
+          'DAY',         'YYYY/MM/DD (DY)',
+          'HOUR_OF_DAY', 'HH24',
+          TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+        ORDER_BY
+      FROM
+      ( SELECT                          /* Modification section */
+          'C-H1' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+          'C' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+          '%' APP_SERVER,
+          '%' CLIENT,
+          '%' APP_USER,
+          '%' TRANSACTION,
+          '%' APP_PROGRAM,
+          '%' APP_INFO,
+          -1 MIN_EXTMEM_MB,
+          -1 MIN_HEAPMEM_MB,
+          -1 MIN_OPEN_TASKS,
+          'NONE' AGGREGATE_BY,         /* TIME, SERVER, CLIENT, APP_USER, TRANSACTION, APP_PROGRAM, APP_INFO or comma separated combinations, NONE for no aggregation */
+          'NONE' TIME_AGGREGATE_BY,    /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+          'TIME' ORDER_BY              /* TIME, SAMPLES, SERVER, CLIENT, APP_USER, TRANSACTION, APP_PROGRAM, APP_INFO, EXTMEM, HEAPMEM, TASKS */
+        FROM
+          DUMMY
+      )
+    ) BI,
+    ( SELECT
+        TO_TIMESTAMP(DATUM || TIME, 'YYYYMMDDHH24MISS') START_TIME,
+        SERVER APP_SERVER,
+        TENANT CLIENT,
+        USER_NAME APP_USER,
+        APPLICATION TRANSACTION,
+        ACT_PROGRAM APP_PROGRAM,
+        APPLICATION_INFO APP_INFO,
+        MEMORY / 1024 / 1024 EXTMEM_MB,
+        MEMORY_HEAP / 1024 / 1024 HEAPMEM_MB,
+        OPEN_TASKS
+      FROM
+        "/SDF/SMON_SESS"
+    ) S
+    WHERE
+      S.START_TIME BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+      S.APP_SERVER LIKE BI.APP_SERVER AND
+      S.CLIENT LIKE BI.CLIENT AND
+      S.APP_USER LIKE BI.APP_USER AND
+      S.TRANSACTION LIKE BI.TRANSACTION AND
+      S.APP_PROGRAM LIKE BI.APP_PROGRAM AND
+      S.APP_INFO LIKE BI.APP_INFO
+    GROUP BY
+      START_TIME,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SERVER')      != 0 THEN S.APP_SERVER  ELSE MAP(BI.APP_SERVER,  '%', 'any', BI.APP_SERVER)  END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'CLIENT')      != 0 THEN S.CLIENT      ELSE MAP(BI.CLIENT,      '%', 'any', BI.CLIENT)      END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'APP_USER')    != 0 THEN S.APP_USER    ELSE MAP(BI.APP_USER,    '%', 'any', BI.APP_USER)    END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TRANSACTION') != 0 THEN S.TRANSACTION ELSE MAP(BI.TRANSACTION, '%', 'any', BI.TRANSACTION) END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'APP_PROGRAM') != 0 THEN S.APP_PROGRAM ELSE MAP(BI.APP_PROGRAM, '%', 'any', BI.APP_PROGRAM) END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'APP_INFO')    != 0 THEN S.APP_INFO    ELSE MAP(BI.APP_INFO,    '%', 'any', BI.APP_INFO)    END,
+      BI.APP_SERVER,
+      BI.CLIENT,
+      BI.APP_USER,
+      BI.TRANSACTION,
+      BI.APP_PROGRAM,
+      BI.APP_INFO,
+      BI.MIN_EXTMEM_MB,
+      BI.MIN_HEAPMEM_MB,
+      BI.MIN_OPEN_TASKS,
+      BI.AGGREGATE_BY,
+      BI.TIME_AGGREGATE_BY,
+      BI.ORDER_BY
+  )
+  GROUP BY
+    CASE
+      WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), START_TIME) / SUBSTR(TIME_AGGREGATE_BY, 3)) * SUBSTR(TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(START_TIME, TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    APP_SERVER,
+    CLIENT,
+    APP_USER,
+    TRANSACTION,
+    APP_PROGRAM,
+    APP_INFO,
+    MIN_EXTMEM_MB,
+    MIN_HEAPMEM_MB,
+    MIN_OPEN_TASKS,
+    ORDER_BY
+)
+WHERE
+( MIN_EXTMEM_MB  = -1 OR EXTMEM_MB  >= MIN_EXTMEM_MB  ) AND
+( MIN_HEAPMEM_MB = -1 OR HEAPMEM_MB >= HEAPMEM_MB     ) AND
+( MIN_OPEN_TASKS = -1 OR OPEN_TASKS >= MIN_OPEN_TASKS )
+ORDER BY
+  MAP(ORDER_BY, 'SAMPLES', CNT) DESC,
+  MAP(ORDER_BY, 'TIME', START_TIME) DESC,
+  MAP(ORDER_BY, 'EXTMEM', EXTMEM_MB, 'HEAPMEM', HEAPMEM_MB, 'TASKS', OPEN_TASKS) DESC,
+  MAP(ORDER_BY, 'SERVER', APP_SERVER, 'CLIENT', CLIENT, 'APP_USER', APP_USER, 'APP_PROGRAM', APP_PROGRAM, 'APP_INFO', APP_INFO),
+  START_TIME DESC,
+  CNT DESC,
+  CLIENT,
+  APP_SERVER,
+  APP_USER,
+  TRANSACTION,
+  APP_PROGRAM,
+  APP_INFO

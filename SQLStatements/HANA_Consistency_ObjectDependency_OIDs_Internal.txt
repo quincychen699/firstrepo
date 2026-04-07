@@ -1,0 +1,77 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Consistency_ObjectDependency_OIDs_Internal
+
+[DESCRIPTION]
+
+- Check for invalid OID value in context of object dependencies
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+- Attention: Generated CHECK_CATALOG_DEV command uses an internal procedure and running it in a wrong way can 
+  corrupt the database, so you need to carefully double-check any command before running it
+- SAP Note 2949547 describes possible problems in case of existing invalid OIDs
+
+[VALID FOR]
+
+- Revisions:              any
+
+[SQL COMMAND VERSION]
+
+- 2020/08/16:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- P_OBJECTDEPENDENCY_
+
+[INPUT PARAMETERS]
+
+
+[OUTPUT PARAMETERS]
+
+- BASE_DBID:       Database ID of base object
+- BASE_OID:        ID of base object
+- BASE_TYPE:       Type of base object
+- DEPENDENT_DBID:  Database ID of dependent object
+- DEPENDENT_OID:   ID of dependent object
+- DEPENDENT_TYPE:  Type of dependent object
+- DEPENDENCY_TYPE: Dependency type
+- COMMAND:         Cleanup command (execute with care!)
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|BASE_DBID|BASE_OID|BASE_TYPE|DEPENDENT_DBID|DEPENDENT_OID|DEPENDENT_TYPE|DEPENDENCY_TYPE|COMMAND                                                                                                                         |
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|0        |1504051 |1        |0             |0            |2             |2              |CALL SYS.CHECK_CATALOG_DEV('DELETE_DEPENDENCY', '', '', '', 'BASEOID:1504051 BASETYPE:1 DEPENDENTOID:0 DEPDENDENTTYPE:2 TYPE:2')|
+|0        |1504577 |1        |0             |0            |2             |2              |CALL SYS.CHECK_CATALOG_DEV('DELETE_DEPENDENCY', '', '', '', 'BASEOID:1504577 BASETYPE:1 DEPENDENTOID:0 DEPDENDENTTYPE:2 TYPE:2')|
+|0        |1504977 |1        |0             |0            |2             |2              |CALL SYS.CHECK_CATALOG_DEV('DELETE_DEPENDENCY', '', '', '', 'BASEOID:1504977 BASETYPE:1 DEPENDENTOID:0 DEPDENDENTTYPE:2 TYPE:2')|
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  BASEDBID BASE_DBID,
+  BASEOID BASE_OID,
+  BASETYPE BASE_TYPE,
+  DEPENDENTDBID DEPENDENT_DBID,
+  DEPENDENTOID DEPENDENT_OID,
+  DEPENDENTTYPE DEPENDENT_TYPE,
+  DEPENDENCYTYPE DEPENDENCY_TYPE,
+  'CALL SYS.CHECK_CATALOG_DEV(' || CHAR(39) || 'DELETE_DEPENDENCY' || CHAR(39) || ',' || CHAR(32) || CHAR(39) || CHAR(39) || ',' || CHAR(32) || CHAR(39) || CHAR(39) || 
+  ',' || CHAR(32) || CHAR(39) || CHAR(39) || ',' || CHAR(32) || CHAR(39) || 'BASEOID:' || BASEOID || CHAR(32) || 'BASETYPE:' || BASETYPE || CHAR(32) || 'DEPENDENTOID:' ||
+  DEPENDENTOID || CHAR(32) || 'DEPDENDENTTYPE:' || DEPENDENTTYPE || CHAR(32) || 'TYPE:' || DEPENDENCYTYPE || CHAR(39) || ')' || CHAR(59) COMMAND
+FROM
+  SYS.P_OBJECTDEPENDENCY_
+WHERE
+  BASEOID = 0 OR DEPENDENTOID = 0

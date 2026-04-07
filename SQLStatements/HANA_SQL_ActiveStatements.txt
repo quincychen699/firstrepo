@@ -1,0 +1,229 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_SQL_ActiveStatements
+
+[DESCRIPTION]
+
+- Runtime information for active SQL statements
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2015/01/02:  1.0 (initial version)
+- 2017/07/28:  1.1 (STATEMENT_STATUS input parameter added)
+- 2017/10/26:  1.2 (TIMEZONE included)
+- 2019/12/14:  1.3 (APP_USER and APP_NAME added)
+
+[INVOLVED TABLES]
+
+- M_ACTIVE_STATEMENTS
+- M_SESSION_CONTEXT
+- M_SQL_PLAN_CACHE
+- M_CONNECTIONS
+
+[INPUT PARAMETERS]
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- CONN_ID
+
+  Connection ID
+
+  330655          --> Connection ID 330655
+  -1              --> No connection ID restriction
+
+- STATEMENT_HASH      
+ 
+  Hash of SQL statement to be analyzed
+
+  '2e960d7535bf4134e2bd26b9d80bd4fa' --> SQL statement with hash '2e960d7535bf4134e2bd26b9d80bd4fa'
+  '%'                                --> No statement hash restriction (only possible if hash is not mandatory)
+
+- STATEMENT_STATUS
+
+  Statement status
+
+  'SUSPENDED'     --> Only display SQL statements with status SUSPENDED
+  '%'             --> No restriction related to statement status
+
+- SQL_PATTERN
+
+  Pattern for SQL text (case insensitive)
+
+  'INSERT%'       --> SQL statements starting with INSERT
+  '%DBTABLOG%'    --> SQL statements containing DBTABLOG
+  '%'             --> All SQL statements
+
+- MIN_MEM_USED_MB
+
+  Lower limit of memory usage of SQL statements
+
+  100             --> Display only SQL statements with a memory utilization of at least 100 MB
+  -1              --> No restriction related to the memory utilization of SQL statements
+
+- MIN_EXEC_TIME_S
+
+  Lower limit for SQL statement execution time
+
+  20              --> Only display SQL statements with an execution time of at least 20 seconds
+  -1              --> No restriction related to the execution time of SQL statements
+
+- SQL_TEXT_LENGTH
+
+  Maximum displayed size of SQL statement text
+
+  50              --> SQL text is truncated to 50 characters
+  -1              --> No SQL text size limitation
+
+[OUTPUT PARAMETERS]
+
+- HOST:               Host name
+- PORT:               Port
+- SERVICE:            Service name
+- CONN_ID:            Connection ID
+- STATEMENT_HASH:     Statement hash
+- STATUS:   Statement status
+- EXECUTION_START:    Start time of execution
+- EXEC_TIME_S:        Execution time (s)
+- USED_MEM_MB:     Memory used by SQL statement (in MB), may only be populated if memory_tracking is activated
+- APP_USER:        Application user
+- APP_NAME:        Application name
+- APP_SOURCE:      Application source name
+- SQL_TEXT:           SQL text
+
+[EXAMPLE OUTPUT]
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|HOST     |PORT |CONN_ID |STATEMENT_HASH                  |EXECUTION_START        |EXEC_TIME_MS|APPLICATION_SOURCE              |USED_MEM_MB|SQL_TEXT                                                                        |
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|saphana06|30003|  928139|d19de40f66a00a30566b6e1b39e40a2d|2015/01/02 19:10:39,039|      631.45|GP4T95GIYPE9NBMMP4MP95RGV8A:3225|      47.22|SELECT * FROM "/BIC/PF_SKB1"                                                    |
+|saphana01|30003|  400368|d6fd6678833f9a2e25e7b53239c50e9a|2015/01/02 19:10:39,267|      403.89|                                |       0.00|call _SYS_STATISTICS.STATISTICS_SCHEDULABLEWRAPPER('Timer', X, X, X, X)         |
+|saphana01|30003|  400368|db2a5d8b668a837677bb6946de2a8d76|2015/01/02 19:10:39,270|      400.42|                                |       0.08|{ call "_SYS_STATISTICS"."COLLECTOR_HOST_BLOCKED_TRANSACTIONS" (X, X, X) }      |
+|saphana01|30003|  400368|83ac4bf74da990133f1c525d05f43714|2015/01/02 19:10:39,272|      398.47|                                |       0.20|INSERT ... FROM "M_BLOCKED_TRANSACTIONS" AS "B" INNER JOIN "M_TRANSACTIONS" AS  |
+|saphana01|30003|  412023|d6fd6678833f9a2e25e7b53239c50e9a|2015/01/02 19:10:39,576|       94.42|                                |       0.00|call _SYS_STATISTICS.STATISTICS_SCHEDULABLEWRAPPER('Timer', X, X, X, X)         |
+|saphana01|30003|  412023|7006fb197e11dee78456d5f36a522bc4|2015/01/02 19:10:39,580|       90.20|                                |       0.08|{ call "_SYS_STATISTICS"."COLLECTOR_HOST_DELTA_MERGE_STATISTICS" (X, X, X) }    |
+|saphana01|30003|  412023|132f1674beaf346715112322487f430e|2015/01/02 19:10:39,583|       87.66|                                |       0.07|INSERT ... FROM "SYS"."M_DELTA_MERGE_STATISTICS"  WHERE "START_TIME" > IFNULL(( |
+|saphana01|30003|  454956|0e30f2cd9cda54594a8c72afbb69d8fd|2015/01/02 19:10:39,627|       43.39|SAPLRSM1:65963                  |       6.65|SELECT * FROM "RSICCONT" WHERE "ICUBE" = X                                      |
+|saphana01|30003|  404257|262fba9d35f58599edae924d6c2bd8c8|2015/01/02 19:10:39,677|        0.00|                                |       0.06|INSERT ... FROM "SYS"."M_WORKLOAD"                                              |
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  PORT,
+  SERVICE,
+  CONN_ID,
+  STATEMENT_HASH,
+  STATEMENT_STATUS STATUS,
+  EXECUTION_START,
+  EXEC_TIME_S,
+  USED_MEM_MB,
+  IFNULL(APP_USER, '') APP_USER,
+  IFNULL(APP_NAME, '') APP_NAME,
+  APPLICATION_SOURCE APP_SOURCE,
+  SQL_TEXT
+FROM
+( SELECT
+    A.HOST,
+    LPAD(A.PORT, 5) PORT,
+    S.SERVICE_NAME SERVICE,
+    LPAD(A.CONNECTION_ID, 8) CONN_ID,
+    IFNULL(SP.STATEMENT_HASH, '') STATEMENT_HASH,
+    A.STATEMENT_STATUS,
+    TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(A.LAST_ACT_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE A.LAST_ACT_TIME END, 'YYYY/MM/DD HH24:MI:SS,FF3') EXECUTION_START,
+    LPAD(GREATEST(0, TO_DECIMAL(NANO100_BETWEEN(A.LAST_ACT_TIME, CURRENT_TIMESTAMP) / 10000000, 10, 2)), 11) EXEC_TIME_S,
+    A.APPLICATION_SOURCE,
+    (SELECT MIN(VALUE) FROM M_SESSION_CONTEXT C WHERE C.CONNECTION_ID = A.CONNECTION_ID AND C.HOST = A.HOST AND C.KEY LIKE '%APPLICATIONUSER' ) APP_USER,
+    (SELECT MIN(VALUE) FROM M_SESSION_CONTEXT C WHERE C.CONNECTION_ID = A.CONNECTION_ID AND C.HOST = A.HOST AND C.KEY = 'APPLICATION' ) APP_NAME,
+    LPAD(TO_DECIMAL(A.USED_MEMORY_SIZE / 1024 / 1024, 10, 2), 11) USED_MEM_MB,
+    A.SQL_TEXT,
+    BI.STATEMENT_HASH BI_STATEMENT_HASH
+  FROM
+  ( SELECT                  /* Modification section */
+      'SERVER' TIMEZONE,                              /* SERVER, UTC */
+      '%' HOST,
+      '%' PORT,
+      '%' SERVICE_NAME,
+      -1 CONN_ID,
+      '%' STATEMENT_HASH,
+      '%' STATEMENT_STATUS,
+      '%' SQL_PATTERN,
+      -1 MIN_MEM_USED_MB,
+      -1 MIN_EXEC_TIME_S,
+      80 SQL_TEXT_LENGTH
+    FROM
+      DUMMY
+  ) BI,
+    M_SERVICES S,
+    M_CONNECTIONS C,
+  ( SELECT
+      *,
+      IFNULL(LAST_EXECUTED_TIME, LAST_ACTION_TIME) LAST_ACT_TIME,
+      TO_VARCHAR(STATEMENT_STRING) SQL_TEXT
+    FROM
+      M_ACTIVE_STATEMENTS
+  ) A LEFT OUTER JOIN
+    M_SQL_PLAN_CACHE SP ON
+      SP.PLAN_ID = A.PLAN_ID
+  WHERE
+    S.HOST LIKE BI.HOST AND
+    TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+    S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+    A.HOST = S.HOST AND
+    A.PORT = S.PORT AND
+    ( BI.CONN_ID = -1 OR A.CONNECTION_ID = BI.CONN_ID ) AND
+    TO_VARCHAR(A.STATEMENT_STRING) LIKE BI.SQL_PATTERN AND
+    ( BI.MIN_MEM_USED_MB = -1 OR A.USED_MEMORY_SIZE / 1024 / 1024 >= BI.MIN_MEM_USED_MB ) AND
+    ( BI.MIN_EXEC_TIME_S = -1 OR SECONDS_BETWEEN(LAST_ACT_TIME, CURRENT_TIMESTAMP) >= BI.MIN_EXEC_TIME_S ) AND
+    A.STATEMENT_STATUS LIKE BI.STATEMENT_STATUS AND
+    C.CONNECTION_ID = A.CONNECTION_ID AND
+    C.OWN != 'TRUE'
+)
+WHERE
+  STATEMENT_HASH LIKE BI_STATEMENT_HASH
+ORDER BY
+  EXECUTION_START,
+  CONN_ID
+  

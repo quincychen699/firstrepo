@@ -1,0 +1,199 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Logs_LogSegments
+
+[DESCRIPTION]
+
+- Log segment overview
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2014/10/19:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_LOG_SEGMENTS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- LOG_SEGMENT_STATE
+
+  State of log segment
+
+  'Free'          --> Log segments free for re-use (included in both backup and savepoint)
+  '%'             --> any log segment state
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'STATE'         --> Aggregation by state
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'TIME'          --> Sorting by time
+  'TABLE'         --> Sorting by table name
+
+- RESULT_ROWS
+
+  Number of records to be displayed
+
+  100             --> Restrict result to a maximum of 100 records
+  -1              --> No restriction of result set
+  
+[OUTPUT PARAMETERS]
+
+- HOST:         Host name
+- PORT:         Port
+- SERVICE:      Service name
+- STATE:        Log segment state
+- BACKED_UP:    Backup flag
+- MIN_POSITION: Minimum log position of log segment
+- NUM_SEGMENTS: Number of log segments
+- USED_GB:      Used log segment size (GB)
+- TOTAL_GB:     Total allocated log segment size (GB)
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------
+|HOST       |PORT |STATE    |BACKED_UP|MIN_POSITION|NUM_SEGMENTS|USED_GB |TOTAL_GB|
+-----------------------------------------------------------------------------------
+|sap__hana14|30003|Writing  |FALSE    |427017486208|           1|    0.81|    1.00|
+|sap__hana14|30003|Truncated|FALSE    |427000714880|           1|    0.99|    1.00|
+|sap__hana14|30003|Truncated|FALSE    |426983939072|           1|    0.99|    1.00|
+|sap__hana14|30003|Truncated|FALSE    |426967162880|           1|    0.99|    1.00|
+|sap__hana14|30003|Truncated|FALSE    |426950395008|           1|    0.99|    1.00|
+|sap__hana14|30003|Truncated|FALSE    |426933617792|           1|    1.00|    1.00|
+|sap__hana14|30003|Truncated|FALSE    |426916840576|           1|    1.00|    1.00|
+|sap__hana14|30003|Truncated|FALSE    |426900075456|           1|    0.99|    1.00|
+|sap__hana14|30003|Truncated|FALSE    |426883298240|           1|    1.00|    1.00|
+|sap__hana14|30003|Truncated|FALSE    |426866524032|           1|    0.99|    1.00|
+|sap__hana14|30003|Truncated|FALSE    |426849749376|           1|    0.99|    1.00|
+|sap__hana14|30003|Truncated|FALSE    |426832972160|           1|    1.00|    1.00|
+|sap__hana14|30003|Truncated|FALSE    |426816194944|           1|    1.00|    1.00|
+|sap__hana14|30003|Truncated|FALSE    |426814177280|           1|    0.12|    1.00|
+|sap__hana15|30003|Writing  |FALSE    |253257598080|           1|    0.05|    1.00|
+|sap__hana15|30003|Truncated|FALSE    |253240823616|           1|    0.99|    1.00|
+|sap__hana15|30003|Truncated|FALSE    |253224058176|           1|    0.99|    1.00|
+|sap__hana15|30003|Truncated|FALSE    |253207291392|           1|    0.99|    1.00|
+|sap__hana15|30003|Truncated|FALSE    |253190522048|           1|    0.99|    1.00|
+|sap__hana15|30003|Truncated|FALSE    |253173759360|           1|    0.99|    1.00|
+-----------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SERVICE_NAME,
+  STATE,
+  BACKED_UP,
+  MIN_POSITION,
+  LPAD(NUM_SEGMENTS, 12) NUM_SEGMENTS,
+  LPAD(TO_DECIMAL(USED_GB, 10, 2), 8) USED_GB,
+  LPAD(TO_DECIMAL(TOTAL_GB, 10, 2), 8) TOTAL_GB
+FROM
+( SELECT
+    HOST,
+    PORT,
+    SERVICE_NAME,
+    STATE,
+    BACKED_UP,
+    MIN_POSITION,
+    NUM_SEGMENTS, 
+    USED_GB,
+    TOTAL_GB,
+    ROW_NUMBER () OVER (ORDER BY MAP(ORDER_BY, 'POSITION', LPAD(MIN_POSITION, 30)) DESC, MAP(ORDER_BY, 'HOST', HOST || PORT || LPAD(MIN_POSITION, 20)), MAP(ORDER_BY, 'SIZE', TOTAL_GB) DESC) ROW_NUM,
+    RESULT_ROWS
+  FROM
+  ( SELECT
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')      != 0 THEN L.HOST                     ELSE MAP(BI.HOST,              '%', 'any', BI.HOST)              END HOST,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(L.PORT)         ELSE MAP(BI.PORT,              '%', 'any', BI.PORT)              END PORT,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')   != 0 THEN S.SERVICE_NAME             ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME)           END SERVICE_NAME,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STATE')     != 0 THEN L.STATE                    ELSE MAP(BI.LOG_SEGMENT_STATE, '%', 'any', BI.LOG_SEGMENT_STATE) END STATE,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BACKED_UP') != 0 THEN L.IN_BACKUP                ELSE MAP(BI.BACKED_UP,         '%', 'any', BI.BACKED_UP)         END BACKED_UP,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'POSITION')  != 0 THEN TO_VARCHAR(L.MIN_POSITION) ELSE 'any'                                                       END MIN_POSITION,
+      COUNT(*) NUM_SEGMENTS,
+      SUM(USED_SIZE / 1024 / 1024 / 1024) USED_GB,
+      SUM(TOTAL_SIZE / 1024 / 1024 / 1024) TOTAL_GB,
+      BI.ORDER_BY,
+      BI.RESULT_ROWS
+    FROM
+    ( SELECT                   /* Modification section */
+        '%' HOST,
+        '%' PORT,
+        '%' SERVICE_NAME,
+        '%' LOG_SEGMENT_STATE,   /* e.g. 'Free' -> can be reused, 'Truncated' -> backup needed / not required for restart */
+        '%' BACKED_UP,           /* TRUE, FALSE, % */
+        'NONE' AGGREGATE_BY,     /* HOST, PORT, SERVICE, STATE, BACKED_UP, POSITION or comma separated combinations, NONE for no aggregation */
+        'POSITION' ORDER_BY,      /* POSITION, SIZE, HOST */
+        50 RESULT_ROWS
+      FROM
+        DUMMY
+    ) BI,
+      M_SERVICES S,
+      M_LOG_SEGMENTS L
+    WHERE
+      S.HOST LIKE BI.HOST AND
+      TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+      S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+      L.HOST = S.HOST AND
+      L.PORT = S.PORT AND
+      UPPER(L.STATE) LIKE UPPER(BI.LOG_SEGMENT_STATE) AND
+      L.IN_BACKUP LIKE BI.BACKED_UP
+    GROUP BY
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')      != 0 THEN L.HOST                     ELSE MAP(BI.HOST,              '%', 'any', BI.HOST)              END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(L.PORT)         ELSE MAP(BI.PORT,              '%', 'any', BI.PORT)              END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')   != 0 THEN S.SERVICE_NAME             ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME)           END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STATE')     != 0 THEN L.STATE                    ELSE MAP(BI.LOG_SEGMENT_STATE, '%', 'any', BI.LOG_SEGMENT_STATE) END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BACKED_UP') != 0 THEN L.IN_BACKUP                ELSE MAP(BI.BACKED_UP,         '%', 'any', BI.BACKED_UP)         END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'POSITION')  != 0 THEN TO_VARCHAR(L.MIN_POSITION) ELSE 'any'                                                       END,
+      BI.ORDER_BY,
+      BI.RESULT_ROWS
+  )
+)
+WHERE
+  ( RESULT_ROWS = -1 OR ROW_NUM <= RESULT_ROWS )
+ORDER BY
+  ROW_NUM

@@ -1,0 +1,354 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_ColumnStore_Merges_Backlog_Internal_2.00.080+
+
+[DESCRIPTION]
+
+- Auto merge backlog
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+- M_AUTOMERGE_BACKLOG_TABLES_ only available with SAP HANA >= 2.00.080
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.080
+- Statistics server type: any
+
+[SQL COMMAND VERSION]
+
+- 2024/07/26:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_AUTOMERGE_BACKLOG_TABLES_
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin detection time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End detection time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- PART_ID
+
+  Partition number
+
+  2               --> Only show information for partition number 2
+  -1              --> No restriction related to partition number
+
+- STATUS
+
+  Merge status
+
+  'IN_PROGRESS'   --> Only display delta merges with status IN_PROGRESS
+  '%'             --> No restriction related to delta merge status
+
+- OPERATION
+
+  'DeltaMerge'          --> Operation type delta merge
+  'OptimizeCompression' --> Operation type optimize compression
+  '%'                   --> No restriction related to operation type
+
+- MERGE_MOTIVATION
+
+  Merge motivation
+
+  'AUTO'          --> Auto merge
+  'CRITICAL'      --> Critical merge
+  '%'             --> No restriction related to merge motivation
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'DELAY'         --> Sorting by time between detection and now
+  'TABLE'         --> Sorting by table name
+  
+[OUTPUT PARAMETERS]
+
+- DETECTION_TIME:   Time when the need for a table optimization was detected
+- START_TIME:       Time when the table optimization actually started
+- DELAY_S:          Time since detection (s)
+- SCHEMA_NAME:      Schema name
+- TABLE_NAME:       Table name
+- PRIORITY:         Table optimization priority (higher value mean higher priority)
+- STATUS:           Table optimization status
+- OPERATION:        Table optimization operation type
+- MOTIVATION:       Merge motivation
+- COUNT:            Number of table optimizations
+- ST:               System replication site ID
+- HOST:             Host name
+- PORT:             Port
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+|DETECTION_TIME     |START_TIME         |DELAY_S|SCHEMA_NAME|TABLE_NAME|PRIORITY |STATUS     |OPERATION |MOTIVATION|COUNT|ST|HOST         |PORT |
+-------------------------------------------------------------------------------------------------------------------------------------------------
+|2024/07/26 15:06:05|2024/07/26 15:06:08|    304|SAPERP     |KONV (650)|3.13E-11 |IN_PROGRESS|DeltaMerge|AUTO      |    1|-1|saphananode01|30240|
+|2024/07/26 15:10:33|2024/07/26 15:10:53|     37|SAPERP     |GLPCT     |2.314E-10|IN_PROGRESS|DeltaMerge|AUTO      |    1|-1|saphananode01|30240|
+|2024/07/26 15:10:37|2024/07/26 15:10:53|     33|SAPERP     |MCEXLOG   |2.71E-11 |IN_PROGRESS|DeltaMerge|AUTO      |    1|-1|saphananode01|30240|
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  DETECTION_TIME,
+  START_TIME,
+  LPAD(DELAY_S, 7) DELAY_S,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  TO_DECIMAL(PRIORITY, 15, 13) PRIORITY,
+  STATUS,
+  OPERATION,
+  MOTIVATION,
+  LPAD(NUM, 5) "COUNT",
+  LPAD(SITE_ID, 2) ST,
+  HOST,
+  PORT
+FROM
+( SELECT
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(M.DETECTION_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE M.DETECTION_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(M.DETECTION_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE M.DETECTION_TIME END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END DETECTION_TIME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SITE_ID')    != 0 THEN TO_VARCHAR(M.SITE_ID) ELSE MAP(BI.SITE_ID,      -1, 'any', TO_VARCHAR(BI.SITE_ID))   END SITE_ID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')       != 0 THEN M.HOST                ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                         END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')       != 0 THEN TO_VARCHAR(M.PORT)    ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                         END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')     != 0 THEN M.SCHEMA_NAME         ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)           END SCHEMA_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')      != 0 THEN M.TABLE_NAME          ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME)             END TABLE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STATUS')     != 0 THEN M.STATUS              ELSE MAP(BI.STATUS, '%', 'any', BI.STATUS)                     END STATUS,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OPERATION')  != 0 THEN M.OPERATION           ELSE MAP(BI.OPERATION, '%', 'any', BI.OPERATION)               END OPERATION,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MOTIVATION') != 0 THEN M.MERGE_MOTIVATION    ELSE MAP(BI.MERGE_MOTIVATION, '%', 'any', BI.MERGE_MOTIVATION) END MOTIVATION,
+    COUNT(*) NUM,
+    MAX(M.PRIORITY) PRIORITY,
+    MAX(M.DELAY_S) DELAY_S,
+    MAP(MIN(M.START_TIME), MAX(M.START_TIME), TO_VARCHAR(MIN(M.START_TIME), 'YYYY/MM/DD HH24:MI:SS'), 'any') START_TIME,
+    BI.ORDER_BY
+  FROM
+  ( SELECT
+      CASE
+        WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+        WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+        WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+        WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+        WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+        WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+        WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END BEGIN_TIME,
+      CASE
+        WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+        WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+        WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+        WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+        WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+        WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+        WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+        WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+        WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+        WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+        WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END END_TIME,
+      TIMEZONE,
+      SITE_ID,
+      HOST,
+      PORT,
+      SCHEMA_NAME,
+      TABLE_NAME,
+      PART_ID,
+      STATUS,
+      OPERATION,
+      MERGE_MOTIVATION,
+      AGGREGATE_BY,
+      MAP(TIME_AGGREGATE_BY,
+        'NONE',        'YYYY/MM/DD HH24:MI:SS',
+        'HOUR',        'YYYY/MM/DD HH24',
+        'DAY',         'YYYY/MM/DD (DY)',
+        'HOUR_OF_DAY', 'HH24',
+        TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+      ORDER_BY
+    FROM
+    ( SELECT                                                /* Modification section */
+        '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+        '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+        'SERVER' TIMEZONE,                              /* SERVER, UTC */
+        -1 SITE_ID,
+        '%' HOST,
+        '%' PORT,
+        '%' SCHEMA_NAME,
+        '%' TABLE_NAME,
+        -1 PART_ID,
+        '%' STATUS,
+        '%' OPERATION,
+        '%' MERGE_MOTIVATION,
+        'NONE' AGGREGATE_BY,           /* TIME, HOST, PORT, SCHEMA, TABLE, STATUS, OPERATION, MOTIVATION and comma-separated combinations, NONE for no aggregation */
+        'NONE' TIME_AGGREGATE_BY,     /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+        'DELAY' ORDER_BY                /* DETECTION_TIME, START_TIME, DELAY, TABLE, COUNT, PRIORITY */
+      FROM
+        DUMMY
+    )
+  ) BI,
+  ( SELECT
+      SITE_ID,
+      HOST,
+      PORT,
+      SCHEMA_NAME,
+      TABLE_NAME ORIG_TABLE_NAME,
+      TABLE_NAME || MAP(PHYSICAL_PART_ID, 0, '', ' (' || PHYSICAL_PART_ID || ')') TABLE_NAME,
+      PHYSICAL_PART_ID PART_ID,
+      PRIORITY,
+      DETECTION_TIME,
+      SECONDS_BETWEEN(DETECTION_TIME, CURRENT_TIMESTAMP) DELAY_S,
+      START_TIME,
+      STATUS,
+      OPERATION,
+      MAP(MOTIVATION, 0, 'AUTO', 5, 'CRITICAL', TO_VARCHAR(MOTIVATION)) MERGE_MOTIVATION
+    FROM
+      SYS.M_AUTOMERGE_BACKLOG_TABLES_
+  ) M
+  WHERE
+    ( BI.SITE_ID = -1 OR ( BI.SITE_ID = 0 AND M.SITE_ID IN (-1, 0) ) OR M.SITE_ID = BI.SITE_ID ) AND
+    M.HOST LIKE BI.HOST AND
+    M.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    M.ORIG_TABLE_NAME LIKE BI.TABLE_NAME AND
+    TO_VARCHAR(M.PORT) LIKE BI.PORT AND
+    CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(M.DETECTION_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE M.START_TIME END BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+    M.STATUS LIKE BI.STATUS AND
+    M.OPERATION LIKE BI.OPERATION AND
+    M.MERGE_MOTIVATION LIKE BI.MERGE_MOTIVATION
+  GROUP BY
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(M.DETECTION_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE M.DETECTION_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(M.DETECTION_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE M.DETECTION_TIME END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SITE_ID')    != 0 THEN TO_VARCHAR(M.SITE_ID) ELSE MAP(BI.SITE_ID,      -1, 'any', TO_VARCHAR(BI.SITE_ID))   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')       != 0 THEN M.HOST                ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')       != 0 THEN TO_VARCHAR(M.PORT)    ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')     != 0 THEN M.SCHEMA_NAME         ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)           END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')      != 0 THEN M.TABLE_NAME          ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME)             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STATUS')     != 0 THEN M.STATUS              ELSE MAP(BI.STATUS, '%', 'any', BI.STATUS)                     END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OPERATION')  != 0 THEN M.OPERATION           ELSE MAP(BI.OPERATION, '%', 'any', BI.OPERATION)               END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MOTIVATION') != 0 THEN M.MERGE_MOTIVATION    ELSE MAP(BI.MERGE_MOTIVATION, '%', 'any', BI.MERGE_MOTIVATION) END,
+    BI.ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'DETECTION_TIME', DETECTION_TIME, 'START_TIME', START_TIME) DESC,
+  MAP(ORDER_BY, 'TABLE', TABLE_NAME),
+  MAP(ORDER_BY, 'COUNT', NUM, 'DELAY', DELAY_S) DESC

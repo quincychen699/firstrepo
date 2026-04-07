@@ -1,0 +1,139 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Replication_TableReplication_ReplayQueues_Internal_2.00.040+
+
+[DESCRIPTION]
+
+- DML log replay queues for asynchronous table replication
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.040
+
+[SQL COMMAND VERSION]
+
+- 2020/07/02:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_DEV_REP_DMLLOGREPLAYER
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- QUEUE_ID
+
+  DML log queue ID
+
+  123             --> DML log queue ID 123
+  -1              --> No restriction related to DML log queue ID
+
+- STATUS
+
+  Table replication status
+
+  'DISABLED'      --> Display queues with status DISABLED
+  '%'             --> No restriction related to status
+
+- UPDATE_TRANSACTION_ID
+
+  Update transaction identifier (used for DML operations)
+
+  123456          --> Update transaction identifier 123456
+  -1              --> No restriction to specific update transaction identifier
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'BACKLOG'       --> Sorting by replay backlog
+  'VOLUME'        --> Sorting by replay volume size
+
+[OUTPUT PARAMETERS]
+
+- HOST:          Host name
+- PORT:          Port
+- QUEUE_ID:      Log queue ID
+- QUEUE_SIZE:    Log queue size
+- LOG_VOLUME_MB: Log volume size (MB)
+- BACKLOG_MB:    Replay backlog (MB)
+- STATUS:        Table replication status
+- UTID:          Update transaction ID responsible for log generation
+
+[EXAMPLE OUTPUT]
+
+------------------------------------------------------------------------
+|HOST      |PORT |QUEUE_ID|QUEUE_SIZE|LOG_VOLUME_MB|BACKLOG_MB|STATUS  |
+------------------------------------------------------------------------
+|saphana010|30001|       0|         0|         0.00|      0.00|ENABLED |
+|saphana010|30001|       1|         0|         0.00|      0.00|ENABLED |
+|saphana010|30001|       2|         0|         0.00|      0.00|ENABLED |
+|saphana010|30001|       3|         0|         0.00|      0.00|ENABLED |
+|saphana010|30001|       4|         0|         0.00|      0.00|ENABLED |
+|saphana010|30001|       5|         0|         0.00|      0.00|ENABLED |
+|saphana010|30001|       6|         0|         0.00|      0.00|ENABLED |
+|saphana010|30001|       7|         0|         0.00|      0.00|DISABLED|
+|saphana010|30001|       8|         0|         0.00|      0.00|DISABLED|
+|saphana010|30001|       9|         0|         0.00|      0.00|DISABLED|
+------------------------------------------------------------------------
+
+*/
+
+  R.HOST,
+  LPAD(R.PORT, 5) PORT,
+  LPAD(R.DML_LOG_QUEUE_ID, 8) QUEUE_ID,
+  LPAD(R.DML_LOG_QUEUE_SIZE, 10) QUEUE_SIZE,
+  LPAD(TO_DECIMAL(R.APPENDED_LOG_SIZE / 1024 / 1024, 10, 2), 13) LOG_VOLUME_MB,
+  LPAD(TO_DECIMAL((R.APPENDED_LOG_SIZE - R.REPLAYED_LOG_SIZE) / 1024 / 1024, 10, 2), 10) BACKLOG_MB,
+  LPAD(R.LOG_TID, 12) UTID, 
+  R.STATUS
+FROM
+( SELECT                 /* Modification section */
+    '%' HOST,
+    '%' PORT,
+    -1 QUEUE_ID,
+    '%' STATUS,
+    -1 UPDATE_TRANSACTION_ID,
+    'BACKLOG' ORDER_BY           /* BACKLOG, VOLUME, QUEUE_ID, QUEUE_SIZE */
+  FROM
+    DUMMY
+) BI,
+  SYS.M_DEV_REP_DMLLOGREPLAYER R
+WHERE
+  R.HOST LIKE BI.HOST AND
+  TO_VARCHAR(R.PORT) LIKE BI.PORT AND
+  ( BI.QUEUE_ID = -1 OR R.DML_LOG_QUEUE_ID = BI.QUEUE_ID ) AND
+  R.STATUS LIKE BI.STATUS AND
+  ( BI.UPDATE_TRANSACTION_ID = -1 OR R.LOG_TID = BI.UPDATE_TRANSACTION_ID )
+ORDER BY
+  MAP(BI.ORDER_BY, 'BACKLOG', R.APPENDED_LOG_SIZE - R.REPLAYED_LOG_SIZE, 'VOLUME', R.APPENDED_LOG_SIZE, 'QUEUE_SIZE', R.DML_LOG_QUEUE_SIZE) DESC,
+  R.DML_LOG_QUEUE_ID

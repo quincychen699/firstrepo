@@ -1,0 +1,213 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Network_Channels_Internal_2.00.40+
+
+[DESCRIPTION]
+
+- Current SAP HANA network channel utilization
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+- M_DEV_TREXNET_CHANNEL_STATISTICS available with SAP HANA >= 2.00.040
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.040
+
+[SQL COMMAND VERSION]
+
+- 2016/08/14:  1.0 (initial version)
+- 2019/07/13:  1.1 (dedicated 2.00.40+ version based on M_DEV_TREXNET_CHANNEL_STATISTICS instead of M_INTERNAL_CHANNELS_
+
+[INVOLVED TABLES]
+
+- M_DEV_TREXNET_CHANNEL_STATISTICS
+
+[INPUT PARAMETERS]
+
+- LOCAL_HOST
+
+  Local host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- SERVICE_PORT
+
+  Service port
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- LOCAL_PORT
+
+  Local port number
+
+  '12345'         --> Port 12345
+  '%'             --> No restriction to ports
+
+- REMOTE_HOST
+
+  Remote host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- REMOTE_PORT
+
+  Remote port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- CHANNEL_STATUS
+
+  Status of communication channel
+
+  'ACTIVE'        --> Only list channels with status ACTIVE
+  '%'             --> No restriction related to channel status
+
+- REQUEST_METHOD
+
+  Channel request method
+
+  'Queue Master'  --> Channels with request method "Queue Master"
+  '%'             --> No restriction related to request method
+
+- THREAD_ID
+
+  Thread identifier
+
+  4567            --> Thread 4567
+  -1              --> No thread identifier restriction
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'STATUS'             --> Aggregation by channel status
+  'THREAD_ID, CONN_ID' --> Aggregation by thread and connection
+  'NONE'               --> No aggregation
+
+- ORDER_BY
+
+  Sort order
+
+  'HOST'               --> Order by (service, local and remote) hosts and ports
+  'CHANNELS'           --> Order by number of channels
+  'REQUESTS'           --> Order by number of sent requests
+
+[OUTPUT PARAMETERS]
+
+- LOCAL_HOST:       Local host
+- SERVICE_PORT:     SAP HANA service port
+- LOCAL_PORT:       Local communication port
+- REMOTE_HOST:      Remote host
+- REMOTE_PORT:      Remote port
+- CHANNEL_STATUS:   Channel status (e.g. IDLE, ACTIVE)
+- REQUEST_METHOD:   Request method
+- CREATION_TIME:    Timestamp of channel creation (minimum in case of aggregation)
+- LAST_ACTIVE_TIME: Timestamp of last channel activity (maximum in case of aggregation)
+- THREAD_ID:        Thread ID
+- CHANNELS:         Number of channels
+- REQUESTS:         Number of sent requests
+
+[EXAMPLE OUTPUT]
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|LOCAL_HOST|SERVICE_PORT|LOCAL_PORT|REMOTE_HOST|REMOTE_PORT|CHANNEL_STATUS|REQUEST_METHOD          |CREATION_TIME      |LAST_ACTIVE_TIME   |THREAD_ID|CHANNELS|REQUESTS  |
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|saphana010|       30001|     40000|127.0.0.1  |      30002|Active        |core/statistics_monitors|2019/06/19 15:54:06|2019/07/13 14:16:37|    19243|       1|    331260|
+|saphana010|       30002|     30002|127.0.0.1  |      40000|Active        |core/statistics_monitors|2019/06/19 15:54:06|2019/07/13 14:16:37|    11455|       1|    331260|
+|saphana010|       30001|     25686|127.0.0.1  |      30010|Active        |core/statistics_monitors|2019/06/19 15:54:06|2019/07/13 14:16:37|    19811|       1|    319588|
+|saphana010|       30010|     30010|127.0.0.1  |      25686|Active        |core/statistics_monitors|2019/06/19 15:54:06|2019/07/13 14:16:37|    44960|       1|    319588|
+|saphana010|       30001|     53984|127.0.0.1  |      30006|Active        |core/statistics_monitors|2019/06/19 16:05:27|2019/07/13 14:16:37|    18596|       1|    317400|
+|saphana010|       30006|     30006|127.0.0.1  |      53984|Active        |core/statistics_monitors|2019/06/19 16:05:27|2019/07/13 14:16:37|    11048|       1|    317400|
+|saphana010|       30001|     30001|127.0.0.1  |      40912|Active        |Queue Master            |2019/06/19 15:54:02|2019/07/13 14:16:30|     6666|       1|    206918|
+|saphana010|       30002|     40912|127.0.0.1  |      30001|Active        |Queue Master            |2019/06/19 15:54:02|2019/07/13 14:16:30|     6402|       1|    206918|
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  LOCAL_HOST,
+  LPAD(SERVICE_PORT, 12) SERVICE_PORT,
+  LPAD(LOCAL_PORT, 10) LOCAL_PORT,
+  REMOTE_HOST,
+  LPAD(REMOTE_PORT, 11) REMOTE_PORT,
+  CHANNEL_STATUS,
+  REQUEST_METHOD,
+  TO_VARCHAR(CREATION_TIME, 'YYYY/MM/DD HH24:MI:SS') CREATION_TIME,
+  TO_VARCHAR(LAST_ACTIVE_TIME, 'YYYY/MM/DD HH24:MI:SS') LAST_ACTIVE_TIME,
+  LPAD(THREAD_ID, 9) THREAD_ID,
+  LPAD(CHANNELS, 8) CHANNELS,
+  LPAD(REQUESTS, 10) REQUESTS
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOCAL_HOST')   != 0 THEN C.LOCAL_HOSTNAME          ELSE MAP(BI.LOCAL_HOST,     '%', 'any', BI.LOCAL_HOST)            END LOCAL_HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE_PORT') != 0 THEN TO_VARCHAR(C.PORT)        ELSE MAP(BI.SERVICE_PORT,   '%', 'any', BI.SERVICE_PORT)          END SERVICE_PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOCAL_PORT')   != 0 THEN TO_VARCHAR(C.LOCAL_PORT)  ELSE MAP(BI.LOCAL_PORT,     '%', 'any', BI.LOCAL_PORT)            END LOCAL_PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'REMOTE_HOST')  != 0 THEN C.REMOTE_IP               ELSE MAP(BI.REMOTE_HOST,    '%', 'any', BI.REMOTE_HOST)           END REMOTE_HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'REMOTE_PORT')  != 0 THEN TO_VARCHAR(C.REMOTE_PORT) ELSE MAP(BI.REMOTE_PORT,    '%', 'any', BI.REMOTE_PORT)           END REMOTE_PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STATUS')       != 0 THEN C.CHANNEL_STATUS          ELSE MAP(BI.CHANNEL_STATUS, '%', 'any', BI.CHANNEL_STATUS)        END CHANNEL_STATUS,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'METHOD')       != 0 THEN C.REQUEST_METHOD          ELSE MAP(BI.REQUEST_METHOD, '%', 'any', BI.REQUEST_METHOD)        END REQUEST_METHOD,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_ID')    != 0 THEN TO_VARCHAR(C.THREAD_ID)   ELSE MAP(BI.THREAD_ID,       -1, 'any', TO_VARCHAR(BI.THREAD_ID)) END THREAD_ID,
+    MIN(CREATED) CREATION_TIME,
+    MAX(LAST_ACTIVE) LAST_ACTIVE_TIME,
+    COUNT(*) CHANNELS,
+    SUM(TOTAL_REQUESTS) REQUESTS,
+    BI.ORDER_BY
+  FROM
+  ( SELECT                /* Modification section */
+      '%' LOCAL_HOST,
+      '%' SERVICE_PORT,
+      '%' LOCAL_PORT,
+      '%' REMOTE_HOST, 
+      '%' REMOTE_PORT,
+      '%' CHANNEL_STATUS,
+      '%' REQUEST_METHOD,
+      -1 THREAD_ID,
+      'NONE' AGGREGATE_BY,             /* LOCAL_HOST, LOCAL_PORT, REMOTE_HOST, REMOTE_PORT, STATUS, METHOD, THREAD_ID or comma-separated combinations, NONE for no aggregation */
+      'REQUESTS' ORDER_BY                                          /* HOST, CHANNELS, REQUESTS, CREATED, LAST_ACTIVE */
+    FROM
+      DUMMY
+  ) BI,
+    SYS.M_DEV_TREXNET_CHANNEL_STATISTICS C
+  WHERE
+    C.LOCAL_HOSTNAME LIKE BI.LOCAL_HOST AND
+    TO_VARCHAR(C.PORT) LIKE BI.SERVICE_PORT AND
+    TO_VARCHAR(C.LOCAL_PORT) LIKE BI.LOCAL_PORT AND
+    C.REMOTE_IP LIKE BI.REMOTE_HOST AND
+    TO_VARCHAR(C.REMOTE_PORT) LIKE BI.REMOTE_PORT AND
+    C.CHANNEL_STATUS LIKE BI.CHANNEL_STATUS AND
+    C.REQUEST_METHOD LIKE BI.REQUEST_METHOD AND
+    ( BI.THREAD_ID = -1 OR C.THREAD_ID = BI.THREAD_ID )
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOCAL_HOST')   != 0 THEN C.LOCAL_HOSTNAME          ELSE MAP(BI.LOCAL_HOST,     '%', 'any', BI.LOCAL_HOST)            END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE_PORT') != 0 THEN TO_VARCHAR(C.PORT)        ELSE MAP(BI.SERVICE_PORT,   '%', 'any', BI.SERVICE_PORT)          END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOCAL_PORT')   != 0 THEN TO_VARCHAR(C.LOCAL_PORT)  ELSE MAP(BI.LOCAL_PORT,     '%', 'any', BI.LOCAL_PORT)            END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'REMOTE_HOST')  != 0 THEN C.REMOTE_IP               ELSE MAP(BI.REMOTE_HOST,    '%', 'any', BI.REMOTE_HOST)           END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'REMOTE_PORT')  != 0 THEN TO_VARCHAR(C.REMOTE_PORT) ELSE MAP(BI.REMOTE_PORT,    '%', 'any', BI.REMOTE_PORT)           END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STATUS')       != 0 THEN C.CHANNEL_STATUS          ELSE MAP(BI.CHANNEL_STATUS, '%', 'any', BI.CHANNEL_STATUS)        END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'METHOD')       != 0 THEN C.REQUEST_METHOD          ELSE MAP(BI.REQUEST_METHOD, '%', 'any', BI.REQUEST_METHOD)        END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_ID')    != 0 THEN TO_VARCHAR(C.THREAD_ID)   ELSE MAP(BI.THREAD_ID,       -1, 'any', TO_VARCHAR(BI.THREAD_ID)) END,
+    BI.ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'HOST',LOCAL_HOST || SERVICE_PORT || LOCAL_PORT || REMOTE_HOST || REMOTE_PORT),
+  MAP(ORDER_BY, 'CHANNELS', CHANNELS, 'REQUESTS', REQUESTS) DESC,
+  MAP(ORDER_BY, 'CREATED', CREATION_TIME, 'LAST_ACTIVE', LAST_ACTIVE_TIME)

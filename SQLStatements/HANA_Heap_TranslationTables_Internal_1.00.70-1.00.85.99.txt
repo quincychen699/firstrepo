@@ -1,0 +1,117 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Heap_TranslationTables_Internal_1.00.70-1.00.85.99
+
+[DESCRIPTION]
+
+- Show current content of Pool/JoinEvaluator/TranslationTables heap area
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Available as of revision 70 because it includes IMPLEMENTATION_CHANGE_TIME
+
+[VALID FOR]
+
+- Revisions:              1.00.70 - 1.00.85.99
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2014/03/19:  1.0 (initial version)
+- 2014/08/31:  1.1 (AGGREGATE_BY included)
+
+[INVOLVED TABLES]
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- RESULT_ROWS
+
+  Number of records to be returned by the query
+
+  100             --> Return a maximum number of 100 records
+  -1              --> Return all records
+
+[OUTPUT PARAMETERS]
+
+- HOST:          Host name
+- PORT:          Port name
+- SERVICE:       Service name
+- SCHEMA_NAME_1: Schema name of first table to be joined
+- TABLE_NAME_1:  First table name
+- COLUMN_NAME_1: Join column name of first table
+- SCHEMA_NAME_2: Schema name of second table to be joined
+- TABLE_NAME_2:  Second table name
+- COLUMN_NAME_2: Join column name of second table
+- NUM_TTS:       Number of translation tables
+- TT_SIZE_MB:    Size of translation table (in MB)
+- SIZE_PCT:      Size of translation table compared to overall translation tables size (in %)
+- CHANGE_TIME:   Change time
+
+[EXAMPLE OUTPUT]
+
+HOST     |PORT |SCHEMA_NAME_1 |TABLE_NAME_1                                     |COLUMN_NAME_1         |SCHEMA_NAME_2|TABLE_NAME_2           |COLUMN_NAME_2    |NUM_TTS|TT_SIZE_MB|SIZE_PCT
+saphana33|30003|TRNFRM_ECC    |SALES_ITEM                                       |$trexexternalkey$     |REPLICN_ECC  |VEDA                   |$trexexternalkey$|    104|  17772.84|    7.91
+saphana37|30003|TRNFRM_ECC    |SALES_ITEM                                       |$trexexternalkey$     |REPLICN_ECC  |VBKD                   |$trexexternalkey$|     72|  16793.92|    7.48
+saphana33|30003|TRNFRM_ECC    |SALES_ITEM                                       |$MANDT$SALES_DOCUMENT$|REPLICN_ECC  |VEDA                   |$MANDT$VBELN$    |    104|  11198.45|    4.98
+saphana34|30003|TRNFRM_ECC    |SALES_ITEM                                       |$MANDT$SALES_DOCUMENT$|REPLICN_ECC  |VBAK                   |$trexexternalkey$|     72|   9710.96|    4.32
+saphana31|30003|TRNFRM_ECC    |SALES_ITEM                                       |CONSUMING_ORG         |TRNFRM_MDS   |MDM_XREF               |SOURCE_SYSTEM_ID |    104|   4624.11|    2.05
+saphana34|30003|TRNFRM_MDS    |MDM_XREF                                         |SOURCE_SYSTEM_ID      |TRNFRM_ECC   |SALES_ITEM             |CONSUMING_ORG    |     72|   4624.11|    2.05
+saphana35|30003|REPLICN_CRM   |BUT0ID                                           |IDNUMBER              |REPLICN_ETS  |USER_LVT_PROFILE_PARSED|GUID             |      1|   3719.91|    1.65
+saphana33|30003|TRNFRM_ECC_CCM|saphana30:30003:COL_0x7f3723d6e8000x7f0ddf5c45001|COL4                  |REPLICN_CRM  |BUT0ID                 |IDNUMBER         |      1|   2794.51|    1.24
+saphana33|30003|TRNFRM_MKTG   |TMP_MDSKEY_PARTNER                               |PARTNER               |REPLICN_CRM  |BUT0ID                 |PARTNER          |      1|   2000.14|    0.89
+saphana30|30003|REPLICN_CRM   |BUT0ID                                           |$CLIENT$PARTNER$      |REPLICN_ECC  |KNA1                   |$trexexternalkey$|      1|   1556.42|    0.69
+
+
+*/
+
+  'Only available SAP internally, see internal SAP Note 2082221.' INFORMATION
+FROM
+  DUMMY

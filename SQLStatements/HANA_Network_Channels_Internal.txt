@@ -1,0 +1,184 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Network_Channels_Internal
+
+[DESCRIPTION]
+
+- Current SAP HANA network channel utilization
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+
+[VALID FOR]
+
+- Revisions:              any
+- Statistics server type: any
+
+[SQL COMMAND VERSION]
+
+- 2016/08/14:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_INTERNAL_CHANNELS_
+
+[INPUT PARAMETERS]
+
+- LOCAL_PORT
+
+  Local port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- REMOTE_HOST
+
+  Remote host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- REMOTE_PORT
+
+  Remote port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- CHANNEL_STATUS
+
+  Status of communication channel
+
+  'ACTIVE'        --> Only list channels with status ACTIVE
+  '%'             --> No restriction related to channel status
+
+- THREAD_ID
+
+  Thread identifier
+
+  4567            --> Thread 4567
+  -1              --> No thread identifier restriction
+
+- CONN_ID
+
+  Connection ID
+
+  330655          --> Connection ID 330655
+  -1              --> No connection ID restriction
+
+- TRANSACTION_ID
+
+  Transaction identifier
+
+  123             --> Transaction identifier 123
+  -1              --> No restriction to specific transaction identifiers
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'STATUS'             --> Aggregation by channel status
+  'THREAD_ID, CONN_ID' --> Aggregation by thread and connection
+  'NONE'               --> No aggregation
+
+[OUTPUT PARAMETERS]
+
+- LOCAL_PORT:     Local port
+- REMOTE_HOST:    Remote host
+- REMOTE_PORT:    Remote port
+- CHANNEL_STATUS: Channel status (e.g. IDLE, ACTIVE)
+- THREAD_ID:      Thread ID
+- CONNECTION_ID:  Connection ID
+- TRANSACTION_ID: Transaction ID
+- CHANNELS:       Number of channels
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------
+|LOCAL_PORT|REMOTE_HOST |REMOTE_PORT|CHANNEL_STATUS|THREAD_ID|CONNECTION_ID|TRANSACTION_ID|CHANNELS|
+----------------------------------------------------------------------------------------------------
+|       any|127.0.0.1   |      30002|IDLE          |      any|          any|           any|      19|
+|       any|127.0.0.1   |      30001|IDLE          |      any|          any|           any|      13|
+|       any|127.0.0.1   |      30011|IDLE          |      any|          any|           any|       7|
+|       any|127.0.0.1   |      30010|IDLE          |      any|          any|           any|       6|
+|       any|127.0.0.1   |      30004|IDLE          |      any|          any|           any|       5|
+|       any|127.0.0.1   |      30006|IDLE          |      any|          any|           any|       5|
+|       any|127.0.0.1   |      30007|IDLE          |      any|          any|           any|       5|
+|       any|127.0.0.1   |      30007|ACTIVE        |      any|          any|           any|       3|
+|       any|127.0.0.1   |      30011|ACTIVE        |      any|          any|           any|       3|
+|       any|127.0.0.1   |      30003|IDLE          |      any|          any|           any|       2|
+|       any|127.0.0.1   |      30004|ACTIVE        |      any|          any|           any|       2|
+|       any|11.17.68.174|      30102|IDLE          |      any|          any|           any|       1|
+----------------------------------------------------------------------------------------------------
+
+*/
+
+  LPAD(LOCAL_PORT, 10) LOCAL_PORT,
+  REMOTE_HOST,
+  LPAD(REMOTE_PORT, 11) REMOTE_PORT,
+  CHANNEL_STATUS,
+  LPAD(THREAD_ID, 9) THREAD_ID,
+  LPAD(CONNECTION_ID, 13) CONNECTION_ID,
+  LPAD(TRANSACTION_ID, 14) TRANSACTION_ID,
+  LPAD(CHANNELS, 8) CHANNELS
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOCAL_PORT')  != 0 THEN TO_VARCHAR(C.LOCAL_PORT)     ELSE MAP(BI.LOCAL_PORT,     '%', 'any', BI.LOCAL_PORT)              END LOCAL_PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'REMOTE_HOST') != 0 THEN C.REMOTE_HOST             ELSE MAP(BI.REMOTE_HOST,    '%', 'any', BI.REMOTE_HOST)             END REMOTE_HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'REMOTE_PORT') != 0 THEN TO_VARCHAR(C.REMOTE_PORT)    ELSE MAP(BI.REMOTE_PORT,    '%', 'any', BI.REMOTE_PORT)             END REMOTE_PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STATUS')      != 0 THEN C.CHANNEL_STATUS          ELSE MAP(BI.CHANNEL_STATUS, '%', 'any', BI.CHANNEL_STATUS)          END CHANNEL_STATUS,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_ID')   != 0 THEN TO_VARCHAR(C.THREAD_ID)      ELSE MAP(BI.THREAD_ID,       -1, 'any', TO_VARCHAR(BI.THREAD_ID))      END THREAD_ID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CONN_ID')     != 0 THEN TO_VARCHAR(C.CONNECTION_ID)  ELSE MAP(BI.CONN_ID,         -1, 'any', TO_VARCHAR(BI.CONN_ID))        END CONNECTION_ID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TRANS_ID')    != 0 THEN TO_VARCHAR(C.TRANSACTION_ID) ELSE MAP(BI.TRANSACTION_ID,  -1, 'any', TO_VARCHAR(BI.TRANSACTION_ID)) END TRANSACTION_ID,
+    COUNT(*) CHANNELS
+  FROM
+  ( SELECT                /* Modification section */
+      '%' LOCAL_PORT,
+      '%' REMOTE_HOST, 
+      '%' REMOTE_PORT,
+      '%' CHANNEL_STATUS,
+      -1 THREAD_ID,
+      -1 CONN_ID,
+      -1 TRANSACTION_ID,
+      'REMOTE_HOST, REMOTE_PORT, STATUS' AGGREGATE_BY             /* LOCAL_PORT, REMOTE_HOST, REMOTE_PORT, STATUS, THREAD_ID, CONN_ID, TRANS_ID or comma-separated combinations, NONE for no aggregation */
+    FROM
+      DUMMY
+  ) BI,
+    SYS.M_INTERNAL_CHANNELS_ C
+  WHERE
+    TO_VARCHAR(C.LOCAL_PORT) LIKE BI.LOCAL_PORT AND
+    C.REMOTE_HOST LIKE BI.REMOTE_HOST AND
+    TO_VARCHAR(C.REMOTE_PORT) LIKE BI.REMOTE_PORT AND
+    C.CHANNEL_STATUS LIKE BI.CHANNEL_STATUS AND
+    ( BI.THREAD_ID = -1 OR C.THREAD_ID = BI.THREAD_ID ) AND
+    ( BI.CONN_ID = -1 OR C.CONNECTION_ID = BI.CONN_ID ) AND
+    ( BI.TRANSACTION_ID = -1 OR C.TRANSACTION_ID = BI.TRANSACTION_ID )
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOCAL_PORT')  != 0 THEN TO_VARCHAR(C.LOCAL_PORT)     ELSE MAP(BI.LOCAL_PORT,     '%', 'any', BI.LOCAL_PORT)              END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'REMOTE_HOST') != 0 THEN C.REMOTE_HOST             ELSE MAP(BI.REMOTE_HOST,    '%', 'any', BI.REMOTE_HOST)             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'REMOTE_PORT') != 0 THEN TO_VARCHAR(C.REMOTE_PORT)    ELSE MAP(BI.REMOTE_PORT,    '%', 'any', BI.REMOTE_PORT)             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STATUS')      != 0 THEN C.CHANNEL_STATUS          ELSE MAP(BI.CHANNEL_STATUS, '%', 'any', BI.CHANNEL_STATUS)          END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_ID')   != 0 THEN TO_VARCHAR(C.THREAD_ID)      ELSE MAP(BI.THREAD_ID,       -1, 'any', TO_VARCHAR(BI.THREAD_ID))      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CONN_ID')     != 0 THEN TO_VARCHAR(C.CONNECTION_ID)  ELSE MAP(BI.CONN_ID,         -1, 'any', TO_VARCHAR(BI.CONN_ID))        END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TRANS_ID')    != 0 THEN TO_VARCHAR(C.TRANSACTION_ID) ELSE MAP(BI.TRANSACTION_ID,  -1, 'any', TO_VARCHAR(BI.TRANSACTION_ID)) END
+)
+ORDER BY
+  CHANNELS DESC,
+  LOCAL_PORT,
+  REMOTE_HOST,
+  REMOTE_PORT
+

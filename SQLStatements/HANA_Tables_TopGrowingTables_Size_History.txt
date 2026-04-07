@@ -1,0 +1,173 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Tables_TopGrowingTables_Size_History
+
+[DESCRIPTION]
+
+- Displays top growing (or top shrinking) tables for historic time frames
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Size calculation is based on disk size, not memory size
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2014/03/20:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- _SYS_STATISTICS.GLOBAL_TABLE_PERSISTENCE_STATISTICS
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  TO_TIMESTAMP('2014/06/05 14:05:00', 'YYYY/MM/DD HH24:MI:SS') --> Set begin time to 5th of June 2014, 14:05 
+  ADD_DAYS(CURRENT_TIMESTAMP, -2)                              --> Set begin time to two days before current time 
+
+- END_TIME
+
+  End time
+
+  TO_TIMESTAMP('2014/06/08 14:05:00', 'YYYY/MM/DD HH24:MI:SS') --> Set end time to 8th of June 2014, 14:05 
+  CURRENT_TIMESTAMP                                            --> Set end time to current time 
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- SORT_ORDER
+
+  Order of sorting (ascending vs. descending)
+
+  'ASC'           --> Ascending sort
+  'DESC'          --> Descending sort
+
+- RESULT_ROWS
+
+  Number of records to be returned by the query
+
+  100             --> Return a maximum number of 100 records
+  -1              --> Return all records
+
+ 
+[OUTPUT PARAMETERS]
+
+- BEGIN_TIME:    Begin time (first timestamp for comparison)
+- END_TIME:      End time (second timestamp for comparison)
+- SCHEMA_NAME:   Schema name
+- TABLE_NAME:    Table name
+- SIZE_BEGIN_MB: Disk size of table at begin time (MB)
+- SIZE_END_MB:   Disk size of table at end time (MB)
+- SIZE_CHG_MB:   Change of table size between begin time and end time (MB)
+- CHG_PCT:       Change of table size between begin time and end time (%)
+
+[EXAMPLE OUTPUT]
+
+--------------------------------------------------------------------------------------------------------------
+|BEGIN_TIME      |END_TIME        |SCHEMA_NAME|TABLE_NAME      |SIZE_BEGIN_MB|SIZE_END_MB|SIZE_CHG_MB|CHG_PCT|
+--------------------------------------------------------------------------------------------------------------
+|2014/02/19 01:00|2014/03/20 01:00|SAPSR3     |/BIC/B0000495000|      5726.01|   14907.51|    9181.49| 160.34|
+|2014/02/19 01:00|2014/03/20 01:00|SAPSR3     |/BIC/FZOCEUC09B |      6610.86|   11665.28|    5054.42|  76.45|
+|2014/02/19 01:00|2014/03/20 01:00|SAPSR3     |/BIC/FZOCEUC13  |      2515.96|    7423.29|    4907.32| 195.04|
+|2014/02/19 01:00|2014/03/20 01:00|SAPSR3     |EDI40           |     14154.69|   16907.36|    2752.66|  19.44|
+|2014/02/19 01:00|2014/03/20 01:00|SAPSR3     |/BIC/AZOCEUO9000|     18500.73|   21027.94|    2527.21|  13.66|
+|2014/02/19 01:00|2014/03/20 01:00|SAPSR3     |/BIC/FZOCEUC21B |      3565.23|    5980.00|    2414.76|  67.73|
+|2014/02/19 01:00|2014/03/20 01:00|SAPSR3     |/BIC/FZIACEUC04 |      1712.36|    3278.03|    1565.66|  91.43|
+|2014/02/19 01:00|2014/03/20 01:00|SAPSR3     |/BIC/AZSCXXO2240|        16.45|    1187.45|    1171.00|7117.18|
+|2014/02/19 01:00|2014/03/20 01:00|SAPSR3     |/BIC/B0007733000|       732.41|    1839.94|    1107.53| 151.21|
+|2014/02/19 01:00|2014/03/20 01:00|SAPSR3     |/BIC/B0000396000|      4333.07|    5391.08|    1058.00|  24.41|
+--------------------------------------------------------------------------------------------------------------
+
+*/
+
+  TO_VARCHAR(BEGIN_TIME, 'YYYY/MM/DD HH24:MI') BEGIN_TIME,
+  TO_VARCHAR(END_TIME, 'YYYY/MM/DD HH24:MI') END_TIME,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  SIZE_BEGIN_MB,
+  SIZE_END_MB,
+  SIZE_CHG_MB,
+  CHG_PCT
+FROM
+( SELECT
+    BEGIN_TIME,
+    END_TIME,
+    SCHEMA_NAME,
+    TABLE_NAME,
+    LPAD(TO_DECIMAL(SIZE_BEGIN_MB, 10, 2), 13) SIZE_BEGIN_MB,
+    LPAD(TO_DECIMAL(SIZE_END_MB, 10, 2), 11) SIZE_END_MB,
+    LPAD(TO_DECIMAL(SIZE_END_MB - SIZE_BEGIN_MB, 10, 2), 11) SIZE_CHG_MB,
+    LPAD(TO_DECIMAL(LEAST(MAP(SIZE_BEGIN_MB, 0, 9999, (SIZE_END_MB - SIZE_BEGIN_MB) / SIZE_BEGIN_MB * 100), 9999.99), 10, 2), 7) CHG_PCT,
+    ROW_NUMBER () OVER (ORDER BY MAP(SORT_ORDER, 'ASC', SIZE_END_MB - SIZE_BEGIN_MB, SIZE_BEGIN_MB - SIZE_END_MB)) ROW_NUM,
+    RESULT_ROWS
+  FROM
+  ( SELECT
+      BI.BEGIN_TIME,
+      BI.END_TIME,
+      TE.SCHEMA_NAME,
+      TE.TABLE_NAME,
+      TE.DISK_SIZE / 1024 / 1024 SIZE_END_MB,
+      IFNULL(TB.DISK_SIZE, 0) / 1024 / 1024 SIZE_BEGIN_MB,
+      BI.RESULT_ROWS,
+      BI.SORT_ORDER
+    FROM
+    ( SELECT
+        ( SELECT MIN(SERVER_TIMESTAMP) FROM _SYS_STATISTICS.GLOBAL_TABLE_PERSISTENCE_STATISTICS T WHERE T.SERVER_TIMESTAMP >= B.BEGIN_TIME ) BEGIN_TIME,
+        ( SELECT MAX(SERVER_TIMESTAMP) FROM _SYS_STATISTICS.GLOBAL_TABLE_PERSISTENCE_STATISTICS T WHERE T.SERVER_TIMESTAMP <= B.END_TIME ) END_TIME,
+        SCHEMA_NAME,
+        TABLE_NAME,
+        SORT_ORDER,
+        RESULT_ROWS
+      FROM
+      ( SELECT                         /* Modification section */
+          TO_TIMESTAMP('1000/01/01 01:00:00', 'YYYY/MM/DD HH24:MI:SS') BEGIN_TIME,
+          TO_TIMESTAMP('9999/12/31 01:00:00', 'YYYY/MM/DD HH24:MI:SS') END_TIME,
+          '%' SCHEMA_NAME,
+          '%' TABLE_NAME,
+          'DESC' SORT_ORDER,            /* ASC to show top shrinking tables, DESC to show top growing tables */
+          50 RESULT_ROWS
+        FROM
+          DUMMY
+      ) B
+    ) BI INNER JOIN
+      _SYS_STATISTICS.GLOBAL_TABLE_PERSISTENCE_STATISTICS TE ON
+        TE.SERVER_TIMESTAMP = BI.END_TIME AND
+        UPPER(TE.SCHEMA_NAME) LIKE UPPER(BI.SCHEMA_NAME) AND
+        UPPER(TE.TABLE_NAME) LIKE UPPER(BI.TABLE_NAME) LEFT OUTER JOIN
+      _SYS_STATISTICS.GLOBAL_TABLE_PERSISTENCE_STATISTICS TB ON
+        TB.SERVER_TIMESTAMP = BI.BEGIN_TIME AND
+        TB.SCHEMA_NAME = TE.SCHEMA_NAME AND
+        TB.TABLE_NAME = TE.TABLE_NAME   
+  )
+  ORDER BY MAP(SORT_ORDER, 'ASC', SIZE_END_MB - SIZE_BEGIN_MB, SIZE_BEGIN_MB - SIZE_END_MB)
+)
+WHERE
+  ( RESULT_ROWS = -1 OR ROW_NUM <= RESULT_ROWS)
+

@@ -1,0 +1,189 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_GarbageCollection_Persistence_Internal_2.00.040+
+
+[DESCRIPTION]
+
+- Persistence garbage collection activity
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+- M_GARBAGE_COLLECTION_CLEANUP_STATISTICS_ available starting with SAP HANA 2.00.040
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.040
+
+[SQL COMMAND VERSION]
+
+- 2020/05/03:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_GARBAGE_COLLECTION_CLEANUP_STATISTICS_
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SITE_ID
+
+  System replication site ID
+
+  1               --> Site ID 1
+  -1              --> No restriction related to system replication site ID
+
+- DB_NAME
+
+  Multitenant database name
+
+  'SYSTEMDB'      --> System database
+  'C11'           --> Tenant C11
+  '%'             --> No restriction to multitenant database
+
+- RECORD_TYPE
+
+  Cleanup record type
+
+  'UNIFIED_TABLE' --> Record type UNIFIED_TABLE
+  '%LOB%'         --> Record types containing 'LOB'
+  '%'             --> No restriction related to record type
+
+- OPERATION_TYPE
+
+  Operation type
+
+  'Delete'        --> Delete operation
+  '%'             --> No restriction related to operation type
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'RECORD_TYPE'   --> Aggregation by record type
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'COUNT'         --> Sorting by cleanup records
+  'SIZE'          --> Sorting by cleanup size
+
+[OUTPUT PARAMETERS]
+
+- HOST:           Host
+- PORT:           Port
+- SITE:           System replication site ID
+- DB_NAME:        Database name
+- RECORD_TYPE:    Record type
+- OPERATION_TYPE: Operation type
+- RECORDS:        Cleanup records
+- TIME_S:         Cleanup time (s)
+- AVG_REC_MS:     Cleanup time per record (ms)
+- SIZE_GB:        Cleanup size (GB)
+- AVG_REC_KB:     Cleanup size per record (KB)
+
+[EXAMPLE OUTPUT]
+
+------------------------------------------------------------------------------------------------------------------------------
+|HOST        |PORT |SITE|DB_NAME |RECORD_TYPE        |OPERATION_TYPE  |RECORDS   |TIME_S    |AVG_REC_MS|SIZE_GB   |AVG_REC_KB|
+------------------------------------------------------------------------------------------------------------------------------
+|saphana010  |30003|   2|C11     |UNIFIED_TABLE      |Insert_WithRange|  24084729|   2801.59|      0.11|      0.71|      0.03|
+|saphana011  |30003|   1|C11     |UNIFIED_TABLE      |Insert_WithRange|  24085903|    400.63|      0.01|      0.71|      0.03|
+|saphana010  |30003|   2|C11     |UNIFIED_TABLE      |Delete          |    217232|     34.99|      0.16|      0.17|      0.82|
+|saphana011  |30003|   1|C11     |UNIFIED_TABLE      |Delete          |    217544|     44.86|      0.20|      0.17|      0.82|
+|saphana69160|30003|   3|C11     |UNIFIED_TABLE      |Delete          |    142076|     19.29|      0.13|      0.07|      0.56|
+|saphana69155|30003|   4|C11     |UNIFIED_TABLE      |Delete          |     51375|      6.60|      0.12|      0.03|      0.64|
+|saphana011  |30001|   1|SYSTEMDB|UNIFIED_TABLE      |Delete          |       675|      4.34|      6.43|      0.02|     38.74|
+|saphana69160|30001|   3|SYSTEMDB|UNIFIED_TABLE      |Delete          |       333|      2.09|      6.29|      0.01|     47.03|
+|saphana69160|30003|   3|C11     |UNIFIED_TABLE      |Insert_WithRange|    406062|     22.68|      0.05|      0.01|      0.03|
+|saphana69160|30001|   3|SYSTEMDB|CONTAINER_DIRECTORY|DEFAULT         |        91|      0.01|      0.10|      0.00|      0.03|
+------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  LPAD(SITE_ID, 4) SITE,
+  DB_NAME,
+  RECORD_TYPE,
+  OPERATION_TYPE,
+  LPAD(RECORDS, 10) RECORDS,
+  LPAD(TO_DECIMAL(TIME_S, 10, 2), 10) TIME_S,
+  LPAD(TO_DECIMAL(MAP(RECORDS, 0, 0, TIME_S * 1000 / RECORDS), 10, 2), 10) AVG_REC_MS,
+  LPAD(TO_DECIMAL(SIZE_GB, 10, 2), 10) SIZE_GB,
+  LPAD(TO_DECIMAL(MAP(RECORDS, 0, 0, SIZE_GB * 1024 * 1024 / RECORDS), 10, 2), 10) AVG_REC_KB
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')           != 0 THEN G.HOST                ELSE MAP(BI.HOST,           '%', 'any', BI.HOST)                END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')           != 0 THEN TO_VARCHAR(G.PORT)    ELSE MAP(BI.PORT,           '%', 'any', BI.PORT)                END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SITE')           != 0 THEN TO_VARCHAR(G.SITE_ID) ELSE MAP(BI.SITE_ID,         -1, 'any', TO_VARCHAR(BI.SITE_ID)) END SITE_ID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'DB_NAME')        != 0 THEN G.DATABASE_NAME       ELSE MAP(BI.DB_NAME,        '%', 'any', BI.DB_NAME)             END DB_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'RECORD_TYPE')    != 0 THEN G.RECORD_TYPE         ELSE MAP(BI.RECORD_TYPE,    '%', 'any', BI.RECORD_TYPE)         END RECORD_TYPE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OPERATION_TYPE') != 0 THEN G.OPERATION_TYPE      ELSE MAP(BI.OPERATION_TYPE, '%', 'any', BI.OPERATION_TYPE)      END OPERATION_TYPE,
+    SUM(G.TOTAL_RECORD_COUNT) RECORDS,
+    SUM(G.TOTAL_EXECUTION_TIME) / 1000 / 1000 TIME_S,
+    SUM(G.TOTAL_RECORD_SIZE) / 1024 / 1024 / 1024 SIZE_GB,
+    BI.ORDER_BY
+  FROM
+  ( SELECT                   /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      -1 SITE_ID,
+      '%' DB_NAME,
+      '%' RECORD_TYPE,
+      '%' OPERATION_TYPE,
+      'NONE' AGGREGATE_BY,              /* HOST, PORT, SITE, DB_NAME, RECORD_TYPE, OPERATION_TYPE or comma separated combinations, NONE for no aggregation */
+      'SIZE' ORDER_BY                   /* COUNT, TIME, SIZE, HOST, NAME */
+    FROM
+      DUMMY
+  ) BI,
+    SYS.M_GARBAGE_COLLECTION_CLEANUP_STATISTICS_ G
+  WHERE
+    G.HOST LIKE BI.HOST AND
+    TO_VARCHAR(G.PORT) LIKE BI.PORT AND
+    ( BI.SITE_ID = -1 OR G.SITE_ID = BI.SITE_ID ) AND
+    G.DATABASE_NAME LIKE BI.DB_NAME AND
+    G.RECORD_TYPE LIKE BI.RECORD_TYPE AND
+    G.OPERATION_TYPE LIKE BI.OPERATION_TYPE
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')           != 0 THEN G.HOST                ELSE MAP(BI.HOST,           '%', 'any', BI.HOST)                END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')           != 0 THEN TO_VARCHAR(G.PORT)    ELSE MAP(BI.PORT,           '%', 'any', BI.PORT)                END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SITE')           != 0 THEN TO_VARCHAR(G.SITE_ID) ELSE MAP(BI.SITE_ID,         -1, 'any', TO_VARCHAR(BI.SITE_ID)) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'DB_NAME')        != 0 THEN G.DATABASE_NAME       ELSE MAP(BI.DB_NAME,        '%', 'any', BI.DB_NAME)             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'RECORD_TYPE')    != 0 THEN G.RECORD_TYPE         ELSE MAP(BI.RECORD_TYPE,    '%', 'any', BI.RECORD_TYPE)         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OPERATION_TYPE') != 0 THEN G.OPERATION_TYPE      ELSE MAP(BI.OPERATION_TYPE, '%', 'any', BI.OPERATION_TYPE)      END,
+    BI.ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'COUNT', RECORDS, 'TIME', TIME_S, 'SIZE', SIZE_GB) DESC,
+  MAP(ORDER_BY, 'HOST', HOST || TO_VARCHAR(PORT)),
+  RECORD_TYPE,
+  OPERATION_TYPE

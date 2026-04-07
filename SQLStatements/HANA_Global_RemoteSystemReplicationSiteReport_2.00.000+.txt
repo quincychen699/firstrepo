@@ -1,0 +1,661 @@
+WITH 
+
+/*
+
+[NAME]
+
+- HANA_Global_RemoteSystemReplicationSiteReport_2.00.000+
+
+[DESCRIPTION]
+
+- Collection of information of a remote system replication site
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- <replace_with_remote_site_schema> needs to be globally replaced in this analysis command with the 
+  proxy schema name of the remote system replication site
+- Proxy schemas are available in system replication environments starting with SAP HANA 1.00.110
+- _SYS_SR_SITE_<site>.M_OUT_OF_MEMORY_EVENTS available with SAP HANA >= 1.00.120
+- Schema name follows naming convention _SYS_SR_SITE_<remote_site>
+- M_SERVICE_THREAD_SAMPLES and BLOCKING_PHASE_DURATION available with SAP HANA >= 2.00.000
+- Existing proxy schemas can be determined via:
+
+  SELECT SCHEMA_NAME FROM SCHEMAS WHERE SCHEMA_NAME LIKE '_SYS_SR_SITE%'
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.000
+
+[SQL COMMAND VERSION]
+
+- 2019/07/17:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_DELTA_MERGE_STATISTICS
+- M_HEAP_MEMORY
+- M_OUT_OF_MEMORY_EVENTS
+- M_SAVEPOINTS
+- M_SERVICE_THREAD_SAMPLES
+- M_VOLUME_IO_TOTAL_STATISTICS_RESET
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- TOP_N_THREADS
+
+  Maximum number of most recent thread samples to be displayed
+
+  50              --> Display 50 most recent thread samples
+  -1              --> No restriction related to number of thread samples
+
+- TOP_N_SAVEPOINTS
+
+  Maximum number of most recent savepoints to be displayed
+
+  20              --> Display 20 most recent savepoints
+  -1              --> No restriction related to number of savepoints
+
+- TOP_N_TABLE_OPTIMIZATIONS
+
+  Maximum number of most recent table optimizations to be displayed
+
+  20              --> Display 20 most recent table optimizations
+  -1              --> No restriction related to number of table optimizations
+
+- EXCLUDE_PHANTOM_THREADS
+
+  Possibility to exclude idle threads that are shown as "active" due to SAP HANA bugs
+
+  'X'             --> Do not show idle threads that are shown as active threads
+  ' '             --> No restriction of displayed threads
+
+- MAX_COL_LEN
+
+  Maximum length of output columns
+
+  40              --> Limit the size of potentially long output columns to 40 characters
+  -1              --> No restriction related to output column length
+
+- LINE_LENGTH
+
+  Maximum displayed line size
+
+  50              --> Lines are truncated at 50 characters
+  -1              --> No line truncation
+
+[OUTPUT PARAMETERS]
+
+- LINE: Remote system replication site report (use monospaced output for optimal display)
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|LINE                                                                                                                                                                                                                                                           |
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|******************************                                                                                                                                                                                                                                 |
+|* SAP HANA TIME FRAME REPORT *                                                                                                                                                                                                                                 |
+|******************************                                                                                                                                                                                                                                 |
+|                                                                                                                                                                                                                                                               |
+|Generated with:     SQL: "HANA_Global_RemoteSystemReplicationSiteReport" (SAP Note 1969700)                                                                                                                                                                    |
+|Analysis time:      2019/07/17 10:56:44                                                                                                                                                                                                                        |
+|Database name:      BGP                                                                                                                                                                                                                                        |
+|Revision level:     2.00.035.00.1545187853                                                                                                                                                                                                                     |
+|Proxy schema:       <replace_with_remote_site_schema>                                                                                                                                                                                                                 |
+|Host:               all                                                                                                                                                                                                                                        |
+|Port:               all                                                                                                                                                                                                                                        |
+|                                                                                                                                                                                                                                                               |
+|******************                                                                                                                                                                                                                                             |
+|* THREAD SAMPLES *                                                                                                                                                                                                                                             |
+|******************                                                                                                                                                                                                                                             |
+|                                                                                                                                                                                                                                                               |
+|SAMPLE_TIME         HOST        PORT    CONN_ID THREAD_ID DUR_S CPU_S THREAD_TYPE           STATE          LOCK_NAME                      STATEMENT_HASH                                   THREAD_METHOD                           A A A THREAD_DETAIL         |
+|=================== ========== ===== ========== ========= ===== ===== ===================== ============== ============================== ================================================ ======================================= = = = ===================== |
+|2019/07/17 10:56:43 saphana001 32403         -1     22098   359     0 JobWorker             Semaphore Wait StartSecondExclusiveMergePhase no SQL (MergeDuringRecoveryJob_DeltaToMainMerge) MergeDuringRecoveryJob_DeltaToMainMerge X X X Table: BGP::SAPBGP:TM |
+|2019/07/17 10:56:42 saphana001 32403         -1     22098   358     0 JobWorker             Semaphore Wait StartSecondExclusiveMergePhase no SQL (MergeDuringRecoveryJob_DeltaToMainMerge) MergeDuringRecoveryJob_DeltaToMainMerge X X X Table: BGP::SAPBGP:TM |
+|2019/07/17 10:56:41 saphana001 32403         -1     22098   357     0 JobWorker             Semaphore Wait StartSecondExclusiveMergePhase no SQL (MergeDuringRecoveryJob_DeltaToMainMerge) MergeDuringRecoveryJob_DeltaToMainMerge X X X Table: BGP::SAPBGP:TM |
+|2019/07/17 10:56:40 saphana001 32403         -1     22098   356     0 JobWorker             Semaphore Wait StartSecondExclusiveMergePhase no SQL (MergeDuringRecoveryJob_DeltaToMainMerge) MergeDuringRecoveryJob_DeltaToMainMerge X X X Table: BGP::SAPBGP:TM |
+|2019/07/17 10:56:39 saphana001 32403         -1     22098   355     0 JobWorker             Semaphore Wait StartSecondExclusiveMergePhase no SQL (MergeDuringRecoveryJob_DeltaToMainMerge) MergeDuringRecoveryJob_DeltaToMainMerge X X X Table: BGP::SAPBGP:TM |
+|2019/07/17 10:56:38 saphana001 32403         -1     22098   354     0 JobWorker             Semaphore Wait StartSecondExclusiveMergePhase no SQL (MergeDuringRecoveryJob_DeltaToMainMerge) MergeDuringRecoveryJob_DeltaToMainMerge X X X Table: BGP::SAPBGP:TM |
+|2019/07/17 10:56:37 saphana001 32403         -1     22098   353     0 JobWorker             Semaphore Wait StartSecondExclusiveMergePhase no SQL (MergeDuringRecoveryJob_DeltaToMainMerge) MergeDuringRecoveryJob_DeltaToMainMerge X X X Table: BGP::SAPBGP:TM |
+|2019/07/17 10:56:36 saphana001 32403         -1     21161 16767 10244 ContinuousPageFlusher Running        X                              no SQL (flushing)                                flushing                                X X X X                     |
+|2019/07/17 10:56:36 saphana001 32403         -1     22098   352     0 JobWorker             Semaphore Wait StartSecondExclusiveMergePhase no SQL (MergeDuringRecoveryJob_DeltaToMainMerge) MergeDuringRecoveryJob_DeltaToMainMerge X X X Table: BGP::SAPBGP:TM |
+|2019/07/17 10:56:35 saphana001 32403         -1     21161 16767 10243 ContinuousPageFlusher Running        X                              no SQL (flushing)                                flushing                                X X X X                     |
+|2019/07/17 10:56:35 saphana001 32403         -1     22098   351     0 JobWorker             Semaphore Wait StartSecondExclusiveMergePhase no SQL (MergeDuringRecoveryJob_DeltaToMainMerge) MergeDuringRecoveryJob_DeltaToMainMerge X X X Table: BGP::SAPBGP:TM |
+|2019/07/17 10:56:34 saphana001 32403         -1     21161 16766 10242 ContinuousPageFlusher Running        X                              no SQL (flushing)                                flushing                                X X X X                     |
+|2019/07/17 10:56:34 saphana001 32403         -1     22098   350     0 JobWorker             Semaphore Wait StartSecondExclusiveMergePhase no SQL (MergeDuringRecoveryJob_DeltaToMainMerge) MergeDuringRecoveryJob_DeltaToMainMerge X X X Table: BGP::SAPBGP:TM |
+|2019/07/17 10:56:33 saphana001 32403         -1     21161 16766 10241 ContinuousPageFlusher Running        X                              no SQL (flushing)                                flushing                                X X X X                     |
+|2019/07/17 10:56:33 saphana001 32403         -1     22098   349     0 JobWorker             Semaphore Wait StartSecondExclusiveMergePhase no SQL (MergeDuringRecoveryJob_DeltaToMainMerge) MergeDuringRecoveryJob_DeltaToMainMerge X X X Table: BGP::SAPBGP:TM |
+|2019/07/17 10:56:32 saphana001 32403         -1     21161 16766 10240 ContinuousPageFlusher Running        X                              no SQL (flushing)                                flushing                                X X X X                     |
+|2019/07/17 10:56:32 saphana001 32403         -1     22098   348     0 JobWorker             Semaphore Wait StartSecondExclusiveMergePhase no SQL (MergeDuringRecoveryJob_DeltaToMainMerge) MergeDuringRecoveryJob_DeltaToMainMerge X X X Table: BGP::SAPBGP:TM |
+|2019/07/17 10:56:31 saphana001 32403         -1     22098   347     0 JobWorker             Semaphore Wait StartSecondExclusiveMergePhase no SQL (MergeDuringRecoveryJob_DeltaToMainMerge) MergeDuringRecoveryJob_DeltaToMainMerge X X X Table: BGP::SAPBGP:TM |
+|2019/07/17 10:56:30 saphana001 32403         -1     22098   346     0 JobWorker             Semaphore Wait StartSecondExclusiveMergePhase no SQL (MergeDuringRecoveryJob_DeltaToMainMerge) MergeDuringRecoveryJob_DeltaToMainMerge X X X Table: BGP::SAPBGP:TM |
+|2019/07/17 10:56:29 saphana001 32403         -1     22098   345     0 JobWorker             Semaphore Wait StartSecondExclusiveMergePhase no SQL (MergeDuringRecoveryJob_DeltaToMainMerge) MergeDuringRecoveryJob_DeltaToMainMerge X X X Table: BGP::SAPBGP:TM |
+|                                                                                                                                                                                                                                                               |
+|******************                                                                                                                                                                                                                                             |
+|* MEMORY DETAILS *                                                                                                                                                                                                                                             |
+|******************                                                                                                                                                                                                                                             |
+|                                                                                                                                                                                                                                                               |
+|HOST        PORT HEAP_ALLOCATOR                                                       MEM_USED_GB COUNT COMPONENT                                                                                                                                              |
+|========== ===== ==================================================================== =========== ===== ========================================                                                                                                               |
+|saphana001 32403 Pool/ColumnStore/Main/Dictionary/RoDict                                   239.27     1 Column Store Tables                                                                                                                                    |
+|saphana001 32403 Pool/ColumnStore/Main/Rowid                                               113.63     1 Column Store Tables                                                                                                                                    |
+|saphana001 32403 Pool/ColumnStore/Main/Compressed/Indirect                                 107.67     1 Column Store Tables                                                                                                                                    |
+|saphana001 32403 Pool/ColumnStore/Main/Index/Single                                         87.61     1 Column Store Tables                                                                                                                                    |
+|saphana001 32403 Pool/ColumnStore/Main/Uncompressed                                         76.17     1 Column Store Tables                                                                                                                                    |
+|saphana001 32403 Pool/PersistenceManager/PersistentSpace/DefaultLPA/Page                    37.80     1 System                                                                                                                                                 |
+|saphana001 32403 Pool/ColumnStore/Main/Dictionary/ValueDict                                 33.90     1 Column Store Tables                                                                                                                                    |
+|saphana001 32403 Pool/PersistenceManager/UnifiedTableContainer                              20.92     1 Column Store Tables                                                                                                                                    |
+|saphana001 32403 Pool/ColumnStore/Main/Compressed/Sparse                                    19.34     1 Column Store Tables                                                                                                                                    |
+|saphana001 32403 Pool/ColumnStore/Main/Compressed/Rle                                       13.27     1 Column Store Tables                                                                                                                                    |
+|saphana001 32403 Pool/PersistenceManager/PersistentSpace/RowStoreLPA                         7.81     1 System                                                                                                                                                 |
+|saphana001 32403 Pool/PersistenceManager/LOBContainerDirectory                               7.79     1 System                                                                                                                                                 |
+|saphana001 32403 Pool/ResourceContainer                                                      5.28     1 System                                                                                                                                                 |
+|saphana001 32403 Pool/PersistenceManager/DisasterRecoverySecondary/ReplayLogCache            5.27     1 System                                                                                                                                                 |
+|saphana001 32403 AllocateOnlyAllocator-unlimited/FLA-UL<24592,1>/MemoryMapLevel3Nodes        4.85     1 System                                                                                                                                                 |
+|saphana001 32403 Pool/ColumnStore/Main/Index/Block                                           2.26     1 Column Store Tables                                                                                                                                    |
+|saphana001 32403 Pool/ColumnStore/Delta/Btreeindex                                           2.12     1 Column Store Tables                                                                                                                                    |
+|saphana001 32403 Pool/ResourceContainer/ResourceHeader                                       2.09     1 System                                                                                                                                                 |
+|saphana001 32403 Pool/ColumnStore/Main/Compressed/Cluster                                    2.05     1 Column Store Tables                                                                                                                                    |
+|saphana001 32403 Pool/PersistenceManager/VarSizeEntryFreeSpaceInformation                    1.57     1 System                                                                                                                                                 |
+|saphana001 32403 Pool/ColumnStore/Delta/LeafNodes                                            1.18     1 Column Store Tables                                                                                                                                    |
+|saphana001 32403 StackAllocator                                                              1.08     1 Statement Execution & Intermediate Results                                                                                                             |
+|saphana001 32407 Pool/PersistenceManager/DisasterRecoverySecondary/ReplayLogCache            1.33     1 System                                                                                                                                                 |
+|                                                                                                                                                                                                                                                               |
+|**************                                                                                                                                                                                                                                                 |
+|* SAVEPOINTS *                                                                                                                                                                                                                                                 |
+|**************                                                                                                                                                                                                                                                 |
+|                                                                                                                                                                                                                                                               |
+|START_TIME          HOST        PORT PURPOSE                        DURATION_S WAITFORLOCK_S CRITICAL_S                                                                                                                                                        |
+|=================== ========== ===== ============================== ========== ============= ==========                                                                                                                                                        |
+|2019-07-16 22:23:08 saphana001 32403 SNAPSHOT_FOR_REPLICATION             0.68          0.00       0.15                                                                                                                                                        |
+|2019-07-16 22:16:47 saphana001 32403 SNAPSHOT_FOR_REPLICATION             0.67          0.00       0.19                                                                                                                                                        |
+|2019-07-16 22:09:37 saphana001 32403 SNAPSHOT_FOR_REPLICATION             0.59          0.00       0.16                                                                                                                                                        |
+|2019-07-16 22:03:57 saphana001 32403 SNAPSHOT_FOR_REPLICATION             0.43          0.00       0.11                                                                                                                                                        |
+|2019-07-16 21:56:52 saphana001 32403 SNAPSHOT_FOR_REPLICATION             0.43          0.00       0.09                                                                                                                                                        |
+|2019-07-16 21:50:34 saphana001 32403 SNAPSHOT_FOR_REPLICATION             0.62          0.00       0.17                                                                                                                                                        |
+|2019-07-16 21:45:01 saphana001 32403 SNAPSHOT_FOR_REPLICATION             0.47          0.00       0.13                                                                                                                                                        |
+|2019-07-16 21:39:55 saphana001 32403 SNAPSHOT_FOR_REPLICATION             0.42          0.00       0.14                                                                                                                                                        |
+|2019-07-16 21:32:08 saphana001 32403 SNAPSHOT_FOR_REPLICATION             0.81          0.00       0.19                                                                                                                                                        |
+|2019-07-16 21:26:59 saphana001 32403 SNAPSHOT_FOR_REPLICATION             1.30          0.00       0.48                                                                                                                                                        |
+|2019-07-16 21:20:24 saphana001 32403 SNAPSHOT_FOR_REPLICATION             0.64          0.00       0.20                                                                                                                                                        |
+|2019-07-16 21:14:52 saphana001 32403 SNAPSHOT_FOR_REPLICATION             0.99          0.00       0.27                                                                                                                                                        |
+|2019-07-16 21:09:33 saphana001 32403 SNAPSHOT_FOR_REPLICATION             0.56          0.00       0.20                                                                                                                                                        |
+|2019-07-16 21:03:07 saphana001 32403 SNAPSHOT_FOR_REPLICATION             0.75          0.00       0.22                                                                                                                                                        |
+|2019-07-16 20:57:15 saphana001 32403 SNAPSHOT_FOR_REPLICATION             1.51          0.00       0.61                                                                                                                                                        |
+|2019-07-16 20:50:33 saphana001 32403 SNAPSHOT_FOR_REPLICATION             0.64          0.00       0.18                                                                                                                                                        |
+|2019-07-16 20:43:58 saphana001 32403 SNAPSHOT_FOR_REPLICATION             0.28          0.00       0.08                                                                                                                                                        |
+|2019-07-16 20:38:34 saphana001 32403 SNAPSHOT_FOR_REPLICATION             0.27          0.00       0.10                                                                                                                                                        |
+|2019-07-16 20:30:58 saphana001 32403 SNAPSHOT_FOR_REPLICATION             0.32          0.00       0.11                                                                                                                                                        |
+|2019-07-16 20:23:08 saphana001 32403 SNAPSHOT_FOR_REPLICATION             0.21          0.00       0.08                                                                                                                                                        |
+|                                                                                                                                                                                                                                                               |
+|***********************                                                                                                                                                                                                                                        |
+|* TABLE OPTIMIZATIONS *                                                                                                                                                                                                                                        |
+|***********************                                                                                                                                                                                                                                        |
+|                                                                                                                                                                                                                                                               |
+|START_TIME          HOST        PORT TYPE    MOTIVATION SCHEMA_NAME TABLE_NAME            DURATION_S RETURN_CODE                                                                                                                                               |
+|=================== ========== ===== ======= ========== =========== ===================== ========== ========================================                                                                                                                  |
+|2019-07-15 12:24:45 saphana001 32403 MERGE   AUTO       SAPBGP      /B28/FH4IVU6F (-2)          1.17 0                                                                                                                                                         |
+|2019-07-15 12:24:44 saphana001 32403 MERGE   AUTO       SAPBGP      RSBODSLOGSTATE              0.01 0                                                                                                                                                         |
+|2019-07-15 12:24:44 saphana001 32403 MERGE   AUTO       SAPBGP      USR02                     442.51 0                                                                                                                                                         |
+|2019-07-15 12:23:36 saphana001 32403 MERGE   AUTO       SAPBGP      /BIC/AFRINTO2800            0.14 0                                                                                                                                                         |
+|2019-07-15 12:23:34 saphana001 32403 MERGE   AUTO       SAPBGP      UJ0_PLANT                   0.05 0                                                                                                                                                         |
+|2019-07-15 12:23:28 saphana001 32403 MERGE   AUTO       SAPBGP      /SOMO/JOBMON11              7.20 0                                                                                                                                                         |
+|2019-07-15 12:23:28 saphana001 32403 MERGE   AUTO       SAPBGP      /BIC/B0000336000 (-2)       9.80 0                                                                                                                                                         |
+|2019-07-15 12:23:06 saphana001 32403 MERGE   AUTO       SAPBGP      /BIC/B0000909000 (-2)       0.01 0                                                                                                                                                         |
+|2019-07-15 12:22:58 saphana001 32403 MERGE   AUTO       SAPBGP      /BIC/B0001012000 (-2)       0.01 0                                                                                                                                                         |
+|2019-07-15 12:22:54 saphana001 32403 MERGE   AUTO       SAPBGP      /SOMO/MA_MAPPING          551.89 0                                                                                                                                                         |
+|2019-07-15 12:22:54 saphana001 32403 MERGE   AUTO       SAPBGP      UJ0_PLAN                    3.89 0                                                                                                                                                         |
+|2019-07-15 12:22:53 saphana001 32403 MERGE   AUTO       SAPBGP      /BIC/AFRINTO1200            0.01 0                                                                                                                                                         |
+|2019-07-15 12:22:52 saphana001 32403 MERGE   AUTO       SAPBGP      /BIC/AFRINTO2840            0.12 0                                                                                                                                                         |
+|2019-07-15 12:22:52 saphana001 32403 MERGE   AUTO       SAPBGP      RSSDBATCH                  34.58 0                                                                                                                                                         |
+|2019-07-15 12:22:50 saphana001 32403 MERGE   AUTO       SAPBGP      /BIC/B0001549000 (-2)       0.19 0                                                                                                                                                         |
+|2019-07-15 12:22:50 saphana001 32403 MERGE   AUTO       SAPBGP      /BIC/SCN_CUST             556.58 0                                                                                                                                                         |
+|2019-07-15 12:22:48 saphana001 32403 MERGE   AUTO       SAPBGP      /BIC/B0001547000 (-2)       5.78 0                                                                                                                                                         |
+|2019-07-15 12:22:47 saphana001 32403 MERGE   AUTO       SAPBGP      RSDMDACTIVATE               0.89 0                                                                                                                                                         |
+|2019-07-15 12:22:47 saphana001 32403 MERGE   AUTO       SAPBGP      ALTSTLOD                    1.13 0                                                                                                                                                         |
+|2019-07-15 12:22:46 saphana001 32403 MERGE   AUTO       SAPBGP      RSBKDATA                  122.69 0                                                                                                                                                         |
+|                                                                                                                                                                                                                                                               |
+|*********************                                                                                                                                                                                                                                          |
+|* DISK I/O OVERVIEW *                                                                                                                                                                                                                                          |
+|*********************                                                                                                                                                                                                                                          |
+|                                                                                                                                                                                                                                                               |
+|HOST        PORT TYPE                  READS AVG_READ_MS AVG_READ_KB       WRITES AVG_WRT_MS AVG_WRT_KB TRIG_READ_PCT TRIG_WRT_PCT                                                                                                                             |
+|========== ===== ============== ============ =========== =========== ============ ========== ========== ============= ============                                                                                                                             |
+|saphana001 32403 CATALOG_BACKUP            0        0.00        0.00            0       0.00       0.00          0.00         0.00                                                                                                                             |
+|saphana001 32403 DATA                3691820       12.92      419.29      7186336       0.50     185.36          0.00         0.00                                                                                                                             |
+|saphana001 32403 DATA_BACKUP               0        0.00        0.00            0       0.00       0.00          0.00         0.00                                                                                                                             |
+|saphana001 32403 LOG                      80      727.11    46923.77     11356403       0.76      76.16          0.00         0.00                                                                                                                             |
+|saphana001 32403 LOG_BACKUP                0        0.00        0.00            0       0.00       0.00          0.00         0.00                                                                                                                             |
+|saphana001 32407 CATALOG_BACKUP            0        0.00        0.00            0       0.00       0.00          0.00         0.00                                                                                                                             |
+|saphana001 32407 DATA                   2954       17.12      198.78         6196       2.24     196.31          0.00         0.00                                                                                                                             |
+|saphana001 32407 DATA_BACKUP               0        0.00        0.00            0       0.00       0.00          0.00         0.00                                                                                                                             |
+|saphana001 32407 LOG                       3        0.99        0.00        21020      11.84       5.98          0.00         0.00                                                                                                                             |
+|saphana001 32407 LOG_BACKUP                0        0.00        0.00            0       0.00       0.00          0.00         0.00                                                                                                                             |
+|                                                                                                                                                                                                                                                               |
+|*********************************************************                                                                                                                                                                                                      |
+|* END OF SAP HANA REMOTE SYSTEM REPLICATION SITE REPORT *                                                                                                                                                                                                      |
+|*********************************************************                                                                                                                                                                                                      |
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+*/  
+
+BASIS_INFO AS
+( SELECT                         /* Modification section */
+    '%' HOST,
+    '%' PORT,
+    20 TOP_N_THREADS,
+    20 TOP_N_SAVEPOINTS,
+    20 TOP_N_TABLE_OPTIMIZATIONS,
+    'X' EXCLUDE_PHANTOM_THREADS,
+    200 MAX_COL_LEN,
+    -1 LINE_LENGTH
+  FROM
+    DUMMY
+),
+THREADS AS
+( SELECT
+    SAMPLE_TIME,
+    HOST,
+    PORT,
+    CONN_ID,
+    THREAD_ID,
+    STATEMENT_HASH,
+    THREAD_TYPE,
+    THREAD_METHOD,
+    THREAD_DETAIL,
+    THREAD_STATE,
+    LOCK_NAME,
+    DB_USER,
+    APP_USER,
+    APP_NAME,
+    APP_SOURCE,
+    DUR_S,
+    CPU_S,
+    MAP(MAX_COL_LEN, -1, HOST_LEN, LEAST(MAX_COL_LEN, HOST_LEN)) HOST_LEN,
+    MAP(MAX_COL_LEN, -1, STATEMENT_HASH_LEN, LEAST(MAX_COL_LEN, STATEMENT_HASH_LEN)) STATEMENT_HASH_LEN,
+    MAP(MAX_COL_LEN, -1, THREAD_TYPE_LEN, LEAST(MAX_COL_LEN, THREAD_TYPE_LEN)) THREAD_TYPE_LEN,
+    MAP(MAX_COL_LEN, -1, THREAD_STATE_LEN, LEAST(MAX_COL_LEN, THREAD_STATE_LEN)) THREAD_STATE_LEN,
+    MAP(MAX_COL_LEN, -1, THREAD_METHOD_LEN, LEAST(MAX_COL_LEN, THREAD_METHOD_LEN)) THREAD_METHOD_LEN,
+    MAP(MAX_COL_LEN, -1, THREAD_DETAIL_LEN, LEAST(MAX_COL_LEN, THREAD_DETAIL_LEN)) THREAD_DETAIL_LEN,
+    MAP(MAX_COL_LEN, -1, LOCK_NAME_LEN, LEAST(MAX_COL_LEN, LOCK_NAME_LEN)) LOCK_NAME_LEN,
+    MAP(MAX_COL_LEN, -1, APP_USER_LEN, LEAST(MAX_COL_LEN, APP_USER_LEN)) APP_USER_LEN,
+    MAP(MAX_COL_LEN, -1, APP_NAME_LEN, LEAST(MAX_COL_LEN, APP_NAME_LEN)) APP_NAME_LEN,
+    MAP(MAX_COL_LEN, -1, APP_SOURCE_LEN, LEAST(MAX_COL_LEN, APP_SOURCE_LEN)) APP_SOURCE_LEN
+  FROM
+  ( SELECT
+      TO_VARCHAR(TIMESTAMP, 'YYYY/MM/DD HH24:MI:SS') SAMPLE_TIME,
+      HOST,
+      PORT,
+      CONN_ID,
+      THREAD_ID,
+      STATEMENT_HASH,
+      THREAD_TYPE,
+      THREAD_METHOD,
+      THREAD_DETAIL,
+      THREAD_STATE,
+      LOCK_NAME,
+      DB_USER,
+      APP_USER,
+      APP_NAME,
+      APP_SOURCE,
+      DUR_S,
+      CPU_S,
+      MAX_COL_LEN,
+      MAX(LENGTH(HOST)) OVER () HOST_LEN,
+      MAX(LENGTH(STATEMENT_HASH)) OVER () STATEMENT_HASH_LEN,
+      GREATEST(11, MAX(LENGTH(THREAD_TYPE)) OVER ()) THREAD_TYPE_LEN,
+      MAX(LENGTH(THREAD_STATE)) OVER () THREAD_STATE_LEN,
+      MAX(LENGTH(THREAD_METHOD)) OVER () THREAD_METHOD_LEN,
+      MAX(LENGTH(THREAD_DETAIL)) OVER () THREAD_DETAIL_LEN,
+      MAX(LENGTH(LOCK_NAME)) OVER () LOCK_NAME_LEN,
+      MAX(LENGTH(APP_USER)) OVER () APP_USER_LEN,
+      MAX(LENGTH(APP_NAME)) OVER () APP_NAME_LEN,
+      MAX(LENGTH(APP_SOURCE)) OVER () APP_SOURCE_LEN
+    FROM
+    ( SELECT
+        ROW_NUMBER () OVER (ORDER BY T.TIMESTAMP DESC, T.HOST, T.PORT, T.CONNECTION_ID, T.THREAD_ID ) ROWNO,
+        T.TIMESTAMP,
+        T.HOST,
+        TO_VARCHAR(T.PORT) PORT,
+        T.CONNECTION_ID CONN_ID,
+        T.THREAD_ID,
+        CASE
+          WHEN T.STATEMENT_HASH = CHAR(63) THEN 'no SQL (' || MAP(T.THREAD_METHOD, CHAR(63), T.THREAD_TYPE, T.THREAD_METHOD) || ')'
+          ELSE T.STATEMENT_HASH
+        END STATEMENT_HASH,
+        CASE
+          WHEN T.THREAD_TYPE LIKE 'JobWrk%' THEN 'JobWorker'
+          ELSE T.THREAD_TYPE
+        END THREAD_TYPE,
+        T.THREAD_METHOD,
+        T.THREAD_DETAIL,
+        T.THREAD_STATE,
+        SUBSTR(T.LOCK_WAIT_NAME, MAP(INSTR(T.LOCK_WAIT_NAME, ':' || CHAR(32)), 0, 1, INSTR(T.LOCK_WAIT_NAME, ':' || CHAR(32)) + 2)) LOCK_NAME,
+        T.USER_NAME DB_USER,
+        T.APPLICATION_USER_NAME APP_USER,
+        T.APPLICATION_NAME APP_NAME,
+        T.APPLICATION_SOURCE APP_SOURCE,
+        TO_DECIMAL(ROUND(T.DURATION / 1000), 10, 0) DUR_S,
+        TO_DECIMAL(ROUND(T.CPU_TIME_SELF / 1000000), 10, 0) CPU_S,
+        BI.MAX_COL_LEN,
+        BI.TOP_N_THREADS
+      FROM
+        BASIS_INFO BI,
+        ( SELECT
+            T.*,
+            T.LOCK_WAIT_NAME LOCK_NAME
+          FROM
+            "<replace_with_remote_site_schema>".M_SERVICE_THREAD_SAMPLES T
+        ) T
+      WHERE
+        T.HOST LIKE BI.HOST AND
+        TO_VARCHAR(T.PORT) LIKE BI.PORT AND
+        T.IS_ACTIVE = 'TRUE' AND
+        T.CONNECTION_ID != CURRENT_CONNECTION AND
+        ( BI.EXCLUDE_PHANTOM_THREADS = ' ' OR NOT
+          ( T.THREAD_TYPE = 'AgentPingThread'                     AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'DPPeriodicThreadWaitSemaphore'                                  OR
+            T.THREAD_TYPE = 'BackupMonitor_TransferThread'        AND T.THREAD_STATE = 'Sleeping'                                                                                                     OR
+            T.THREAD_TYPE = 'ChildIOThreads::ErrorStream'         AND T.THREAD_STATE = 'Running'                                                                                                      OR
+            T.THREAD_TYPE = 'ChildIOThreads::OutputStream'        AND T.THREAD_STATE = 'Running'                                                                                                      OR
+            T.THREAD_TYPE LIKE 'DPDistributor%'                   AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'DPCommitTranPersistentDistributorQueueReaderAvailableSemaphore' OR
+            T.THREAD_TYPE LIKE 'DPReceiverCleaner%'               AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'DPPersistentTranDataCleanerDataAvailableSemaphore'              OR
+            T.THREAD_TYPE LIKE 'DPReceiverWriter%'                AND T.THREAD_STATE LIKE 'ConditionalVar% Wait'   AND T.LOCK_NAME = 'DPReceiverInboundQueueEmptyCond'                                OR
+            T.THREAD_TYPE = 'Generic'                             AND T.THREAD_STATE = 'Running'                                                                                                      OR
+            T.THREAD_TYPE = 'IndexingQueue'                       AND T.THREAD_STATE = 'Sleeping'                                                                                                     OR
+            T.THREAD_TYPE = 'JobWorker'                           AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'DPReceiverHouseKeepingTaskAvailableSemaphore'                   OR
+            T.THREAD_TYPE = 'LogRecovery'                         AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'LogRecoveryPointInTimeQueue'                                    OR
+            T.THREAD_TYPE = 'MaintenanceThread'                   AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'DPPeriodicThreadWaitSemaphore'                                  OR
+            T.THREAD_TYPE = 'Native'                              AND T.THREAD_DETAIL LIKE '%sysv_open_semaphore%'                                                                                    OR
+            T.THREAD_TYPE = 'PostCommitExecutor'                  AND T.THREAD_STATE LIKE 'ConditionalVar% Wait'   AND T.LOCK_NAME = 'RegularTaskQueueCV'                                             OR
+            T.THREAD_TYPE = 'PriPostCommitExecutor'               AND T.THREAD_STATE LIKE 'ConditionalVar% Wait'   AND T.LOCK_NAME = 'PrioritizedTaskQueueCV'                                         OR
+            T.THREAD_TYPE = 'StatsThread'                         AND T.THREAD_STATE LIKE 'ConditionalVar% Wait'   AND T.LOCK_NAME = 'DPStatsThreadCond'                                              OR
+            T.THREAD_TYPE = 'PushBufferIntoReplayThread'          AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'system replication: push buffer into replay semaphore'          OR
+            T.THREAD_TYPE = 'SecondarySlaveLogPositionSendThread' AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'system replication: slave log position send semaphore'          OR
+            T.THREAD_TYPE = 'SystemReplicationAsyncLogSender'     AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'system replication: AsyncLogBufferHandlerQueueSem'
+          )
+        )
+      )
+    WHERE
+    ( TOP_N_THREADS = -1 or ROWNO <= TOP_N_THREADS )
+  )
+),
+HEAP_ALLOCATORS AS
+( SELECT
+    H.HOST,
+    H.PORT,
+    H.CATEGORY HEAP_ALLOCATOR,
+    TO_DECIMAL(SUM(H.EXCLUSIVE_SIZE_IN_USE) / 1024 / 1024 / 1024, 10, 2) MEM_USED_GB,
+    COUNT(*) COUNT,
+    MAX(H.COMPONENT) COMPONENT,
+    MAX(LENGTH(H.HOST)) OVER () HOST_LEN,
+    MAX(LENGTH(H.CATEGORY)) OVER () HEAP_ALLOCATOR_LEN
+  FROM
+    BASIS_INFO BI,
+    "<replace_with_remote_site_schema>".M_HEAP_MEMORY H
+  WHERE
+    H.HOST LIKE BI.HOST AND
+    TO_VARCHAR(H.PORT) LIKE BI.PORT
+  GROUP BY
+    H.HOST,
+    H.PORT,
+    H.CATEGORY
+  HAVING
+    SUM(H.EXCLUSIVE_SIZE_IN_USE) / 1024 / 1024 / 1024 >= 1
+),
+OOM_EVENTS AS
+( SELECT
+    O.TIME TIMESTAMP,
+    O.HOST,
+    O.PORT,
+    O.STATEMENT_HASH,
+    O.EVENT_REASON,
+    TO_DECIMAL(O.MEMORY_USED_SIZE / 1024 / 1024 / 1024, 10, 2) USED_GB,
+    TO_DECIMAL(O.MEMORY_REQUEST_SIZE / 1024 / 1024 / 1024, 10, 2) REQUESTED_GB,
+    MAX(LENGTH(O.HOST)) OVER () HOST_LEN
+  FROM
+    BASIS_INFO BI,
+    "<replace_with_remote_site_schema>".M_OUT_OF_MEMORY_EVENTS O
+  WHERE
+    O.HOST LIKE BI.HOST AND
+    TO_VARCHAR(O.PORT) LIKE BI.PORT
+),
+SAVEPOINTS AS
+( SELECT
+    S.*,
+    MAX(LENGTH(S.HOST)) OVER () HOST_LEN
+  FROM
+  ( SELECT
+      ROW_NUMBER() OVER (ORDER BY S.START_TIME, S.HOST, S.PORT) ROWNO,
+      S.START_TIME,
+      S.HOST,
+      S.PORT,
+      S.PURPOSE,
+      TO_DECIMAL(S.DURATION / 1000 / 1000, 10, 2) DURATION_S,
+      TO_DECIMAL((S.BLOCKING_PHASE_DURATION - S.CRITICAL_PHASE_DURATION) / 1000 / 1000, 10, 2) WAITFORLOCK_S,
+      TO_DECIMAL(S.CRITICAL_PHASE_DURATION / 1000 / 1000, 10, 2) CRITICAL_S,
+      BI.TOP_N_SAVEPOINTS
+    FROM
+      BASIS_INFO BI,
+      "<replace_with_remote_site_schema>".M_SAVEPOINTS S
+    WHERE
+      S.HOST LIKE BI.HOST AND
+      TO_VARCHAR(S.PORT) LIKE BI.PORT
+  ) S
+  WHERE
+    ( TOP_N_SAVEPOINTS = -1 OR ROWNO <= TOP_N_SAVEPOINTS )
+),
+TABLE_OPTIMIZATIONS AS
+( SELECT
+    O.*,
+    MAX(LENGTH(O.HOST)) OVER () HOST_LEN,
+    GREATEST(11, MAX(LENGTH(O.SCHEMA_NAME)) OVER ()) SCHEMA_LEN,
+    GREATEST(10, MAX(LENGTH(O.TABLE_NAME)) OVER ()) TABLE_LEN
+  FROM
+  ( SELECT
+      ROW_NUMBER() OVER (ORDER BY O.START_TIME, O.HOST, O.PORT, O.SCHEMA_NAME, O.TABLE_NAME) ROWNO,
+      O.START_TIME,
+      O.HOST,
+      O.PORT,
+      O.TYPE,
+      O.MOTIVATION,
+      O.SCHEMA_NAME,
+      O.TABLE_NAME || MAP(O.PART_ID, 0, '', CHAR(32) || '(' || O.PART_ID || ')') TABLE_NAME,
+      TO_DECIMAL(O.EXECUTION_TIME / 1000, 10, 2) DURATION_S,
+      MAP(LAST_ERROR, '0', '0', LAST_ERROR || CHAR(32) || ERROR_DESCRIPTION) ERROR,
+      BI.TOP_N_TABLE_OPTIMIZATIONS
+    FROM
+      BASIS_INFO BI,
+      "<replace_with_remote_site_schema>".M_DELTA_MERGE_STATISTICS O
+    WHERE
+      O.HOST LIKE BI.HOST AND
+      TO_VARCHAR(O.PORT) LIKE BI.PORT
+  ) O
+  WHERE
+    ( TOP_N_TABLE_OPTIMIZATIONS = -1 OR ROWNO <= TOP_N_TABLE_OPTIMIZATIONS )
+),
+DISK_IO AS
+( SELECT
+    I.HOST,
+    I.PORT,
+    I.TYPE,
+    I.TOTAL_READS + I.TOTAL_TRIGGER_ASYNC_READS READS,
+    TO_DECIMAL(I.TOTAL_READ_SIZE / 1024 / 1024 / 1024, 10, 2) READ_GB,
+    I.TOTAL_READ_TIME / 1000000 READ_S,
+    I.TRIGGER_READ_RATIO,
+    I.TOTAL_WRITES + I.TOTAL_TRIGGER_ASYNC_WRITES WRITES,
+    TO_DECIMAL(I.TOTAL_WRITE_SIZE / 1024 / 1024 / 1024, 10, 2) WRITE_GB,
+    I.TOTAL_WRITE_TIME / 1000000 WRITE_S,
+    I.TRIGGER_WRITE_RATIO,
+    MAX(LENGTH(I.HOST)) OVER () HOST_LEN
+  FROM
+    BASIS_INFO BI,
+    "<replace_with_remote_site_schema>".M_VOLUME_IO_TOTAL_STATISTICS_RESET I
+  WHERE
+    I.HOST LIKE BI.HOST AND
+    TO_VARCHAR(I.PORT) LIKE BI.PORT
+    
+)
+SELECT MAP(BI.LINE_LENGTH, -1, LINE, SUBSTR(LINE, 1, LINE_LENGTH)) LINE FROM BASIS_INFO BI, ( 
+SELECT       5 LINE_NO, '**************************************************' LINE FROM DUMMY
+UNION ALL SELECT    10, '* SAP HANA REMOTE SYSTEM REPLICATION SITE REPORT *' FROM DUMMY
+UNION ALL SELECT    20, '**************************************************' FROM DUMMY
+UNION ALL SELECT    30, '' FROM DUMMY
+UNION ALL SELECT    90, RPAD('Generated with:', 27) || 'SQL: "HANA_Global_RemoteSystemReplicationSiteReport" (SAP Note 1969700)' FROM DUMMY
+UNION ALL SELECT   100, RPAD('Analysis time:',  27) || TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYY/MM/DD HH24:MI:SS')                    FROM DUMMY
+UNION ALL SELECT   125, RPAD('System ID / database name:', 27) || SYSTEM_ID || CHAR(32) || '/' || CHAR(32) || DATABASE_NAME      FROM M_DATABASE
+UNION ALL SELECT   127, RPAD('Revision level:', 27) || VERSION                                                                   FROM M_DATABASE
+UNION ALL SELECT   128, RPAD('Proxy schema:',   27) || '<replace_with_remote_site_schema>'                                       FROM DUMMY
+UNION ALL SELECT   130, RPAD('Host:',           27) || MAP(HOST, '%', 'all', HOST)                                               FROM BASIS_INFO
+UNION ALL SELECT   140, RPAD('Port:',           27) || MAP(PORT, '%', 'all', PORT)                                               FROM BASIS_INFO
+UNION ALL SELECT  1000, '' FROM DUMMY
+UNION ALL SELECT  1010, '******************' FROM DUMMY
+UNION ALL SELECT  1020, '* THREAD SAMPLES *' FROM DUMMY
+UNION ALL SELECT  1030, '******************' FROM DUMMY
+UNION ALL SELECT  1040, '' FROM DUMMY
+UNION ALL SELECT  1050, RPAD('SAMPLE_TIME', 19) || CHAR(32) || RPAD('HOST', HOST_LEN) || CHAR(32) || LPAD('PORT', 5) || CHAR(32) ||
+  LPAD('CONN_ID', 10) || CHAR(32) || LPAD('THREAD_ID', 9) || CHAR(32) || LPAD('DUR_S', 5) || CHAR(32) || LPAD('CPU_S', 5) || CHAR(32) ||
+  RPAD('THREAD_TYPE', THREAD_TYPE_LEN) || CHAR(32) || RPAD('STATE', THREAD_STATE_LEN ) || CHAR(32) || RPAD('LOCK_NAME', LOCK_NAME_LEN) || CHAR(32) || RPAD('STATEMENT_HASH', STATEMENT_HASH_LEN) || CHAR(32) ||
+  RPAD('THREAD_METHOD', THREAD_METHOD_LEN) || CHAR(32) || RPAD('APP_USER', APP_USER_LEN) || CHAR(32) || RPAD('APP_NAME', APP_NAME_LEN) || CHAR(32) || 
+  RPAD('APP_SOURCE', APP_SOURCE_LEN) || CHAR(32) || RPAD('THREAD_DETAIL', THREAD_DETAIL_LEN)
+  FROM BASIS_INFO, ( SELECT TOP 1 * FROM THREADS )
+UNION ALL SELECT  1060, RPAD('=', 19, '=') || CHAR(32) || RPAD('=', HOST_LEN, '=') || CHAR(32) || LPAD('=', 5, '=') || CHAR(32) || 
+  LPAD('=', 10, '=') || CHAR(32) || LPAD('=', 9, '=') || CHAR(32) || LPAD('=', 5, '=') || CHAR(32) || LPAD('=', 5, '=') || CHAR(32) ||
+  RPAD('=', THREAD_TYPE_LEN, '=') || CHAR(32) || RPAD('=', THREAD_STATE_LEN, '=') || CHAR(32) || RPAD('=', LOCK_NAME_LEN, '=') || CHAR(32) || RPAD('=', STATEMENT_HASH_LEN, '=') || CHAR(32) ||
+  RPAD('=', THREAD_METHOD_LEN, '=') || CHAR(32) || RPAD('=', APP_USER_LEN, '=') || CHAR(32) || RPAD('=', APP_NAME_LEN, '=') || CHAR(32) || 
+  RPAD('=', APP_SOURCE_LEN, '=') || CHAR(32) || RPAD('=', THREAD_DETAIL_LEN, '=')
+  FROM BASIS_INFO, ( SELECT TOP 1 * FROM THREADS )
+UNION ALL
+SELECT
+  1070 + ROW_NUMBER() OVER (ORDER BY SAMPLE_TIME DESC, HOST, PORT, CONN_ID, THREAD_ID),
+  RPAD(SAMPLE_TIME, 19) || CHAR(32) || RPAD(HOST, HOST_LEN) || CHAR(32) || LPAD(PORT, 5) || CHAR(32) ||
+  LPAD(CONN_ID, 10) || CHAR(32) || LPAD(THREAD_ID, 9) || CHAR(32) || LPAD(DUR_S, 5) || CHAR(32) || LPAD(CPU_S, 5) || CHAR(32) ||
+  RPAD(THREAD_TYPE, THREAD_TYPE_LEN) || CHAR(32) ||
+  RPAD(THREAD_STATE, THREAD_STATE_LEN) || CHAR(32) ||
+  RPAD(LOCK_NAME, LOCK_NAME_LEN) || CHAR(32) ||
+  RPAD(STATEMENT_HASH, STATEMENT_HASH_LEN) || CHAR(32) ||
+  RPAD(THREAD_METHOD, THREAD_METHOD_LEN) || CHAR(32) || 
+  RPAD(APP_USER, APP_USER_LEN) || CHAR(32) ||
+  RPAD(APP_NAME, APP_NAME_LEN) || CHAR(32) ||
+  RPAD(APP_SOURCE, APP_SOURCE_LEN) || CHAR(32) ||
+  RPAD(THREAD_DETAIL, THREAD_DETAIL_LEN)
+FROM
+  THREADS
+UNION ALL SELECT 20000, '' FROM DUMMY
+UNION ALL SELECT 20010, '******************' FROM DUMMY
+UNION ALL SELECT 20020, '* MEMORY DETAILS *' FROM DUMMY
+UNION ALL SELECT 20030, '******************' FROM DUMMY
+UNION ALL SELECT 20040, '' FROM DUMMY
+UNION ALL SELECT 20050, RPAD('HOST', HOST_LEN) || CHAR(32) || LPAD('PORT', 5) || CHAR(32) || RPAD('HEAP_ALLOCATOR', H.HEAP_ALLOCATOR_LEN) || CHAR(32) ||
+  LPAD('MEM_USED_GB', 11) || CHAR(32) || LPAD('COUNT', 5) || CHAR(32) ||
+  RPAD('COMPONENT', 40) FROM BASIS_INFO, ( SELECT TOP 1 * FROM HEAP_ALLOCATORS ) H
+UNION ALL SELECT 20060, RPAD('=', HOST_LEN, '=') || CHAR(32) || LPAD('=', 5, '=') || CHAR(32) || 
+  RPAD('=', H.HEAP_ALLOCATOR_LEN, '=') || CHAR(32) || LPAD('=', 11, '=') || CHAR(32) || LPAD('=', 5, '=') || CHAR(32) ||
+  RPAD('=', 40, '=') FROM BASIS_INFO, ( SELECT TOP 1 * FROM HEAP_ALLOCATORS ) H
+UNION ALL
+SELECT
+  20100 + ROW_NUMBER () OVER (ORDER BY H.HOST, H.PORT, H.MEM_USED_GB DESC),
+  RPAD(H.HOST, HOST_LEN) || CHAR(32) || LPAD(H.PORT, 5) || CHAR(32) ||
+  RPAD(H.HEAP_ALLOCATOR, H.HEAP_ALLOCATOR_LEN) || CHAR(32) || LPAD(H.MEM_USED_GB, 11) || CHAR(32) || LPAD(H.COUNT, 5) || CHAR(32) ||
+  H.COMPONENT
+FROM
+  BASIS_INFO BI,
+  HEAP_ALLOCATORS H
+UNION ALL SELECT 21050, RPAD('TIMESTAMP', 19) || CHAR(32) || RPAD('HOST', HOST_LEN) || CHAR(32) || LPAD('PORT', 5) || CHAR(32) ||
+  RPAD('STATEMENT_HASH', 32) || CHAR(32) || RPAD('EVENT_REASON', 32) || CHAR(32) || LPAD('USED_GB', 10) || CHAR(32) || LPAD('REQUESTED_GB', 12)
+  FROM BASIS_INFO, ( SELECT TOP 1 * FROM OOM_EVENTS ) O
+UNION ALL SELECT 21060, RPAD('=', 19, '=') || CHAR(32) || RPAD('=', HOST_LEN, '=') || CHAR(32) || LPAD('=', 5, '=') || CHAR(32) || 
+  RPAD('=', 32, '=') || CHAR(32) || RPAD('=', 32, '=') || CHAR(32) || LPAD('=', 10, '=') || CHAR(32) || LPAD('=', 12, '=')
+  FROM BASIS_INFO, ( SELECT TOP 1 * FROM OOM_EVENTS ) O
+UNION ALL
+SELECT
+  21100 + ROW_NUMBER () OVER (ORDER BY O.TIMESTAMP, O.HOST, O.PORT),
+  RPAD(O.TIMESTAMP, 19) || CHAR(32) || RPAD(O.HOST, O.HOST_LEN) || CHAR(32) || LPAD(O.PORT, 5) || CHAR(32) ||
+  RPAD(O.STATEMENT_HASH, 32) || CHAR(32) || RPAD(O.EVENT_REASON, 32) || CHAR(32) || LPAD(O.USED_GB, 10) || CHAR(32) || LPAD(O.REQUESTED_GB, 12)
+FROM
+  OOM_EVENTS O
+UNION ALL SELECT 30000, '' FROM DUMMY
+UNION ALL SELECT 30010, '**************' FROM DUMMY
+UNION ALL SELECT 30020, '* SAVEPOINTS *' FROM DUMMY
+UNION ALL SELECT 30030, '**************' FROM DUMMY
+UNION ALL SELECT 30040, '' FROM DUMMY
+UNION ALL SELECT 30050, RPAD('START_TIME', 19) || CHAR(32) || RPAD('HOST', HOST_LEN) || CHAR(32) || LPAD('PORT', 5) || CHAR(32) || 
+  RPAD('PURPOSE', 30) || CHAR(32) || LPAD('DURATION_S', 10) || CHAR(32) || LPAD('WAITFORLOCK_S', 13) || CHAR(32) || LPAD('CRITICAL_S', 10)
+  FROM BASIS_INFO, (SELECT TOP 1 * FROM SAVEPOINTS ) S
+UNION ALL SELECT 30060, RPAD('=', 19, '=') || CHAR(32) || RPAD('=', HOST_LEN, '=') || CHAR(32) || LPAD('=', 5, '=') || CHAR(32) ||
+  RPAD('=', 30, '=') || CHAR(32) || LPAD('=', 10, '=') || CHAR(32) || LPAD('=', 13, '=') || CHAR(32) || LPAD('=', 10, '=')
+  FROM BASIS_INFO, (SELECT TOP 1 * FROM SAVEPOINTS ) S
+UNION ALL
+SELECT
+  30100 + ROW_NUMBER() OVER (ORDER BY START_TIME DESC, HOST, PORT),
+  RPAD(START_TIME, 19) || CHAR(32) || RPAD(HOST, HOST_LEN) || CHAR(32) || LPAD(PORT, 5) || CHAR(32) || 
+  RPAD(PURPOSE, 30) || CHAR(32) || LPAD(DURATION_S, 10) || CHAR(32) || LPAD(WAITFORLOCK_S, 13) || CHAR(32) || LPAD(CRITICAL_S, 10)
+  FROM SAVEPOINTS
+UNION ALL SELECT 40000, '' FROM DUMMY
+UNION ALL SELECT 40010, '***********************' FROM DUMMY
+UNION ALL SELECT 40020, '* TABLE OPTIMIZATIONS *' FROM DUMMY
+UNION ALL SELECT 40030, '***********************' FROM DUMMY
+UNION ALL SELECT 40040, '' FROM DUMMY
+UNION ALL SELECT 40050, RPAD('START_TIME', 19) || CHAR(32) || RPAD('HOST', HOST_LEN) || CHAR(32) || LPAD('PORT', 5) || CHAR(32) || 
+  RPAD('TYPE', 7) || CHAR(32) || RPAD('MOTIVATION', 10) || CHAR(32) || RPAD('SCHEMA_NAME', SCHEMA_LEN) || CHAR(32) || RPAD('TABLE_NAME', TABLE_LEN) || CHAR(32) ||
+  LPAD('DURATION_S', 10) || CHAR(32) || 'RETURN_CODE'
+  FROM BASIS_INFO, (SELECT TOP 1 * FROM TABLE_OPTIMIZATIONS ) O
+UNION ALL SELECT 40060, RPAD('=', 19, '=') || CHAR(32) || RPAD('=', HOST_LEN, '=') || CHAR(32) || LPAD('=', 5, '=') || CHAR(32) ||
+  RPAD('=', 7, '=') || CHAR(32) || RPAD('=', 10, '=') || CHAR(32) || RPAD('=', SCHEMA_LEN, '=') || CHAR(32) || RPAD('=', TABLE_LEN, '=') || CHAR(32) ||
+  LPAD('=', 10, '=') || CHAR(32) || RPAD('=', 40, '=')
+  FROM BASIS_INFO, (SELECT TOP 1 * FROM TABLE_OPTIMIZATIONS ) S
+UNION ALL
+SELECT
+  40100 + ROW_NUMBER() OVER (ORDER BY START_TIME DESC, HOST, PORT),
+  RPAD(START_TIME, 19) || CHAR(32) || RPAD(HOST, HOST_LEN) || CHAR(32) || LPAD(PORT, 5) || CHAR(32) || 
+  RPAD(TYPE, 7) || CHAR(32) || RPAD(MOTIVATION, 10) || CHAR(32) || RPAD(SCHEMA_NAME, SCHEMA_LEN) || CHAR(32) || RPAD(TABLE_NAME, TABLE_LEN) || CHAR(32) ||
+  LPAD(DURATION_S, 10) || CHAR(32) || ERROR
+  FROM TABLE_OPTIMIZATIONS
+UNION ALL SELECT 50000, '' FROM DUMMY
+UNION ALL SELECT 50010, '*********************' FROM DUMMY
+UNION ALL SELECT 50020, '* DISK I/O OVERVIEW *' FROM DUMMY
+UNION ALL SELECT 50030, '*********************' FROM DUMMY
+UNION ALL SELECT 50040, '' FROM DUMMY
+UNION ALL SELECT 50050, RPAD('HOST', HOST_LEN) || CHAR(32) || LPAD('PORT', 5) || CHAR(32) || RPAD('TYPE', 14) || CHAR(32) || 
+  LPAD('READS', 12) || CHAR(32) || LPAD('AVG_READ_MS', 11) || CHAR(32) || LPAD('AVG_READ_KB', 11) || CHAR(32) ||
+  LPAD('WRITES', 12) || CHAR(32) || LPAD('AVG_WRT_MS', 10) || CHAR(32) || LPAD('AVG_WRT_KB', 10) || CHAR(32) ||
+  LPAD('TRIG_READ_PCT', 13) || CHAR(32) || LPAD('TRIG_WRT_PCT', 12)
+  FROM BASIS_INFO, (SELECT TOP 1 * FROM DISK_IO ) I
+UNION ALL SELECT 50060, RPAD('=', HOST_LEN, '=') || CHAR(32) || LPAD('=', 5, '=') || CHAR(32) || RPAD('=', 14, '=') || CHAR(32) || 
+  LPAD('=', 12, '=') || CHAR(32) || LPAD('=', 11, '=') || CHAR(32) || LPAD('=', 11, '=') || CHAR(32) ||
+  LPAD('=', 12, '=') || CHAR(32) || LPAD('=', 10, '=') || CHAR(32) || LPAD('=', 10, '=') || CHAR(32) ||
+  LPAD('=', 13, '=') || CHAR(32) || LPAD('=', 12, '=')
+  FROM BASIS_INFO, (SELECT TOP 1 * FROM DISK_IO ) I
+UNION ALL
+SELECT
+  50100 + ROW_NUMBER() OVER (ORDER BY HOST, PORT, TYPE),
+  RPAD(HOST, HOST_LEN) || CHAR(32) || LPAD(PORT, 5) || CHAR(32) || RPAD(TYPE, 14) || CHAR(32) || 
+  LPAD(READS, 12) || CHAR(32) || LPAD(TO_DECIMAL(MAP(READS, 0, 0, READ_S / READS * 1000), 10, 2) , 11) || CHAR(32) || LPAD(TO_DECIMAL(MAP(READS, 0, 0, READ_GB / READS * 1024 * 1024), 10, 2), 11) || CHAR(32) ||
+  LPAD(WRITES, 12) || CHAR(32) || LPAD(TO_DECIMAL(MAP(WRITES, 0, 0, WRITE_S / WRITES * 1000), 10, 2) , 10) || CHAR(32) || LPAD(TO_DECIMAL(MAP(WRITES, 0, 0, WRITE_GB / WRITES * 1024 * 1024), 10, 2), 10) || CHAR(32) ||
+  LPAD(TO_DECIMAL(TRIGGER_READ_RATIO, 10, 2), 13) || CHAR(32) || LPAD(TO_DECIMAL(TRIGGER_WRITE_RATIO, 10, 2), 12)
+  FROM DISK_IO
+UNION ALL SELECT 1000000, '' FROM DUMMY
+UNION ALL SELECT 1000010, '*********************************************************' FROM DUMMY
+UNION ALL SELECT 1000020, '* END OF SAP HANA REMOTE SYSTEM REPLICATION SITE REPORT *' FROM DUMMY
+UNION ALL SELECT 1000030, '*********************************************************' FROM DUMMY
+)
+ORDER BY
+  LINE_NO

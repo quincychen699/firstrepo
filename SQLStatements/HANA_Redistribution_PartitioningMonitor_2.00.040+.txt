@@ -1,0 +1,226 @@
+WITH 
+
+/* 
+
+[NAME]
+
+- HANA_Redistribution_PartitioningMonitor_2.00.040+
+
+[DESCRIPTION]
+
+- Displays start time, estimated time of completion and current memory consumption during online table partitioning 
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- SAP Note 2874176 - Parameter Recommendations for Online Table Operations
+- unified table container considered too big, check base value before start
+- monitor log space on your own using e.g. df -k to avoid disk full during partitioning of bigger tables
+- estimated end time of partitioning is only based on record count and not including final merge time 
+  this final phase may take up to an hour for bigger objects (1 TB e.g.)  
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.040
+
+[SQL COMMAND VERSION]
+
+- 2020/03/15:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_ACTIVE_STATEMENTS
+- M_CS_TABLES
+- M_HEAP_MEMORY
+- M_SERVICE_REPLICATION
+- M_TABLE_LOB_STATISTICS
+
+INPUT PARAMETERS]
+
+- TABLE_NAME           
+
+  Table name 
+
+  'T000'          --> Specific table T000
+  
+- HOST
+
+  Host name or pattern
+  
+  'host234'       --> Specific host host234  
+  'h%'            --> All hosts starting with 'h'
+  '%'             --> All hosts
+  
+- PORT   
+ 
+  Port 
+
+  '30003'         --> Specific Port 30003
+  '%'             --> No port restriction
+  
+[OUTPUT PARAMETERS]
+
+- REPLICA_START:       Start of partitioning
+- CUR_TIME_STAMP:      Time of execution of monitoring script
+- EST_COMPL_TIME:      Estimated time of completion of partitioning
+- PROG_PCT:            Progress based on number or table records only
+- PART_MEM_GB:         Memory needed for partitioning consisting of statement_memory, replica memory (main+delta), unified table container
+                       Statement memory is typically low ~ < 60GB also for bigger tables
+                       High memory consumption results from replica in main and delta
+                       Without adjustment to the merge function it might be required to merge the replica manually to avoid high memory consumption
+                       For tables with fulltext indexes the statement memory consumption has been noted to be much higher
+- REP_BL_GB:           Replay backlog size 
+- REP_LAST_MERGE_TIME: Last merge time of any partition of the replica
+- MERGE_COMMAND:       Merge command if needed
+- SOURCE_TABLE_NAME:   Table name of table that is being partition from user selection 
+- REP_DELTA_GB:        Delta size of replica
+- UNIF_TAB_CONT_GB:    Size of unified table container
+- STMT_MEM_GB:         Current value of statement memory for ongoing partitioning
+- SRC_TAB_MEM_GB:      Current size of table that is being partition from user selection  
+- REP_MEM_GB:          Current size of replica 
+- REPLICA_NAME:        Name of replica
+- REPLICA_RECORDS:     Number of records in replica  
+- SOURCE_RECORDS:      Number of records in source table
+
+[EXAMPLE OUTPUT]
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|REPLICA_START      |CUR_TIME_STAMP     |EST_COMPL_TIME  |PROGRESS_IN_PERC|CUR_MEM_FOR_PART_GB|REPLAY_BACKLOG_SIZE_GB|REP_LAST_MERGE_TIME|MERGE_COMMAND                                                |SOURCE_TABLE_NAME|REPLICA_DELTA_GB|UNIF_TAB_CONT_GB|STMT_MEM_GB|SOURCE_TABLE_MEM_SIZE_GB|REPLICA_MEM_SIZE_GB|REPLICA_NAME                       |REPLICA_RECORD_COUNT|SOURCE_RECORD_COUNT|
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|2020-03-09 15:03:53|2020-03-09 15:03:50|2020-03-10 12:03|2               |280                |14                    |2020-03-09 15:32:53|MERGE DELTA OF "SAPERP"."_SYS_OMR_ACDOCA#4620693217683621786"|ACDOCA           |60              |157             |1          |782                     |62                 |_SYS_OMR_ACDOCA#4620693217683621786|280669337           |13192597487        |
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+BASIS_INFO AS
+( SELECT                   /* Modification section */
+    'ACDOCA' TABLE_NAME,
+    '%' HOST,
+    '%' PORT
+  FROM
+    DUMMY
+),
+SOURCE AS
+( SELECT
+    SMCS.TABLE_NAME,
+    SMCS.SCHEMA_NAME,
+    SUM(SMCS.MAX_ROWID) RECORD_COUNT,
+    CEIL(SUM(SMCS.MEMORY_SIZE_IN_TOTAL / 1024 / 1024 / 1024 )) MEMORY
+  FROM
+    BASIS_INFO BI,
+    M_CS_TABLES SMCS
+  WHERE 
+    SMCS.TABLE_NAME = BI.TABLE_NAME
+  GROUP BY
+    SMCS.TABLE_NAME,
+    SMCS.SCHEMA_NAME
+),
+REPLICA AS  
+( SELECT 
+    RMCS.TABLE_NAME,
+    MIN(RMCS.CREATE_TIME) START_TIME,
+    SUM(RMCS.MAX_ROWID) RECORD_COUNT,
+    CEIL(SUM(RMCS.MEMORY_SIZE_IN_TOTAL / 1024 / 1024 / 1024)) MEMORY,
+    CEIL(MAP(SUM(RMCS.MEMORY_SIZE_IN_DELTA), 0, 0, SUM(RMCS.MEMORY_SIZE_IN_DELTA) / 1024 / 1024 / 1024 )) DELTA_GB,
+    SUBSTR(MAX(RMCS.LAST_MERGE_TIME), 1, 19) LAST_MERGE_TIME
+  FROM
+    BASIS_INFO BI,
+    M_CS_TABLES RMCS
+  WHERE 
+    RMCS.TABLE_NAME LIKE '_SYS_OMR_' || BI.TABLE_NAME || '%'
+  GROUP BY
+    RMCS.TABLE_NAME
+),
+MEMORY AS
+( SELECT
+    CEIL(SUM(HEAP.INCLUSIVE_SIZE_IN_USE / 1024 / 1024 / 1024)) UNIFTABCONTAINER
+  FROM
+    BASIS_INFO BI,
+    M_HEAP_MEMORY HEAP
+  WHERE
+    HEAP.HOST LIKE '%' || BI.HOST || '%' AND
+    TO_VARCHAR(HEAP.PORT) LIKE BI.PORT AND
+    CATEGORY = 'Pool/PersistenceManager/UnifiedTableContainer'
+),
+REPLAY AS          
+( SELECT 
+    CEIL(SUM(REP.REPLAY_BACKLOG_SIZE) / 1024 / 1024 / 1024) DELAY_GB
+  FROM
+    BASIS_INFO BI,
+    M_SERVICE_REPLICATION REP
+  WHERE
+    TO_VARCHAR(REP.PORT) LIKE BI.PORT
+),
+STATEMENT AS
+( SELECT TOP 1
+    CEIL(MAS.ALLOCATED_MEMORY_SIZE / 1024 / 1024 / 1024) ALLOC_MEM_GB,
+    CONNECTION_ID CONN_ID
+  FROM
+    BASIS_INFO BI,
+    M_ACTIVE_STATEMENTS MAS
+  WHERE
+    UPPER(MAS.STATEMENT_STRING) LIKE '%ALTER%' || BI.TABLE_NAME || '%PARTITION%' AND
+    MAS.PLAN_ID = 0
+  ORDER BY
+    COMPILED_TIME
+),
+CURRENT AS
+( SELECT
+    CURRENT_TIMESTAMP CUR_TS
+  FROM
+    DUMMY
+)
+SELECT
+  IFNULL(SUBSTR(REPLICA_START, 1, 19), '') REPLICA_START,
+  IFNULL(SUBSTR(CUR_TIME_STAMP, 1, 19), '') CUR_TIME_STAMP,
+  IFNULL(SUBSTR(ADD_SECONDS(REPLICA_START, 100 / PROGRESS_IN_PERC * (SECONDS_BETWEEN(REPLICA_START, CUR_TIME_STAMP))), 1, 19), '') EST_COMPL_TIME,
+  IFNULL(LPAD(PROGRESS_IN_PERC, 8), '') PROG_PCT,
+  IFNULL(LPAD(CUR_MEM_FOR_PART_GB, 11), '') PART_MEM_GB,
+  IFNULL(LPAD(IFNULL(REPLAY_BACKLOG_SIZE_GB, 0), 9), '') REP_BL_GB,
+  IFNULL(REP_LAST_MERGE_TIME, '') REP_LAST_MERGE_TIME, 
+  IFNULL('MERGE DELTA OF ' || '"' || SOURCE_SCHEMA_NAME || '"."' || REPLICA_NAME || '"', '') MERGE_COMMAND,
+  SOURCE_TABLE_NAME,
+  IFNULL(LPAD(REPLICA_DELTA_GB, 12), '') REP_DELTA_GB,
+  IFNULL(LPAD(UNIF_TAB_CONT_GB, 16), '') UNIF_TAB_CONT_GB,
+  IFNULL(LPAD(STMT_MEM_GB, 11), '') STMT_MEM_GB,
+  IFNULL(LPAD(SOURCE_TABLE_MEM_SIZE_GB, 14), '') SRC_TAB_MEM_GB,
+  IFNULL(LPAD(REPLICA_MEM_SIZE_GB, 10), '') REP_MEM_GB,
+  IFNULL(REPLICA_NAME, '') REPLICA_NAME,
+  IFNULL(LPAD(REPLICA_RECORD_COUNT, 15), '') REPLICA_RECORDS,
+  IFNULL(LPAD(SOURCE_RECORD_COUNT, 14), '') SOURCE_RECORDS
+FROM
+( SELECT
+    S.SCHEMA_NAME SOURCE_SCHEMA_NAME,
+    S.TABLE_NAME SOURCE_TABLE_NAME,
+    S.RECORD_COUNT SOURCE_RECORD_COUNT,
+    S.MEMORY SOURCE_TABLE_MEM_SIZE_GB,
+    R.START_TIME REPLICA_START,
+    R.LAST_MERGE_TIME REP_LAST_MERGE_TIME,
+    R.DELTA_GB REPLICA_DELTA_GB,
+    R.MEMORY REPLICA_MEM_SIZE_GB,
+    R.TABLE_NAME REPLICA_NAME,
+    R.RECORD_COUNT REPLICA_RECORD_COUNT,
+    M.UNIFTABCONTAINER UNIF_TAB_CONT_GB,
+    RBL.DELAY_GB REPLAY_BACKLOG_SIZE_GB,
+    STMT.ALLOC_MEM_GB STMT_MEM_GB,
+    STMT.CONN_ID CONNECTION_ID,
+    C.CUR_TS CUR_TIME_STAMP,
+    CEIL(ROUND((R.RECORD_COUNT / S.RECORD_COUNT) * 100)) PROGRESS_IN_PERC,
+    CEIL((R.MEMORY + R.DELTA_GB + M.UNIFTABCONTAINER + STMT.ALLOC_MEM_GB)) CUR_MEM_FOR_PART_GB
+  FROM
+    SOURCE S LEFT OUTER JOIN
+    REPLICA R ON
+      1 = 1 LEFT OUTER JOIN
+    MEMORY M ON
+      1 = 1 LEFT OUTER JOIN
+    REPLAY RBL ON
+      1 = 1 LEFT OUTER JOIN
+    STATEMENT STMT ON
+      1 = 1 LEFT OUTER JOIN
+    CURRENT C ON
+      1 = 1
+)
+WITH HINT (IGNORE_PLAN_CACHE)

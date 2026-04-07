@@ -1,0 +1,258 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Resources_CPUAndMemory_History
+
+[DESCRIPTION]
+
+- Historic CPU and memory information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2014/04/07:  1.0 (initial version)
+- 2014/12/13:  1.1 (ALLOCATION_LIMIT included)
+
+[INVOLVED TABLES]
+
+- HOST_RESOURCE_UTILIZATION_STATISTICS
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  TO_TIMESTAMP('2014/06/05 14:05:00', 'YYYY/MM/DD HH24:MI:SS') --> Set begin time to 5th of June 2014, 14:05 
+  ADD_DAYS(CURRENT_TIMESTAMP, -2)                              --> Set begin time to two days before current time 
+
+- END_TIME
+
+  End time
+
+  TO_TIMESTAMP('2014/06/08 14:05:00', 'YYYY/MM/DD HH24:MI:SS') --> Set end time to 8th of June 2014, 14:05 
+  CURRENT_TIMESTAMP                                            --> Set end time to current time 
+
+- HOST
+
+  Host name
+
+  'saphana01'    --> Specific host saphana01
+  'saphana%'     --> All hosts starting with saphana
+  '%'            --> All hosts
+
+- ONLY_SWAP_SPACE_USED
+
+  Controls if only times with swap space utilization are returned
+
+  'X'            --> Only display times with swap space utilization
+  ' '            --> Display all times
+
+- MIN_MEMORY_UTILIZATION_PCT
+
+  Restrict output to times with memory utilization of at least the defined percentate
+
+  90             --> Restrict the output to snapshots with a memory utilization of more than 90 %
+  -1             --> No restriction based on memory utilization
+
+- MIN_CPU_UTILIZATION_PCT
+
+  80             --> Restrict the output to snapshots with a CPU utilization of more than 80 % (user + system)
+  -1             --> No restriction based on CPU utilization
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'HOST, TIME'    --> Aggregation by host and time
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation by time (e.g. hours, days)
+
+  'DAY'           --> Aggregation by days
+  'WW'            --> Aggregation by calendar week
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'TIME'          --> Sorting by snapshot time
+  'HOST'          --> Sorting by host name
+
+[OUTPUT PARAMETERS]
+
+- SNAPSHOT_TIME:    Time of snapshot
+- HOST:             Host name
+- PHYS_TOTAL_GB:    Total memory on host
+- PHYS_USED_GB:     Overall memory used on host
+- PHYS_USED_PCT:    Percentage of memory used on host
+- ALLOC_LIM_GB:     Allocation limit (GB)
+- SWAP_FREE_GB:     Amount of free swap space (GB)
+- SWAP_USED_GB:     Amount of used swap space (GB)
+- CPU_PCT:          Percentage of busy CPUs (user + system)
+- CPU_USER:         Average number of CPUs busy with user activities
+- CPU_SYS:          Average number of CPUs busy with system activities
+- CPU_IOWAIT:       Average number of CPUs waiting for I/O
+- CPU_IDLE:         Average number of CPUs being idle
+
+[EXAMPLE OUTPUT]
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|SNAPSHOT_TIME      |HOST     |MEM_TOTAL_GB|MEM_USED_GB|MEM_USED_PCT|HANA_MEM_USED_GB|SWAP_FREE_GB|SWAP_USED_GB|CPU_BUSY_PCT|CPU_USER|CPU_SYS|CPU_IOWAIT|CPU_IDLE|
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|2014/05/26 14:56:09|saphana20|     4039.88|    2609.39|       64.59|         1507.41|       32.00|        0.00|       30.26|   42.92|   4.69|      0.78|  108.93|
+|2014/05/26 14:55:09|saphana20|     4039.88|    2609.36|       64.59|         1505.50|       32.00|        0.00|       29.91|   41.98|   5.06|      0.76|  109.43|
+|2014/05/26 14:54:09|saphana20|     4039.88|    2609.38|       64.59|         1506.03|       32.00|        0.00|       30.78|   43.22|   5.14|      0.74|  108.00|
+|2014/05/26 14:53:09|saphana20|     4039.88|    2609.41|       64.59|         1506.14|       32.00|        0.00|       33.32|   47.10|   5.22|      0.73|  103.95|
+|2014/05/26 14:52:09|saphana20|     4039.88|    2609.44|       64.59|         1505.05|       32.00|        0.00|       32.74|   46.10|   5.33|      0.67|  104.96|
+|2014/05/26 14:51:09|saphana20|     4039.88|    2609.39|       64.59|         1505.21|       32.00|        0.00|       32.26|   45.95|   4.74|      0.12|  106.28|
+|2014/05/26 14:50:09|saphana20|     4039.88|    2609.24|       64.58|         1505.76|       32.00|        0.00|       31.81|   44.72|   5.19|      0.76|  106.21|
+|2014/05/26 14:49:09|saphana20|     4039.88|    2609.24|       64.58|         1505.89|       32.00|        0.00|       32.31|   45.56|   5.25|      0.72|  105.69|
+|2014/05/26 14:48:09|saphana20|     4039.88|    2609.23|       64.58|         1505.37|       32.00|        0.00|       35.51|   50.57|   5.14|      0.69|  100.46|
+|2014/05/26 14:47:09|saphana20|     4039.88|    2609.28|       64.58|         1504.72|       32.00|        0.00|       37.71|   53.74|   5.14|      0.77|   96.47|
+|2014/05/26 14:46:09|saphana20|     4039.88|    2609.34|       64.58|         1504.19|       32.00|        0.00|       32.05|   45.24|   5.07|      0.77|  105.86|
+|2014/05/26 14:45:09|saphana20|     4039.88|    2609.21|       64.58|         1505.11|       32.00|        0.00|       31.92|   44.84|   5.30|      0.75|  106.18|
+|2014/05/26 14:44:09|saphana20|     4039.88|    2609.14|       64.58|         1503.80|       32.00|        0.00|       29.84|   41.62|   5.35|      0.74|  109.67|
+|2014/05/26 14:43:09|saphana20|     4039.88|    2609.15|       64.58|         1508.37|       32.00|        0.00|       32.14|   45.30|   5.26|      0.73|  106.00|
+|2014/05/26 14:42:09|saphana20|     4039.88|    2609.08|       64.58|         1508.98|       32.00|        0.00|       31.29|   44.42|   4.85|      0.75|  107.43|
+|2014/05/26 14:41:09|saphana20|     4039.88|    2607.79|       64.55|         1503.45|       32.00|        0.00|       31.36|   44.29|   5.01|      0.78|  107.10|
+|2014/05/26 14:40:09|saphana20|     4039.88|    2607.80|       64.55|         1503.36|       32.00|        0.00|       32.70|   46.33|   5.13|      0.71|  105.17|
+|2014/05/26 14:39:09|saphana20|     4039.88|    2607.81|       64.55|         1503.09|       32.00|        0.00|       35.65|   50.42|   5.55|      0.71|  100.33|
+|2014/05/26 14:38:09|saphana20|     4039.88|    2607.88|       64.55|         1507.38|       32.00|        0.00|       42.60|   61.04|   5.66|      0.64|   89.23|
+|2014/05/26 14:37:09|saphana20|     4039.88|    2607.91|       64.55|         1508.55|       32.00|        0.00|       39.63|   56.53|   5.49|      0.83|   93.62|
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  SNAPSHOT_TIME,
+  HOST,
+  LPAD(TO_DECIMAL(MEM_FREE_GB + MEM_USED_GB, 10, 2), 13) PHYS_TOTAL_GB,
+  LPAD(TO_DECIMAL(MEM_USED_GB, 10, 2), 12) PHYS_USED_GB,
+  LPAD(TO_DECIMAL(MAP(MEM_FREE_GB + MEM_USED_GB, 0, 0, MEM_USED_GB / (MEM_FREE_GB + MEM_USED_GB) * 100), 10, 2), 13) PHYS_USED_PCT,
+  LPAD(TO_DECIMAL(ALLOC_LIM_GB, 10, 2), 12) ALLOC_LIM_GB,
+  LPAD(TO_DECIMAL(SWAP_FREE_GB, 10, 2), 12) SWAP_FREE_GB,
+  LPAD(TO_DECIMAL(SWAP_USED_GB, 10, 2), 12) SWAP_USED_GB,
+  LPAD(TO_DECIMAL(MAP(CPU_TOTAL_S, 0, 0, (CPU_USER_S + CPU_SYS_S) / CPU_TOTAL_S * 100), 10, 2), 7) CPU_PCT,
+  LPAD(TO_DECIMAL(MAP(INTERVAL_S, 0, 0, CPU_USER_S / INTERVAL_S), 10, 2), 8) CPU_USER,
+  LPAD(TO_DECIMAL(MAP(INTERVAL_S, 0, 0, CPU_SYS_S / INTERVAL_S), 10, 2), 7) CPU_SYS,
+  LPAD(TO_DECIMAL(MAP(INTERVAL_S, 0, 0, CPU_IOWAIT_S / INTERVAL_S), 10, 2), 10) CPU_IOWAIT,
+  LPAD(TO_DECIMAL(MAP(INTERVAL_S, 0, 0, CPU_IDLE_S / INTERVAL_S), 10, 2), 8) CPU_IDLE
+FROM
+( SELECT
+    CASE WHEN AGGREGATE_BY = 'NONE' OR LOCATE(AGGREGATE_BY, 'TIME') != 0 THEN TO_VARCHAR(SERVER_TIMESTAMP, TIME_AGGREGATE_BY) ELSE 'any' END SNAPSHOT_TIME,
+    HOST,
+    AVG(ALLOCATION_LIMIT) / 1024 / 1024 / 1024 ALLOC_LIM_GB,
+    AVG(USED_PHYSICAL_MEMORY) / 1024 / 1024 / 1024 MEM_USED_GB,
+    AVG(FREE_PHYSICAL_MEMORY) / 1024 / 1024 / 1024 MEM_FREE_GB,
+    AVG(USED_PHYSICAL_MEMORY) + AVG(FREE_PHYSICAL_MEMORY) / 1024 / 1024 / 1024 MEM_TOTAL_GB,
+    AVG(USED_SWAP_SPACE) / 1024 / 1024 / 1024 SWAP_USED_GB,
+    AVG(FREE_SWAP_SPACE) / 1024 / 1024 / 1024 SWAP_FREE_GB,
+    SUM(SNAPSHOT_DELTA / 1000) INTERVAL_S,
+    SUM(TOTAL_CPU_IDLE_TIME_DELTA / 1000) CPU_IDLE_S,
+    SUM(TOTAL_CPU_SYSTEM_TIME_DELTA / 1000) CPU_SYS_S,
+    SUM(TOTAL_CPU_USER_TIME_DELTA / 1000) CPU_USER_S,
+    SUM(TOTAL_CPU_WIO_TIME_DELTA / 1000) CPU_IOWAIT_S,
+    SUM(TOTAL_CPU_IDLE_TIME_DELTA + TOTAL_CPU_SYSTEM_TIME_DELTA + TOTAL_CPU_USER_TIME_DELTA + TOTAL_CPU_WIO_TIME_DELTA) / 1000 CPU_TOTAL_S,
+    ORDER_BY,
+    ONLY_SWAP_SPACE_USED,
+    MIN_MEMORY_UTILIZATION_PCT,
+    MIN_CPU_UTILIZATION_PCT 
+  FROM
+  ( SELECT
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'HOST') != 0 THEN O.HOST ELSE MAP(BI.HOST, '%', 'any', BI.HOST) END HOST,
+      MIN(O.SERVER_TIMESTAMP) SERVER_TIMESTAMP,
+      SUM(O.ALLOCATION_LIMIT) ALLOCATION_LIMIT,
+      SUM(O.USED_PHYSICAL_MEMORY) USED_PHYSICAL_MEMORY,
+      SUM(O.FREE_PHYSICAL_MEMORY) FREE_PHYSICAL_MEMORY,
+      SUM(O.USED_SWAP_SPACE) USED_SWAP_SPACE,
+      SUM(O.FREE_SWAP_SPACE) FREE_SWAP_SPACE,
+      AVG(O.SNAPSHOT_DELTA) SNAPSHOT_DELTA,
+      SUM(O.TOTAL_CPU_IDLE_TIME_DELTA) TOTAL_CPU_IDLE_TIME_DELTA,
+      SUM(O.TOTAL_CPU_SYSTEM_TIME_DELTA) TOTAL_CPU_SYSTEM_TIME_DELTA,
+      SUM(O.TOTAL_CPU_USER_TIME_DELTA) TOTAL_CPU_USER_TIME_DELTA,
+      SUM(O.TOTAL_CPU_WIO_TIME_DELTA) TOTAL_CPU_WIO_TIME_DELTA,
+      BI.AGGREGATE_BY,
+      BI.TIME_AGGREGATE_BY,
+      BI.ORDER_BY,
+      BI.ONLY_SWAP_SPACE_USED,
+      BI.MIN_MEMORY_UTILIZATION_PCT,
+      BI.MIN_CPU_UTILIZATION_PCT
+    FROM
+    ( SELECT
+        BEGIN_TIME,
+        END_TIME,
+        HOST,
+        ONLY_SWAP_SPACE_USED,
+        MIN_MEMORY_UTILIZATION_PCT,
+        MIN_CPU_UTILIZATION_PCT,
+        AGGREGATE_BY,
+        MAP(TIME_AGGREGATE_BY,
+          'NONE',        'YYYY/MM/DD HH24:MI:SS',
+          'HOUR',        'YYYY/MM/DD HH24',
+          'DAY',         'YYYY/MM/DD (DY)',
+          'HOUR_OF_DAY', 'HH24',
+          TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+        ORDER_BY
+      FROM
+      ( SELECT                                 /* Modification section */
+          TO_TIMESTAMP('1000/01/01 18:00:00', 'YYYY/MM/DD HH24:MI:SS') BEGIN_TIME,  
+          TO_TIMESTAMP('9999/12/31 18:10:00', 'YYYY/MM/DD HH24:MI:SS') END_TIME,
+          '%' HOST,
+          ' ' ONLY_SWAP_SPACE_USED,
+          -1 MIN_MEMORY_UTILIZATION_PCT,
+          -1 MIN_CPU_UTILIZATION_PCT,
+          'NONE' AGGREGATE_BY,           /* HOST, TIME or comma separated list, NONE for no aggregation */
+          'HOUR' TIME_AGGREGATE_BY,      /* HOUR, DAY, HOUR_OF_DAY or HANA time pattern, NONE for no aggregation */
+          'TIME' ORDER_BY                /* TIME, HOST */
+        FROM
+          DUMMY
+      )
+    ) BI,
+      _SYS_STATISTICS.HOST_RESOURCE_UTILIZATION_STATISTICS O
+    WHERE
+      O.HOST LIKE BI.HOST AND
+      O.SERVER_TIMESTAMP BETWEEN BI.BEGIN_TIME AND BI.END_TIME
+    GROUP BY
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'HOST') != 0 THEN O.HOST ELSE MAP(BI.HOST, '%', 'any', BI.HOST) END,
+      O.SNAPSHOT_ID,
+      BI.AGGREGATE_BY,
+      BI.TIME_AGGREGATE_BY,
+      BI.ORDER_BY,
+      BI.ONLY_SWAP_SPACE_USED,
+      BI.MIN_MEMORY_UTILIZATION_PCT,
+      BI.MIN_CPU_UTILIZATION_PCT
+  )
+  GROUP BY
+    CASE WHEN AGGREGATE_BY = 'NONE' OR LOCATE(AGGREGATE_BY, 'TIME') != 0 THEN TO_VARCHAR(SERVER_TIMESTAMP, TIME_AGGREGATE_BY) ELSE 'any' END,
+    HOST,
+    ORDER_BY,
+    ONLY_SWAP_SPACE_USED,
+    MIN_MEMORY_UTILIZATION_PCT,
+    MIN_CPU_UTILIZATION_PCT
+) O
+WHERE
+  ( ONLY_SWAP_SPACE_USED = ' ' AND MIN_MEMORY_UTILIZATION_PCT = -1 AND MIN_CPU_UTILIZATION_PCT = -1 ) OR
+  ( ONLY_SWAP_SPACE_USED = 'X' AND ROUND(O.SWAP_USED_GB) > 0 ) OR
+  ( MIN_MEMORY_UTILIZATION_PCT != -1 AND O.MEM_USED_GB / (O.MEM_FREE_GB + O.MEM_USED_GB) * 100 >= MIN_MEMORY_UTILIZATION_PCT ) OR
+  ( MIN_CPU_UTILIZATION_PCT != -1 AND (O.CPU_SYS_S + O.CPU_USER_S) / O.CPU_TOTAL_S * 100 >= MIN_CPU_UTILIZATION_PCT )
+ORDER BY
+  MAP(ORDER_BY, 'HOST', HOST),
+  SNAPSHOT_TIME DESC,
+  HOST

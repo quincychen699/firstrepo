@@ -1,0 +1,163 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_IO_Flushes_Overview_Internal
+
+[DESCRIPTION]
+
+- Overview of flush thread activities
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+- Flush thread is responsible for writing pages to disk (FlushResourcesThread)
+
+[VALID FOR]
+
+- Revisions:              any
+- Statistics server type: any
+
+[SQL COMMAND VERSION]
+
+- 2016/04/19:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_MEMORY_OBJECT_FLUSH_THREAD_STATISTICS_ 
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- VOLUME_ID
+
+  Disk volume ID
+
+  3               --> Volume 3
+  -1              --> No restriction related to volume 
+
+- ONLY_FLUSHING_THREADS
+
+  Possibility to restrict output to thread currently flushing data to disk
+
+  'X'             --> Only display threads currently flushing data to disk
+  ' '             --> Display all threads
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'VOLUME'        --> Aggregation by volume ID
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+[OUTPUT PARAMETERS]
+
+- HOST:           Host name
+- PORT:           Port
+- VOLUME_ID:      Volume ID
+- IS_FLUSHING:    TRUE if thread is currently flushing data to disk, otherwise FALSE
+- PEND_SIZE_MB:   Amount of data waiting for being flushed (MB)
+- FLUSH_S:        Total flush duration (s)
+- FLUSH_GB:       Total flush size (MB)
+- FLUSH_BUSY_PCT: Utilization of flush thread (%)
+- FLUSH_MBPS:     Total flush throughput (MB / s)
+- LAST_FLUSH_MS:  Last flush duration (ms)
+- AVG_FLUSH_MS:   Average flush duration (ms)
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------------------------------------------
+|HOST   |PORT |VOLUME_ID|IS_FLUSHING|PEND_SIZE_MB|FLUSH_S   |FLUSH_GB  |FLUSH_BUSY_PCT|FLUSH_MBPS|LAST_FLUSH_MS|AVG_FLUSH_MS|
+-----------------------------------------------------------------------------------------------------------------------------
+|saphana|30001|        1|FALSE      |        0.00|         0|      0.11|          0.00|   1692.16|         0.03|        0.00|
+|saphana|30003|        2|FALSE      |        0.00|         2|      4.89|          0.01|   2147.13|         0.10|        0.00|
+|saphana|30004|        5|FALSE      |        0.00|         0|      0.03|          0.00|   1506.85|         0.01|        0.00|
+|saphana|30007|        4|FALSE      |        0.00|         0|      0.03|          0.00|   1551.42|         0.01|        0.00|
+|saphana|30011|        6|FALSE      |        0.00|         0|      0.03|          0.00|   1468.64|         0.01|        0.00|
+-----------------------------------------------------------------------------------------------------------------------------
+
+HOST  |PORT |VOLUME_ID|IS_FLUSHING|PEND_SIZE_MB|FLUSH_S   |FLUSH_MB  |FLUSH_MBPS|LAST_FLUSH_MS|AVG_FLUSH_MS
+ls5783|33301|        1|FALSE      |        0.00|         9|  15749.58|   1669.85|         0.01|        0.00
+ls5783|33303|        3|FALSE      |        0.00|     54406|77554162.8|   1425.45|         0.17|        0.00
+ls5783|33304|        7|FALSE      |        0.00|        84|  11090.68|    132.06|         0.02|        0.00
+ls5783|33307|        4|FALSE      |        0.00|       276|  15713.53|     56.94|         0.01|        0.00
+
+*/
+  HOST,
+  LPAD(PORT, 5) PORT,
+  LPAD(VOLUME_ID, 9) VOLUME_ID,
+  IS_FLUSHING,
+  LPAD(TO_DECIMAL(( REQUEST_SIZE - FLUSH_SIZE ) / 1024 / 1024, 10, 2), 12) PEND_SIZE_MB,
+  LPAD(TO_DECIMAL(ROUND(SUM_FLUSH_DURATION / 1000000), 10, 0), 10) FLUSH_S,
+  LPAD(TO_DECIMAL(FLUSH_SIZE / 1024 / 1024 / 1024, 10, 2), 10) FLUSH_GB,
+  LPAD(TO_DECIMAL(MAP(UPTIME_S, 0, 0, SUM_FLUSH_DURATION / 10000 / UPTIME_S), 10, 2), 14) FLUSH_BUSY_PCT,
+  LPAD(TO_DECIMAL(MAP(SUM_FLUSH_DURATION, 0, 0, REQUEST_SIZE / 1024 / 1024 / SUM_FLUSH_DURATION * 1000000), 10, 2), 10) FLUSH_MBPS,
+  LPAD(TO_DECIMAL(LAST_FLUSH_DURATION / 1000, 10, 2), 13) LAST_FLUSH_MS,
+  LPAD(TO_DECIMAL(MAP(SUM_FLUSH_DURATION, 0, 0, SUM_FLUSH_DURATION / 1000000 / FLUSH_EXECUTIONS), 10, 2), 12) AVG_FLUSH_MS
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')        != 0 THEN F.HOST               ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                   END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')        != 0 THEN TO_VARCHAR(F.PORT)      ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                   END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'VOLUME')      != 0 THEN TO_VARCHAR(F.VOLUME_ID) ELSE MAP(BI.VOLUME_ID, -1, 'any', TO_VARCHAR(BI.VOLUME_ID)) END VOLUME_ID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'IS_FLUSHING') != 0 THEN F.IS_FLUSHING        ELSE MAP(BI.ONLY_FLUSHING_THREADS, 'X', 'TRUE', 'any')   END IS_FLUSHING,
+    SUM(F.RESOURCE_FLUSH_REQUEST_COUNT) FLUSH_REQUESTS,
+    SUM(F.RESOURCE_FLUSH_EXECUTE_COUNT) FLUSH_EXECUTIONS,
+    SUM(F.RESOURCE_FLUSH_REQUEST_SIZE) REQUEST_SIZE,
+    SUM(F.RESOURCE_FLUSH_EXECUTE_SIZE) FLUSH_SIZE,
+    SUM(F.SUM_PREPARE_FLUSH_DURATION + F.SUM_FLUSH_DURATION) SUM_FLUSH_DURATION,
+    MAX(F.LAST_PREPARE_FLUSH_DURATION + F.LAST_FLUSH_DURATION) LAST_FLUSH_DURATION,
+    SUM(SECONDS_BETWEEN(S.START_TIME, CURRENT_TIMESTAMP)) UPTIME_S
+  FROM
+  ( SELECT               /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      -1 VOLUME_ID,
+      ' ' ONLY_FLUSHING_THREADS,
+      'NONE' AGGREGATE_BY            /* HOST, PORT, VOLUME, IS_FLUSHING or comma separated combinations, NONE for no aggregation */
+    FROM
+      DUMMY
+  ) BI,
+    SYS.M_MEMORY_OBJECT_FLUSH_THREAD_STATISTICS_ F,
+    M_SERVICE_STATISTICS S
+  WHERE
+    F.HOST LIKE BI.HOST AND
+    TO_VARCHAR(F.PORT) LIKE BI.PORT AND
+    ( BI.VOLUME_ID = -1 OR F.VOLUME_ID = BI.VOLUME_ID ) AND
+    ( BI.ONLY_FLUSHING_THREADS = ' ' OR F.IS_FLUSHING = 'TRUE' ) AND
+    F.VOLUME_ID >= 0 AND
+    F.HOST = S.HOST AND
+    F.PORT = S.PORT
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')        != 0 THEN F.HOST               ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')        != 0 THEN TO_VARCHAR(F.PORT)      ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'VOLUME')      != 0 THEN TO_VARCHAR(F.VOLUME_ID) ELSE MAP(BI.VOLUME_ID, -1, 'any', TO_VARCHAR(BI.VOLUME_ID)) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'IS_FLUSHING') != 0 THEN F.IS_FLUSHING        ELSE MAP(BI.ONLY_FLUSHING_THREADS, 'X', 'TRUE', 'any')   END 
+)
+ORDER BY
+  HOST,
+  PORT,
+  VOLUME_ID 
+

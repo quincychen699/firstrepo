@@ -1,0 +1,125 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Indexes_VectorIndexes_SHC
+
+[DESCRIPTION]
+
+- Vector index information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- VECTOR_INDEXES available in SAP HANA CE >= 2024 QRC3
+
+[VALID FOR]
+
+- Revisions:              >= 2024 QRC3
+
+[SQL COMMAND VERSION]
+
+- 2024/11/15:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- VECTOR_INDEXES
+
+[INPUT PARAMETERS]
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- INDEX_NAME
+
+  Index name or pattern
+
+  'EDIDC~1'       --> Specific index EDIDC~1
+  '%~2'           --> All indexes ending with '~2'
+  '%'             --> All indexes
+
+- INDEX_TYPE
+
+  Index type
+
+  'HNSW VECTOR  ' --> Only display HNSW VECTOR indexes
+  '%'             --> No restriction related to index type
+
+- SIMILARITY_FUNCTION
+
+  Similarity function
+
+  'L2DISTANCE'    --> Only display indexes with similarity function L2DISTANCE
+  '%'             --> No restriction related to similarity function
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'NAME'          --> Sorting by name
+  'TYPE'          --> Sorting by index type
+
+[OUTPUT PARAMETERS]
+
+- SCHEMA_NAME:         Schema name
+- TABLE_NAME:          Table name
+- INDEX_NAME:          Index name
+- INDEX_TYPE:          Index type
+- SIMILARITY_FUNCTION: Similarity function
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------
+|SCHEMA_NAME|TABLE_NAME|INDEX_NAME|INDEX_TYPE |SIMILARITY_FUNCTION|
+-------------------------------------------------------------------
+|ZMF        |ZMF_VEC   |ZMF_VEC_1 |HNSW VECTOR|L2DISTANCE         |
+-------------------------------------------------------------------
+
+*/
+
+  V.SCHEMA_NAME,
+  V.TABLE_NAME,
+  V.INDEX_NAME,
+  V.INDEX_TYPE,
+  V.SIMILARITY_FUNCTION
+FROM
+( SELECT                               /* Modification section */
+    '%' SCHEMA_NAME,
+    '%' TABLE_NAME,
+    '%' INDEX_NAME,
+    '%' INDEX_TYPE,
+    '%' SIMILARITY_FUNCTION,
+    'NAME' ORDER_BY                          /* NAME, TYPE */
+  FROM
+    DUMMY
+) BI,
+  VECTOR_INDEXES V
+WHERE
+  V.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+  V.TABLE_NAME LIKE BI.TABLE_NAME AND
+  V.INDEX_NAME LIKE BI.INDEX_NAME AND
+  V.INDEX_TYPE LIKE BI.INDEX_TYPE AND
+  V.SIMILARITY_FUNCTION LIKE BI.SIMILARITY_FUNCTION
+ORDER BY
+  MAP(BI.ORDER_BY, 'NAME', V.SCHEMA_NAME || V.TABLE_NAME || V.INDEX_NAME, 'TYPE', V.INDEX_TYPE),
+  V.SCHEMA_NAME,
+  V.TABLE_NAME,
+  V.INDEX_NAME

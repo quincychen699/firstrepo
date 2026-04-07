@@ -1,0 +1,169 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Configuration_Parameters_Values
+
+[DESCRIPTION]
+
+- Display SAP HANA parameter values
+- Long values are shown in multiple lines
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2014/11/26:  1.0 (initial version)
+- 2020/12/20:  1.3 (ONLY_WORKLOAD_SETTINGS included)
+
+[INVOLVED TABLES]
+
+- M_INIFILE_CONTENTS
+
+[INPUT PARAMETERS]
+
+- FILE_NAME
+
+  File name
+
+  'alert.trc'     --> File with name alert.trc
+  '%oom%'         --> File with name containing 'oom'
+  '%'             --> All files
+
+- SECTION
+
+  Parameter file section
+
+  'joins'         --> Specific parameter file section 'joins'
+  'stat%'         --> All parameter file sections starting with 'stat'
+  '%'             --> All parameter file sections
+
+- PARAMETER_NAME
+
+  Parameter name
+
+  'enable'        --> Parameters with name 'enable'
+  'unload%'       --> Parameters starting with 'unload'
+  '%'             --> All parameters
+
+- VALUE
+
+  Parameter value
+
+  'true'          --> Parameters with value 'true'
+  '%cons%'        --> Parameter values containing 'cons'
+  '%'             --> No restriction related to parameter value
+
+- LAYER_NAME
+
+  Parameter layer
+
+  'DEFAULT'       --> Default values
+  'SYSTEM'        --> Individual system-wide parameter settings
+  'HOST'          --> Individual host-wide parameter settings
+  '%'             --> No restriction related to parameter layer
+
+- TENANT_NAME
+
+  Multitenant tenant name
+
+  'C11'           --> Tenant C11
+  '%'             --> No restriction to tenant
+
+- ONLY_WORKLOAD_SETTINGS
+
+  Possiblity to restrict the output to parameters that are used to limit the CPU or memory workload
+
+  'X'             --> Only display parameters related to CPU or memory workload settings
+  ' '             --> No restriction to workload parameters
+
+- LINE_LENGTH
+
+  Maximum displayed line size
+
+  50              --> Lines are wrapped after 50 characters
+  -1              --> No line wrapping
+
+[OUTPUT PARAMETERS]
+
+- FILE_NAME:      Parameter file name
+- SECTION:        Parameter section
+- PARAMETER_NAME: Parameter name
+- LAYER_NAME:     Layer name (DEFAULT for default settings, SYSTEM for system-wide modifications, HOST for host-specific modifications)
+- VALUE:          Parameter value
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|FILE_NAME           |SECTION                                          |PARAMETER_NAME|LAYER_NAME|VALUE                                                                                               |
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|statisticsserver.ini|statisticsserver_view_HOST_DELTA_MERGE_STATISTICS|query         |DEFAULT   |select HOST || ':' || PORT || ':' || SCHEMA_NAME || ':' || TABLE_NAME || ':' || TYPE || ':' || START|
+|                    |                                                 |              |          |_TIME CHECK_HOST, HOST, PORT, TYPE, SCHEMA_NAME, TABLE_NAME, PART_ID, MEMORY_MERGE, PASSPORT, START_|
+|                    |                                                 |              |          |TIME, EXECUTION_TIME, MOTIVATION, SUCCESS, MERGED_DELTA_RECORDS, LAST_ERROR from SYS.M_DELTA_MERGE_S|
+|                    |                                                 |              |          |TATISTICS where START_TIME > IFNULL((select max(ADD_SECONDS(START_TIME,0)) from _SYS_STATISTICS.HOST|
+|                    |                                                 |              |          |_DELTA_MERGE_STATISTICS), '2011-01-01 00:00:00.0')                                                  |
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  MAP(ROW_NUMBER () OVER (PARTITION BY P.FILE_NAME, P.SECTION, P.KEY               ORDER BY O.LINE_NO), 1, P.FILE_NAME, '')  FILE_NAME,
+  MAP(ROW_NUMBER () OVER (PARTITION BY P.FILE_NAME, P.SECTION, P.KEY               ORDER BY O.LINE_NO), 1, P.SECTION, '')    SECTION,
+  MAP(ROW_NUMBER () OVER (PARTITION BY P.FILE_NAME, P.SECTION, P.KEY               ORDER BY O.LINE_NO), 1, P.KEY, '')        PARAMETER_NAME,
+  MAP(ROW_NUMBER () OVER (PARTITION BY P.FILE_NAME, P.SECTION, P.KEY, P.LAYER_NAME ORDER BY O.LINE_NO), 1, P.LAYER_NAME || 
+    MAP(P.LAYER_NAME, 'HOST', ' (' || P.HOST || ')', ''), '') LAYER_NAME,
+  SUBSTR(P.VALUE, 1 + ( O.LINE_NO - 1 ) * BI.LINE_LENGTH, BI.LINE_LENGTH) VALUE  
+FROM
+( SELECT                         /* Modification section */
+    '%' FILE_NAME,
+    '%' SECTION,
+    '%' PARAMETER_NAME,
+    '%' VALUE,
+    '%' LAYER_NAME,
+    '%' TENANT_NAME,
+    'X' ONLY_WORKLOAD_SETTINGS,
+    100 LINE_LENGTH
+  FROM
+    DUMMY
+) BI,
+  M_INIFILE_CONTENTS P,
+( SELECT
+    ROW_NUMBER () OVER () LINE_NO
+  FROM
+    OBJECTS
+) O 
+WHERE
+  P.FILE_NAME LIKE BI.FILE_NAME AND
+  UPPER(P.SECTION) LIKE UPPER(BI.SECTION) AND
+  UPPER(P.KEY) LIKE UPPER(BI.PARAMETER_NAME) AND
+  UPPER(P.VALUE) LIKE UPPER(BI.VALUE) AND
+  P.LAYER_NAME LIKE BI.LAYER_NAME AND
+  P.TENANT_NAME LIKE BI.TENANT_NAME AND
+  O.LINE_NO <= GREATEST(1, CEILING(LENGTH(P.VALUE) / BI.LINE_LENGTH)) AND
+  ( BI.ONLY_WORKLOAD_SETTINGS = ' ' OR
+    P.KEY IN ( 'affinity', 'bulk_load_threads', 'busy_executor_threshold', 'capture_thread_count', 'change_compression_threads', 
+               'check_max_concurrency', 'check_max_concurrency_percent', 'default_statement_concurrency_limit', 'dynamic_parallel_insert_max_workers', 
+               'enable_parallel_backup_encryption', 'estimate_compression_threads', 'get_candidates_threads', 'insert_max_threads', 
+               'internal_check_max_concurrency', 'load_balancing_func', 'loading_thread', 'max_concurrency', 'max_concurrency_dyn_min_pct', 
+               'max_concurrency_hint', 'max_concurrency_hint_dyn_min_pct', 'max_concurrency_task_limit_factor', 'max_concurrent_connections', 
+               'max_concurrent_queries', 'max_gc_parallelity', 'max_number_of_data_jobs', 'max_num_recompile_threads', 'max_sql_executors', 'num_cores', 'num_exec_threads', 
+               'num_of_async_rep_queue', 'num_parallel_fox', 'parallel_data_backup_backint_channels', 'parallel_merge_threads', 'prepare_threads', 
+               'recovery_queue_count', 'row_order_optimizer_threads', 'split_history_parallel', 'split_threads', 'sql_executors', 
+               'statement_memory_limit', 'statement_memory_limit_threshold', 'table_partition_size', 'tables_preloaded_in_parallel', 
+               'threadpool', 'token_per_table', 'total_statement_memory_limit' )
+  )
+ORDER BY
+  P.FILE_NAME,
+  P.SECTION,
+  P.KEY,
+  P.LAYER_NAME,
+  O.LINE_NO

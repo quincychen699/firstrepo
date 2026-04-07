@@ -1,0 +1,84 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_ABAP_Finance_RecordsInClientZZZ
+
+[DESCRIPTION]
+
+- Lists records of finance tables that are assigned to client ZZZ
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Finance only available in SAP ABAP environments
+- You have to be connected to the SAP<sid> schema otherwise the following error is issued:
+
+  [259]: invalid table name: Could not find table/view ACDOCA in schema
+
+- If access to ABAP objects is possible but you cannot log on as ABAP user, you can switch the default schema before executing the command:
+
+  SET SCHEMA SAP<sid>
+
+[VALID FOR]
+
+- Revisions:              all
+- Client application:     ABAP
+
+[SQL COMMAND VERSION]
+
+- 2025/09/04:  1.0 (initial version)
+- 2025/10/06:  1.1 (included additional tables beyond ACDOCA)
+
+[INVOLVED TABLES]
+
+- ACDOCA
+- BKPF
+- BSEG
+
+[INPUT PARAMETERS]
+  
+[OUTPUT PARAMETERS]
+
+- MANDT:      Client (ZZZ)
+- TABLE_NAME: Table name
+- BELNR:      Document number
+- BUDAT:      Booking date
+
+[EXAMPLE OUTPUT]
+
+--------------------------------------
+|MANDT|BELNR     |TABLE_NAME|BUDAT   |
+--------------------------------------
+|ZZZ  |4000480485|BKPF      |20240911|
+|ZZZ  |4000480485|BSEG      |00000000|
+|ZZZ  |4000480485|BSEG      |00000000|
+|ZZZ  |4000480486|BKPF      |20240911|
+|ZZZ  |4000480486|BSEG      |00000000|
+|ZZZ  |4000480486|BSEG      |00000000|
+|ZZZ  |4000480487|BKPF      |20240911|
+|ZZZ  |4000480487|BSEG      |00000000|
+|ZZZ  |4000480487|BSEG      |00000000|
+|ZZZ  |4000480488|BKPF      |20240911|
+--------------------------------------
+
+*/
+
+  MANDT,
+  BELNR,
+  TABLE_NAME,
+  BUDAT
+FROM
+( ( SELECT RCLNT MANDT, 'ACDOCA' TABLE_NAME, BELNR, BUDAT FROM ACDOCA WHERE RCLNT = 'ZZZ' ) UNION ALL
+  ( SELECT MANDT, 'BKPF', BELNR, BUDAT FROM BKPF WHERE MANDT = 'ZZZ' ) UNION ALL
+  ( SELECT MANDT, 'BSEG', BELNR, H_BUDAT FROM BSEG WHERE MANDT = 'ZZZ' )
+)
+ORDER BY
+  BELNR,
+  TABLE_NAME,
+  BUDAT

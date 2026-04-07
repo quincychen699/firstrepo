@@ -1,0 +1,135 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_SQL_HEX_RecompileReasons_Internal_2.00.060+
+
+[DESCRIPTION]
+
+- Overview of HANA Execution Engine (HEX) recompilations
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+- M_DEV_HEX_RECOMPILES available with SAP HANA >= 2.00.060
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.060
+
+[SQL COMMAND VERSION]
+
+- 2023/05/18:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_DEV_HEX_RECOMPILES
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SITE_ID
+
+  System replication site ID
+
+  1               --> Site ID 1
+  -1              --> No restriction related to system replication site ID
+
+- DB_NAME
+
+  Multitenant database name
+
+  'SYSTEMDB'      --> System database
+  'C11'           --> Tenant C11
+  '%'             --> No restriction to multitenant database
+
+- RECOMPILE_REASON
+
+  Reason for recompilation
+
+  'column contains NULL values' --> Recompile reason 'column contains NULL values'
+  '%'                           --> No restriction related to recompile reason
+
+- FALLBACK
+
+  Fallback used
+
+  'TRUE'          --> Only recompiles using fallback
+  'FALSE'         --> Only recompiles not using fallback
+  '%'             --> No restriction related to use of fallback
+
+[OUTPUT PARAMETERS]
+
+- HOST:             Host name
+- PORT:             Port
+- ST:               System replication site ID
+- DB_NAME:          Database name
+- RECOMPILE_REASON: Reason for recompilation
+- COUNT:            Number of recompilations
+- FALLBACK:         Fallback used
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------------
+|HOST        |PORT |ST|DB_NAME|RECOMPILE_REASON                                          |COUNT |FALLBACK|
+----------------------------------------------------------------------------------------------------------
+|saphananode1|30003|-1|C11    |single value cache fingerprint changed                    |    18|FALSE   |
+|saphananode1|30003|-1|C11    |column contains NULL values                               |     3|FALSE   |
+|saphananode1|30003|-1|C11    |table size increase exceeds recompilation threshold factor|     3|FALSE   |
+----------------------------------------------------------------------------------------------------------
+
+*/
+
+  HR.HOST,
+  LPAD(HR.PORT, 5) PORT,
+  LPAD(HR.SITE_ID, 2) ST,
+  HR.DATABASE_NAME DB_NAME,
+  HR.REASON RECOMPILE_REASON,
+  LPAD(HR.COUNT, 6) COUNT,
+  HR.FALLBACK
+FROM
+( SELECT                    /* Modification section */
+    '%' HOST,
+    '%' PORT,
+    -1 SITE_ID,
+    '%' DB_NAME,
+    '%' RECOMPILE_REASON,
+    '%' FALLBACK,
+    'COUNT' ORDER_BY                   /* COUNT, REASON */
+  FROM
+    DUMMY
+) BI,
+  SYS.M_DEV_HEX_RECOMPILES HR
+WHERE
+  HR.HOST LIKE BI.HOST AND
+  TO_VARCHAR(HR.PORT) LIKE BI.PORT AND
+  ( BI.SITE_ID = -1 OR HR.SITE_ID = BI.SITE_ID ) AND
+  HR.DATABASE_NAME LIKE BI.DB_NAME AND
+  HR.REASON LIKE BI.RECOMPILE_REASON AND
+  HR.FALLBACK LIKE BI.FALLBACK
+ORDER BY
+  MAP(BI.ORDER_BY, 'COUNT', HR.COUNT) DESC,
+  MAP(BI.ORDER_BY, 'REASON', HR.REASON)

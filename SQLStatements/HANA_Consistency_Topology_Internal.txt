@@ -1,0 +1,120 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Consistency_Topology_Internal
+
+[DESCRIPTION]
+
+- Check consistency of catalog and topology
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2015/11/21:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- TABLES
+- TOPOLOGY_INFORMATION_
+
+[INPUT PARAMETERS]
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- SAP_NOTE
+
+  Number of SAP Note for which the check should be done
+
+  2247650         --> Restrict the consistency check to the problem situation described in SAP Note 2247650
+  -1              --> No restriction to a specific SAP Note
+
+[OUTPUT PARAMETERS]
+
+- SCHEMA_NAME:     Schema name
+- TABLE_NAME:      Table name
+- TABLE_OID:       Table object ID
+- TABLE_TYPE:      Table type
+- COMMAND:         Table deletion command
+
+[EXAMPLE OUTPUT]
+
+------------------------------------------------------------------------------------------------------------------------------------
+|SCHEMA_NAME|TABLE_NAME                 | TABLE_OID|TABLE_TYPE|COMMAND                                                             |
+------------------------------------------------------------------------------------------------------------------------------------
+|SAPSR3     |0BW:BIA:BI0_0Q00046671     |4.808.064 |COLUMN    |CALL SYS.CHECK_CATALOG_DEV('DROP', '', '', '','OID:4808064 CASCADE')|
+|SAPSR3     |0BW:BIA:BI0_0Q00046699     |3.869.015 |COLUMN    |CALL SYS.CHECK_CATALOG_DEV('DROP', '', '', '','OID:3869015 CASCADE')|
+|SAPSR3     |0BW:BIA:BI0_0Q00046732     |2.121.298 |COLUMN    |CALL SYS.CHECK_CATALOG_DEV('DROP', '', '', '','OID:2121298 CASCADE')|
+|SAPSR3     |0BW:BIA:BI0_0Q00046815     |2.121.320 |COLUMN    |CALL SYS.CHECK_CATALOG_DEV('DROP', '', '', '','OID:2121320 CASCADE')|
+|SAPSR3     |0BW:BIA:BI0_0Q00046824     |5.091.897 |COLUMN    |CALL SYS.CHECK_CATALOG_DEV('DROP', '', '', '','OID:5091897 CASCADE')|
+|SAPSR3     |0BW:BIA:BI0_0Q00046837     |3.901.029 |COLUMN    |CALL SYS.CHECK_CATALOG_DEV('DROP', '', '', '','OID:3901029 CASCADE')|
+|SAPSR3     |0BW:BIA:BI0_0Q00046881     |4.808.075 |COLUMN    |CALL SYS.CHECK_CATALOG_DEV('DROP', '', '', '','OID:4808075 CASCADE')|
+------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  T.SCHEMA_NAME,
+  T.TABLE_NAME,
+  T.TABLE_OID,
+  T.TABLE_TYPE,
+  'CALL SYS.CHECK_CATALOG_DEV(' || CHAR(39) || 'DROP'|| CHAR(39) || ',' || CHAR(32) || CHAR(39) || CHAR(39) || ','  || CHAR(32) || CHAR(39) || CHAR(39) || ',' ||
+    CHAR(32) || CHAR(39) || CHAR(39) || ',' || CHAR(32) || CHAR(39) || 'OID:' || T.TABLE_OID || CHAR(32) || 'CASCADE' || CHAR(39) || ');' COMMAND
+FROM
+( SELECT          /* Modification section */
+    '%' SCHEMA_NAME,
+    '%' TABLE_NAME,
+    2247650 SAP_NOTE
+  FROM
+    DUMMY
+) BI,
+  TABLES T
+WHERE
+  T.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+  T.TABLE_NAME LIKE BI.TABLE_NAME AND
+  ( T.SCHEMA_NAME, T.TABLE_NAME ) NOT IN
+  ( SELECT
+      TP.SCHEMA_NAME,
+      TP.OBJECT_NAME
+    FROM
+      SYS.TOPOLOGY_INFORMATION_ TP
+  ) AND
+  T.IS_USER_DEFINED_TYPE = 'FALSE' AND 
+  T.IS_SYSTEM_TABLE = 'FALSE' AND
+  T.TABLE_TYPE != 'VIRTUAL' AND
+  ( BI.SAP_NOTE = -1 OR
+    BI.SAP_NOTE IN (2235033, 2233869) AND T.SCHEMA_NAME = '_SYS_STATISTICS' OR
+    BI.SAP_NOTE = 2247650 AND T.SCHEMA_NAME LIKE 'SAP%' AND T.TABLE_NAME LIKE '0BW:BIA%'
+  )
+ORDER BY
+  T.SCHEMA_NAME,
+  T.TABLE_NAME
+

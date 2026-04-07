@@ -1,0 +1,937 @@
+WITH 
+
+/* 
+
+[NAME]
+
+- HANA_SQL_SQLCache_TopLists_1.00.120+
+
+[DESCRIPTION]
+
+- List of top SQL statements in terms of different key figures like elapsed time, executions or memory consumption
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- WITH clause does not work with older DBACOCKPIT transactions before SAP BASIS 7.02 SP16 / 7.30 SP12 / 7.31 SP12 / SAP_BASIS 7.40 SP07 (empty result returned)
+- RESET can be performed via:
+
+  ALTER SYSTEM RESET MONITORING VIEW M_SQL_PLAN_CACHE_RESET
+
+- SAP Note 2331857 provides a list of SAP application names that is used for "SO" output column
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.120
+
+[SQL COMMAND VERSION]
+
+- 2017/03/29:  1.0 (initial version)
+- 2017/10/26:  1.1 (TIMEZONE included)
+- 2018/01/08:  1.2 (proper display of historic time frames based on history availability)
+- 2018/02/24:  1.3 (SQL_TYPE included)
+- 2018/04/24:  1.4 (Metadata misses included)
+- 2018/12/04:  1.5 (shortcuts for BEGIN_TIME and END_TIME like 'C', 'E-S900' or 'MAX')
+
+[INVOLVED TABLES]
+
+- M_SQL_PLAN_CACHE
+- M_SQL_PLAN_CACHE_RESET
+- HOST_SQL_PLAN_CACHE
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_LOCATION
+
+  Location(s) of table(s)
+
+  '%saphana01%'   --> Tables with location containing 'saphana01'
+  '%'             --> No limitation related to table locations
+
+- TABLE_NAME
+
+  Table name
+
+  'KONV'          --> Only statements accessing table KONV (no search pattern or table list allowed)
+  '%'             --> No restriction related to table name (same effect also for search patterns)
+
+- DB_USER
+
+  Database user
+
+  'SYSTEM'        --> Database user 'SYSTEM'
+  '%'             --> No database user restriction
+
+- IS_DISTRIBUTED_EXECUTION
+
+  Possibility to restrict result to distributed executions
+
+  'TRUE'          --> Only show distributed executions (accessing multiple scale-out nodes)
+  'FALSE'         --> Only show local executions (accessing only a single SAP HANA node)
+  '%'             --> No restriction related to distributed executions
+
+- SHARING_TYPE
+
+  Plan sharing type filter
+
+  'SESSION LOCAL' --> Display SQL statements with 'SESSION LOCAL' plan sharing type
+  '%'             --> No restriction related to plan sharing type
+
+- SQL_TYPE
+
+  SQL type (for technical reason this filter is applied at the end, so the result list can be smaller than expected)
+
+  'AI'            --> ALTER INDEX
+  'AS'            --> ALTER SYSTEM
+  'AT'            --> ALTER TABLE
+  'AL'            --> ALTER
+  'CA'            --> CALL
+  'CO'            --> COMMIT
+  'CI'            --> CREATE INDEX
+  'CT'            --> CREATE TABLE
+  'CR'            --> CREATE
+  'DE'            --> DELETE
+  'DI'            --> DROP INDEX
+  'DM'            --> Data modification commands (INSERT, UPDATE, DELETE, UPSERT, SELECT FOR UPDATE)
+  'DT'            --> DROP TABLE
+  'DR'            --> DROP
+  'EX'            --> EXECUTE
+  'IN'            --> INSERT
+  'RE'            --> REPLACE
+  'RO'            --> ROLLBACK
+  'SU'            --> SELECT FOR UPDATE
+  'SE'            --> SELECT
+  'TR'            --> TRUNCATE
+  'UP'            --> UPDATE
+  'US'            --> UPSERT
+  'WI'            --> WITH
+  '%'             --> No restriction related to SQL type
+
+- STORE
+
+  Table store
+
+  'ROW'           --> Only display accesses where all tables are located in row store
+  '%COLUMN%'      --> Only display accesses where at least one table is located in column store
+  '%'             --> No restriction related to table store
+
+- EXCLUDE_INTERNAL
+
+  Possibility to exclude internal SQL statements
+
+  'X'             --> Do not consider internal SQL statements
+  ' '             --> No restriction related to internal SQL statements
+
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_* tables)
+  'HISTORY'       --> Data from persisted history information (HOST_* tables)
+  'RESET'         --> Data from reset memory information (M_*_RESET tables)
+
+- TOP_N_ELAPSED_TIME
+
+  Number of top database requests in terms of total elapsed time to be displayed
+
+  20              --> Display top 10 database requests in terms of total elapsed time
+
+- TOP_N_PREPARE_TIME
+
+  Number of top database requests in terms of total preparation time to be displayed
+
+  5               --> Display top 10 database requests in terms of total preparation time
+
+- TOP_N_LOCK_WAIT_TIME
+
+  Number of top database requests in terms of total lock wait time to be displayed
+
+  5               --> Display top 10 database requests in terms of total lock wait time
+
+- TOP_N_NETWORK_TIME
+
+  Number of top database requests in terms of total network time to be displayed
+
+  5               --> Display top 10 database requests in terms of total network time
+
+- TOP_N_RECORDS
+
+  Number of top database requests in terms of total number of returned records to be displayed
+
+  10              --> Display top 5 database requests in terms of total number of returned records
+
+- TOP_N_EXECUTIONS
+
+  Number of top database requests in terms of total number of executions to be displayed
+
+  10              --> Display top 5 database requests in terms of total number of executions
+
+- TOP_N_CALLED_THREADS
+
+  Number of top database requests in terms of total number of called threads to be displayed
+
+  5               --> Display top 5 database requests in terms of total number of called threads
+
+- TOP_N_MEMORY
+
+  Number of top database requests in terms of total memory consumption to be displayed
+
+  5               --> Display top 5 database requests in terms of total memory consumption
+
+-[OUTPUT PARAMETERS]
+
+- STATEMENT_HASH:    Hash value of database request
+- TP:                SQL type
+- POS:               Position in output list
+- VALUE:             Value (related to previous heading description)
+- VALUE_PER_EXEC:    Value per execution
+- PCT:               Percentage of total value
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------
+|STATEMENT_HASH                      |TP|SO|POS|VALUE               |VALUE_PER_EXEC |PCT  |
+-------------------------------------------------------------------------------------------
+|END:   2018/06/25 16:01:45 (CURRENT)|  |  |   |                    |               |     |
+|                                    |  |  |   |                    |               |     |
+|*********************               |  |  |   |                    |               |     |
+|* ELAPSED TIME (MS) *               |  |  |   |                    |               |     |
+|*********************               |  |  |   |                    |               |     |
+|                                    |  |  |   |                    |               |     |
+|4f69618b7afc22565471513b6bb4c039    |SE|CO|  1|           359090639|       59748.85|47.22|
+|d6fd6678833f9a2e25e7b53239c50e9a    |CA|ST|  2|           139467300|         120.47|18.34|
+|fe00c11d74e95dc2af2c5bd7353ab803    |SE|ST|  3|            17110096|       39153.53| 2.25|
+|5a1693548ad33ab4cb1117cc48a7e96c    |IN|ST|  4|            17012323|       38929.80| 2.23|
+|d41efb11db78d68b7b1e4cdc275216a0    |SE|ST|  5|             9118325|         291.11| 1.19|
+|21b1f52dacc1084ed00ef57d8a3f5cd5    |IN|ST|  6|             5110282|         161.11| 0.67|
+|a9d9abdda64b95f1531f7a07a9d02769    |US|AB|  7|             4837120|           0.36| 0.63|
+|ff2c84fcdc9ee215dece4cfe50b2a33f    |US|AB|  8|             4617070|           0.35| 0.60|
+|a8eb918c0cbf515277e97c8f859ba5c0    |IN|ST|  9|             4173720|         131.31| 0.54|
+|                                    |  |  |   |                    |               |     |
+|*********************               |  |  |   |                    |               |     |
+|* PREPARE TIME (MS) *               |  |  |   |                    |               |     |
+|*********************               |  |  |   |                    |               |     |
+|                                    |  |  |   |                    |               |     |
+|ec371e54b2504206be61e010bb1e46ff    |SE|AB|  1|               11334|        5666.81| 1.15|
+|38cf74b3f0328755631d0473f3e134df    |SE|AB|  2|               10905|       10904.87| 1.10|
+|6b596db7673f3c2461a92405e81d6933    |SE|AB|  3|               10681|       10681.21| 1.08|
+|d478fa4afaf5dc1f5a78bceb181f82d3    |SE|AB|  4|                9611|          45.54| 0.97|
+|b4eba3a96ec5043405b73f9f9bd6e648    |IN|ST|  5|                8807|         124.04| 0.89|
+|                                    |  |  |   |                    |               |     |
+|***********************             |  |  |   |                    |               |     |
+|* LOCK WAIT TIME (MS) *             |  |  |   |                    |               |     |
+|***********************             |  |  |   |                    |               |     |
+|                                    |  |  |   |                    |               |     |
+|11df5737a4a42ed26e0121151c778785    |SU|AB|  1|             1119343|          11.78|63.79|
+|5e852025fa9822ebada6b23500c87d8e    |SU|AB|  2|              587108|           2.08|33.45|
+|111ab0907196e49f9817ef152a21a12d    |DE|AB|  3|               36644|          28.65| 2.08|
+|f09e83ea8e8ab400d49217beb1131dcd    |SU|AB|  4|                6728|           0.05| 0.38|
+|09b3d2f0452e0e63a59bfcc5d7e3a99f    |UP|AB|  5|                1776|           0.05| 0.10|
+|                                    |  |  |   |                    |               |     |
+|*********************               |  |  |   |                    |               |     |
+|* NETWORK TIME (MS) *               |  |  |   |                    |               |     |
+|*********************               |  |  |   |                    |               |     |
+|                                    |  |  |   |                    |               |     |
+|d6fd6678833f9a2e25e7b53239c50e9a    |CA|ST|  1|             6118763|           5.28|46.60|
+|d41efb11db78d68b7b1e4cdc275216a0    |SE|ST|  2|              848345|          27.08| 6.46|
+|d69866514cebd82c540f3fb9d1f000b7    |IN|ST|  3|              709376|          22.39| 5.40|
+|a7e5b5bf8a2042311506822637a47e67    |SE|ST|  4|              539742|          16.97| 4.11|
+|a8eb918c0cbf515277e97c8f859ba5c0    |IN|ST|  5|              518466|          16.31| 3.94|
+|                                    |  |  |   |                    |               |     |
+|***********                         |  |  |   |                    |               |     |
+|* RECORDS *                         |  |  |   |                    |               |     |
+|***********                         |  |  |   |                    |               |     |
+|                                    |  |  |   |                    |               |     |
+|125a7aaeecd7136f8bae6fe07315544d    |SE|AB|  1|           124731010|         625.50| 7.35|
+|3713f86f2f7b5de39cc59e231396305c    |SE|AB|  2|           111811559|      219669.07| 6.59|
+|eb38c6a6d1db8babbe1e505c75e3a55b    |SE|AB|  3|            53077783|     5897531.44| 3.12|
+|411d4323c41ca3c056ff0a30b4eab00f    |SE|AB|  4|            50100948|          99.99| 2.95|
+|1c895b01d2026910852257c698c4150a    |SE|AB|  5|            37462793|           2.11| 2.20|
+|                                    |  |  |   |                    |               |     |
+|**************                      |  |  |   |                    |               |     |
+|* EXECUTIONS *                      |  |  |   |                    |               |     |
+|**************                      |  |  |   |                    |               |     |
+|                                    |  |  |   |                    |               |     |
+|961d2e71fe4a06d9772a5d5bb6a4ef58    |SE|AB|  1|            35954239|           1.00| 4.91|
+|22a149d06fdae4ba0d59cebf6c9e791c    |IN|AB|  2|            32733417|           1.00| 4.47|
+|12e4c2240e17d9d8229f6e43fec487e7    |SE|AB|  3|            30309042|           1.00| 4.13|
+|3d638825d60166c961fcbd6a998888e2    |SE|AB|  4|            19254825|           1.00| 2.62|
+|faa2414d555774b117740b86f97ad220    |SE|AB|  5|            17942953|           1.00| 2.45|
+|                                    |  |  |   |                    |               |     |
+|******************                  |  |  |   |                    |               |     |
+|* CALLED THREADS *                  |  |  |   |                    |               |     |
+|******************                  |  |  |   |                    |               |     |
+|                                    |  |  |   |                    |               |     |
+|686bb2662a538982cc540bf57d4bc748    |SE|AB|  1|           114344972|        6617.95|26.81|
+|b342052a45245f751f2464be18587b82    |SE|AB|  2|            79329664|        2045.00|18.60|
+|84043f4feae23823ba2568cdd5dd99c0    |SE|AB|  3|            33377202|         824.82| 7.82|
+|d6fd6678833f9a2e25e7b53239c50e9a    |CA|ST|  4|            27171696|          23.47| 6.37|
+|3610fcd926bdbf954040f85adaae9141    |SE|AB|  5|            23301920|        3057.59| 5.46|
+-------------------------------------------------------------------------------------------
+
+*/
+
+BASIS_INFO AS
+( SELECT
+    GREATEST(BI.BEGIN_TIME, CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(C.MIN_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE C.MIN_TIME END) BEGIN_TIME,
+    LEAST(BI.END_TIME, CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(C.MAX_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE C.MAX_TIME END) END_TIME,
+    BI.TIMEZONE,
+    BI.HOST,
+    BI.PORT,
+    BI.SCHEMA_NAME,
+    BI.TABLE_LOCATION,
+    BI.TABLE_NAME,
+    BI.DB_USER,
+    BI.IS_DISTRIBUTED_EXECUTION,
+    BI.SHARING_TYPE,
+    BI.SQL_TYPE,
+    BI.STORE,
+    BI.EXCLUDE_INTERNAL,
+    BI.DATA_SOURCE,
+    BI.TOP_N_ELAPSED_TIME,
+    BI.TOP_N_PREPARE_TIME,
+    BI.TOP_N_LOCK_WAIT_TIME,
+    BI.TOP_N_NETWORK_TIME,
+    BI.TOP_N_RECORDS,
+    BI.TOP_N_EXECUTIONS,
+    BI.TOP_N_CALLED_THREADS,
+    BI.TOP_N_MEMORY,
+    BI.TOP_N_METADATA
+  FROM
+  ( SELECT
+      CASE
+        WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+        WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+        WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+        WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+        WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+        WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+        WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END BEGIN_TIME,
+      CASE
+        WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+        WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+        WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+        WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+        WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+        WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+        WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+        WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+        WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+        WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+        WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END END_TIME,
+      TIMEZONE,
+      HOST,
+      PORT,
+      SCHEMA_NAME,
+      TABLE_LOCATION,
+      TABLE_NAME,
+      DB_USER,
+      IS_DISTRIBUTED_EXECUTION,
+      SHARING_TYPE,
+      SQL_TYPE,
+      STORE,
+      EXCLUDE_INTERNAL,
+      DATA_SOURCE,
+      TOP_N_ELAPSED_TIME,
+      TOP_N_PREPARE_TIME,
+      TOP_N_LOCK_WAIT_TIME,
+      TOP_N_NETWORK_TIME,
+      TOP_N_RECORDS,
+      TOP_N_EXECUTIONS,
+      TOP_N_CALLED_THREADS,
+      TOP_N_MEMORY,
+      TOP_N_METADATA
+    FROM
+    ( SELECT               /* Modification section */
+        '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+        '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+        'SERVER' TIMEZONE,                              /* SERVER, UTC */
+        '%' HOST,
+        '%' PORT,
+        '%' SCHEMA_NAME,
+        '%' TABLE_LOCATION,
+        '%' TABLE_NAME,
+        '%' DB_USER,
+        '%' IS_DISTRIBUTED_EXECUTION,                    /* TRUE, FALSE, % */
+        '%' SHARING_TYPE,
+        '%' SQL_TYPE,
+        '%' STORE,
+        ' ' EXCLUDE_INTERNAL,
+        'CURRENT' DATA_SOURCE,     /* CURRENT, HISTORY, RESET */
+        20 TOP_N_ELAPSED_TIME,
+        5  TOP_N_PREPARE_TIME,
+        5  TOP_N_LOCK_WAIT_TIME,
+        5  TOP_N_NETWORK_TIME,
+        10 TOP_N_RECORDS,
+        10 TOP_N_EXECUTIONS,
+        5  TOP_N_CALLED_THREADS,
+        5  TOP_N_MEMORY,
+        5  TOP_N_METADATA
+      FROM
+        DUMMY
+    )
+  ) BI,
+  ( SELECT
+      MIN(SERVER_TIMESTAMP) MIN_TIME,
+      MAX(SERVER_TIMESTAMP) MAX_TIME
+    FROM
+      _SYS_STATISTICS.HOST_SQL_PLAN_CACHE
+  ) C
+),
+SQL_CACHE AS
+( SELECT
+    *,
+    ROW_NUMBER () OVER (ORDER BY TOTAL_ELAPSED_TIME                     DESC) TOP_N_ELAPSED,
+    ROW_NUMBER () OVER (ORDER BY TOTAL_PREPARATION_TIME                 DESC) TOP_N_PREPARE,
+    ROW_NUMBER () OVER (ORDER BY TOTAL_LOCK_WAIT_DURATION               DESC) TOP_N_LOCK_WAIT,
+    ROW_NUMBER () OVER (ORDER BY TOTAL_SERVICE_NETWORK_REQUEST_DURATION DESC) TOP_N_NETWORK,
+    ROW_NUMBER () OVER (ORDER BY TOTAL_RESULT_RECORD_COUNT              DESC) TOP_N_RECORDS,
+    ROW_NUMBER () OVER (ORDER BY EXECUTION_COUNT                        DESC) TOP_N_EXECUTIONS,
+    ROW_NUMBER () OVER (ORDER BY TOTAL_CALLED_THREAD_COUNT              DESC) TOP_N_THREADS,
+    ROW_NUMBER () OVER (ORDER BY TOTAL_EXECUTION_MEMORY_SIZE            DESC) TOP_N_MEMORY,
+    ROW_NUMBER () OVER (ORDER BY TOTAL_METADATA_CACHE_MISS_COUNT        DESC) TOP_N_METADATA
+  FROM
+  ( SELECT
+      STATEMENT_HASH,
+      SUM(C.EXECUTION_COUNT) EXECUTION_COUNT,
+      SUM(C.TOTAL_RESULT_RECORD_COUNT) TOTAL_RESULT_RECORD_COUNT,
+      SUM(C.TOTAL_ELAPSED_TIME) TOTAL_ELAPSED_TIME,
+      SUM(C.TOTAL_PREPARATION_TIME) TOTAL_PREPARATION_TIME,
+      SUM(C.TOTAL_LOCK_WAIT_DURATION) TOTAL_LOCK_WAIT_DURATION,
+      SUM(C.TOTAL_SERVICE_NETWORK_REQUEST_DURATION) TOTAL_SERVICE_NETWORK_REQUEST_DURATION,
+      SUM(C.TOTAL_CALLED_THREAD_COUNT) TOTAL_CALLED_THREAD_COUNT,
+      SUM(C.TOTAL_EXECUTION_MEMORY_SIZE) TOTAL_EXECUTION_MEMORY_SIZE,
+      SUM(C.TOTAL_METADATA_CACHE_MISS_COUNT) TOTAL_METADATA_CACHE_MISS_COUNT,
+      AVG(C.SUM_TOTAL_ELAPSED_TIME) SUM_TOTAL_ELAPSED_TIME,
+      AVG(C.SUM_TOTAL_PREPARATION_TIME) SUM_TOTAL_PREPARATION_TIME,
+      AVG(C.SUM_TOTAL_LOCK_WAIT_DURATION) SUM_TOTAL_LOCK_WAIT_DURATION,
+      AVG(C.SUM_TOTAL_SERVICE_NETWORK_REQUEST_DURATION) SUM_TOTAL_SERVICE_NETWORK_REQUEST_DURATION,
+      AVG(C.SUM_EXECUTION_COUNT) SUM_EXECUTION_COUNT,
+      AVG(C.SUM_TOTAL_RESULT_RECORD_COUNT) SUM_TOTAL_RESULT_RECORD_COUNT,
+      AVG(C.SUM_TOTAL_CALLED_THREAD_COUNT) SUM_TOTAL_CALLED_THREAD_COUNT,
+      AVG(C.SUM_TOTAL_EXECUTION_MEMORY_SIZE / 1024) SUM_TOTAL_EXECUTION_MEMORY_SIZE,
+      AVG(C.SUM_TOTAL_METADATA_CACHE_MISS_COUNT) SUM_TOTAL_METADATA_CACHE_MISS_COUNT
+    FROM
+      BASIS_INFO BI,
+    ( SELECT
+        'CURRENT' DATA_SOURCE,
+        HOST,
+        PORT,
+        SCHEMA_NAME,
+        STATEMENT_HASH,
+        USER_NAME,
+        TO_VARCHAR(ACCESSED_TABLE_NAMES) ACCESSED_TABLE_NAMES,
+        TABLE_TYPES STORE,
+        PLAN_SHARING_TYPE SHARING_TYPE,
+        CURRENT_TIMESTAMP SERVER_TIMESTAMP,
+        IS_DISTRIBUTED_EXECUTION,
+        IS_INTERNAL,
+        TABLE_LOCATIONS TABLE_LOCATION,
+        EXECUTION_COUNT,
+        TOTAL_RESULT_RECORD_COUNT,
+        TOTAL_EXECUTION_TIME + TOTAL_PREPARATION_TIME TOTAL_ELAPSED_TIME,
+        TOTAL_PREPARATION_TIME,
+        TOTAL_LOCK_WAIT_DURATION,
+        TOTAL_SERVICE_NETWORK_REQUEST_DURATION,
+        TOTAL_CALLED_THREAD_COUNT,
+        TOTAL_EXECUTION_MEMORY_SIZE,
+        TOTAL_METADATA_CACHE_MISS_COUNT,
+        SUM(TOTAL_EXECUTION_TIME + TOTAL_PREPARATION_TIME) OVER () SUM_TOTAL_ELAPSED_TIME,
+        SUM(TOTAL_PREPARATION_TIME) OVER () SUM_TOTAL_PREPARATION_TIME,
+        SUM(TOTAL_LOCK_WAIT_DURATION) OVER () SUM_TOTAL_LOCK_WAIT_DURATION,
+        SUM(TOTAL_SERVICE_NETWORK_REQUEST_DURATION) OVER () SUM_TOTAL_SERVICE_NETWORK_REQUEST_DURATION,
+        SUM(EXECUTION_COUNT) OVER () SUM_EXECUTION_COUNT,
+        SUM(TOTAL_RESULT_RECORD_COUNT) OVER () SUM_TOTAL_RESULT_RECORD_COUNT,
+        SUM(TOTAL_CALLED_THREAD_COUNT) OVER () SUM_TOTAL_CALLED_THREAD_COUNT,
+        SUM(TO_DECIMAL(TOTAL_EXECUTION_MEMORY_SIZE)) OVER () SUM_TOTAL_EXECUTION_MEMORY_SIZE,
+        SUM(TOTAL_METADATA_CACHE_MISS_COUNT) OVER () SUM_TOTAL_METADATA_CACHE_MISS_COUNT
+      FROM
+        M_SQL_PLAN_CACHE
+      UNION ALL
+      SELECT
+        'RESET' DATA_SOURCE,
+        HOST,
+        PORT,
+        SCHEMA_NAME,
+        STATEMENT_HASH,
+        USER_NAME,
+        TO_VARCHAR(ACCESSED_TABLE_NAMES) ACCESSED_TABLE_NAMES,
+        TABLE_TYPES STORE,
+        PLAN_SHARING_TYPE SHARING_TYPE,
+        CURRENT_TIMESTAMP SERVER_TIMESTAMP,
+        IS_DISTRIBUTED_EXECUTION,
+        IS_INTERNAL,
+        TABLE_LOCATIONS TABLE_LOCATION,
+        EXECUTION_COUNT,
+        TOTAL_RESULT_RECORD_COUNT,
+        TOTAL_EXECUTION_TIME + TOTAL_PREPARATION_TIME TOTAL_ELAPSED_TIME,
+        TOTAL_PREPARATION_TIME,
+        TOTAL_LOCK_WAIT_DURATION,
+        TOTAL_SERVICE_NETWORK_REQUEST_DURATION,
+        TOTAL_CALLED_THREAD_COUNT,
+        TOTAL_EXECUTION_MEMORY_SIZE,
+        TOTAL_METADATA_CACHE_MISS_COUNT,
+        SUM(TOTAL_EXECUTION_TIME + TOTAL_PREPARATION_TIME) OVER () SUM_TOTAL_ELAPSED_TIME,
+        SUM(TOTAL_PREPARATION_TIME) OVER () SUM_TOTAL_PREPARATION_TIME,
+        SUM(TOTAL_LOCK_WAIT_DURATION) OVER () SUM_TOTAL_LOCK_WAIT_DURATION,
+        SUM(TOTAL_SERVICE_NETWORK_REQUEST_DURATION) OVER () SUM_TOTAL_SERVICE_NETWORK_REQUEST_DURATION,
+        SUM(EXECUTION_COUNT) OVER () SUM_EXECUTION_COUNT,
+        SUM(TOTAL_RESULT_RECORD_COUNT) OVER () SUM_TOTAL_RESULT_RECORD_COUNT,
+        SUM(TOTAL_CALLED_THREAD_COUNT) OVER () SUM_TOTAL_CALLED_THREAD_COUNT,
+        SUM(TO_DECIMAL(TOTAL_EXECUTION_MEMORY_SIZE)) OVER () SUM_TOTAL_EXECUTION_MEMORY_SIZE,
+        SUM(TOTAL_METADATA_CACHE_MISS_COUNT) OVER () SUM_TOTAL_METADATA_CACHE_MISS_COUNT
+      FROM
+        M_SQL_PLAN_CACHE_RESET
+      UNION ALL
+      SELECT
+        'HISTORY' DATA_SOURCE,
+        HOST,
+        PORT,
+        SCHEMA_NAME,
+        STATEMENT_HASH,
+        USER_NAME,
+        ACCESSED_TABLE_NAMES,
+        STORE,
+        SHARING_TYPE,
+        SERVER_TIMESTAMP,
+        IS_DISTRIBUTED_EXECUTION,
+        IS_INTERNAL,
+        TABLE_LOCATION,
+        EXECUTION_COUNT,
+        TOTAL_RESULT_RECORD_COUNT,
+        TOTAL_ELAPSED_TIME,
+        TOTAL_PREPARATION_TIME,
+        TOTAL_LOCK_WAIT_DURATION,
+        0 TOTAL_SERVICE_NETWORK_REQUEST_DURATION,
+        0 TOTAL_CALLED_THREAD_COUNT,
+        0 TOTAL_EXECUTION_MEMORY_SIZE,
+        TOTAL_METADATA_CACHE_MISS_COUNT,
+        SUM(TOTAL_ELAPSED_TIME) OVER () SUM_TOTAL_ELAPSED_TIME,
+        SUM(TOTAL_PREPARATION_TIME) OVER () SUM_TOTAL_PREPARATION_TIME,
+        SUM(TOTAL_LOCK_WAIT_DURATION) OVER () SUM_TOTAL_LOCK_WAIT_DURATION,
+        SUM(TOTAL_SERVICE_NETWORK_REQUEST_DURATION) OVER () SUM_TOTAL_SERVICE_NETWORK_REQUEST_DURATION,
+        SUM(EXECUTION_COUNT) OVER () SUM_EXECUTION_COUNT,
+        SUM(TOTAL_RESULT_RECORD_COUNT) OVER () SUM_TOTAL_RESULT_RECORD_COUNT,
+        SUM(TOTAL_CALLED_THREAD_COUNT) OVER () SUM_TOTAL_CALLED_THREAD_COUNT,
+        SUM(TO_DECIMAL(TOTAL_EXECUTION_MEMORY_SIZE)) OVER () SUM_TOTAL_EXECUTION_MEMORY_SIZE,
+        SUM(TOTAL_METADATA_CACHE_MISS_COUNT) OVER () SUM_TOTAL_METADATA_CACHE_MISS_COUNT   
+      FROM
+      ( SELECT
+          HOST,
+          PORT,
+          SCHEMA_NAME,
+          STATEMENT_HASH,
+          USER_NAME,
+          TO_VARCHAR(ACCESSED_TABLE_NAMES) ACCESSED_TABLE_NAMES,
+          TABLE_TYPES STORE,
+          PLAN_SHARING_TYPE SHARING_TYPE,
+          SERVER_TIMESTAMP,
+          IS_DISTRIBUTED_EXECUTION,
+          IS_INTERNAL,
+          TABLE_LOCATIONS TABLE_LOCATION,
+          MAX(EXECUTION_COUNT) EXECUTION_COUNT,
+          MAX(TOTAL_RESULT_RECORD_COUNT) TOTAL_RESULT_RECORD_COUNT,
+          MAX(TOTAL_EXECUTION_TIME + TOTAL_PREPARATION_TIME) TOTAL_ELAPSED_TIME,
+          MAX(TOTAL_PREPARATION_TIME) TOTAL_PREPARATION_TIME,
+          MAX(TOTAL_LOCK_WAIT_DURATION) TOTAL_LOCK_WAIT_DURATION,
+          0 TOTAL_SERVICE_NETWORK_REQUEST_DURATION,
+          0 TOTAL_CALLED_THREAD_COUNT,
+          0 TOTAL_EXECUTION_MEMORY_SIZE,
+          MAX(TOTAL_METADATA_CACHE_MISS_COUNT) TOTAL_METADATA_CACHE_MISS_COUNT
+        FROM
+          _SYS_STATISTICS.HOST_SQL_PLAN_CACHE C 
+        GROUP BY
+          HOST,
+          PORT,
+          SCHEMA_NAME,
+          STATEMENT_HASH,
+          USER_NAME,
+          TO_VARCHAR(ACCESSED_TABLE_NAMES),
+          TABLE_TYPES,
+          PLAN_SHARING_TYPE,
+          SERVER_TIMESTAMP,
+          IS_DISTRIBUTED_EXECUTION,
+          IS_INTERNAL,
+          TABLE_LOCATIONS
+      )
+    ) C
+    WHERE
+      ( BI.DATA_SOURCE IN ( 'CURRENT', 'RESET' ) OR CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(C.SERVER_TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE C.SERVER_TIMESTAMP END BETWEEN BI.BEGIN_TIME AND BI.END_TIME ) AND
+      C.HOST LIKE BI.HOST AND
+      TO_VARCHAR(C.PORT) LIKE BI.PORT AND
+      C.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+      ( BI.TABLE_NAME = '%' OR C.ACCESSED_TABLE_NAMES LIKE '%.' || BI.TABLE_NAME || '(%' ) AND
+      C.SHARING_TYPE LIKE BI.SHARING_TYPE AND
+      IFNULL(C.USER_NAME, '') LIKE BI.DB_USER AND
+      C.DATA_SOURCE = BI.DATA_SOURCE AND
+      C.IS_DISTRIBUTED_EXECUTION LIKE BI.IS_DISTRIBUTED_EXECUTION AND
+      ( BI.EXCLUDE_INTERNAL = ' ' OR C.IS_INTERNAL = 'FALSE' ) AND
+      IFNULL(C.STORE, '') LIKE BI.STORE AND
+      C.TABLE_LOCATION LIKE BI.TABLE_LOCATION 
+    GROUP BY
+      STATEMENT_HASH,
+      IS_INTERNAL
+  )
+),
+OUTPUT_SECTIONS AS
+( SELECT 1000 LINE_NO, 'ELAPSED TIME (MS)' KEY_FIGURE, TOP_N_ELAPSED_TIME TOP_N FROM BASIS_INFO UNION ALL
+  SELECT 2000,         'PREPARE TIME (MS)',            TOP_N_PREPARE_TIME       FROM BASIS_INFO UNION ALL
+  SELECT 3000,         'LOCK WAIT TIME (MS)',          TOP_N_LOCK_WAIT_TIME     FROM BASIS_INFO UNION ALL
+  SELECT 4000,         'NETWORK TIME (MS)',            TOP_N_NETWORK_TIME       FROM BASIS_INFO UNION ALL
+  SELECT 5000,         'RECORDS',                      TOP_N_RECORDS            FROM BASIS_INFO UNION ALL
+  SELECT 6000,         'EXECUTIONS',                   TOP_N_EXECUTIONS         FROM BASIS_INFO UNION ALL
+  SELECT 7000,         'CALLED THREADS',               TOP_N_CALLED_THREADS     FROM BASIS_INFO UNION ALL
+  SELECT 8000,         'MEMORY ALLOCATION (KB)',       TOP_N_MEMORY             FROM BASIS_INFO UNION ALL
+  SELECT 9000,         'METADATA MISSES',              TOP_N_METADATA           FROM BASIS_INFO
+)
+SELECT
+  STATEMENT_HASH,
+  TP,
+  POS,
+  VALUE,
+  VALUE_PER_EXEC,
+  PCT
+FROM
+( SELECT
+    LINE_NO,
+    RESTRICTION STATEMENT_HASH,
+    '' TP,
+    '' POS,
+    '' VALUE,
+    '' VALUE_PER_EXEC,
+    '' PCT
+  FROM
+  ( SELECT
+      10 LINE_NO,
+      RPAD('START:', 7) || TO_VARCHAR(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS') RESTRICTION
+    FROM
+      BASIS_INFO
+    WHERE
+      DATA_SOURCE = 'HISTORY'
+    UNION ALL
+    SELECT
+      20 LINE_NO,
+      RPAD('END:', 7) || MAP(DATA_SOURCE, 'HISTORY', TO_VARCHAR(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), 
+        TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYY/MM/DD HH24:MI:SS') || CHAR(32) || '(' || DATA_SOURCE || ')')
+    FROM
+      BASIS_INFO
+    UNION ALL
+    SELECT
+      30 LINE_NO,
+      RPAD('HOST:', 18) || HOST
+    FROM
+      BASIS_INFO
+    WHERE
+      HOST != '%'
+    UNION ALL
+    SELECT
+      40 LINE_NO,
+      RPAD('PORT:', 18) || PORT
+    FROM
+      BASIS_INFO
+    WHERE
+      PORT != '%'
+    UNION ALL
+    SELECT
+      50 LINE_NO,
+      RPAD('SCHEMA NAME:', 18) || SCHEMA_NAME
+    FROM
+      BASIS_INFO
+    WHERE
+      SCHEMA_NAME != '%'
+    UNION ALL
+    SELECT
+      60 LINE_NO,
+      RPAD('TABLE LOCATION:', 18) || TABLE_LOCATION
+    FROM
+      BASIS_INFO
+    WHERE
+      TABLE_LOCATION != '%'
+    UNION ALL
+    SELECT
+      70 LINE_NO,
+      RPAD('TABLE NAME:', 18) || TABLE_NAME
+    FROM
+      BASIS_INFO
+    WHERE
+      TABLE_NAME != '%'
+    UNION ALL
+    SELECT
+      80 LINE_NO,
+      RPAD('DATABASE USER:', 18) || DB_USER
+    FROM
+      BASIS_INFO
+    WHERE
+      DB_USER != '%'
+    UNION ALL
+    SELECT
+      90 LINE_NO,
+      RPAD('DIST. EXECUTION:', 18) || IS_DISTRIBUTED_EXECUTION
+    FROM
+      BASIS_INFO
+    WHERE
+      IS_DISTRIBUTED_EXECUTION != '%'
+    UNION ALL
+    SELECT
+      100 LINE_NO,
+      RPAD('SHARING TYPE:', 18) || SHARING_TYPE
+    FROM
+      BASIS_INFO
+    WHERE
+      SHARING_TYPE != '%'
+    UNION ALL
+    SELECT
+      110 LINE_NO,
+      RPAD('STORE:', 15) || STORE
+    FROM
+      BASIS_INFO
+    WHERE
+      STORE != '%'
+    UNION ALL
+    SELECT
+      LINE_NO - 0.2 LINE_NO,
+      ''
+    FROM
+      OUTPUT_SECTIONS
+    WHERE
+      TOP_N > 0
+    UNION ALL
+    SELECT
+      LINE_NO - 0.1 LINE_NO,
+      RPAD('*', LENGTH(KEY_FIGURE) + 4, '*')
+    FROM
+      OUTPUT_SECTIONS
+    WHERE
+      TOP_N > 0
+    UNION ALL
+    SELECT
+      LINE_NO,
+      '*' || CHAR(32) || KEY_FIGURE || CHAR(32) || '*'
+    FROM
+      OUTPUT_SECTIONS
+    WHERE
+      TOP_N > 0
+    UNION ALL
+    SELECT
+      LINE_NO + 0.1 LINE_NO,
+      RPAD('*', LENGTH(KEY_FIGURE) + 4, '*')
+    FROM
+      OUTPUT_SECTIONS
+    WHERE
+      TOP_N > 0
+    UNION ALL
+    SELECT
+      LINE_NO + 0.2 LINE_NO,
+      ''
+    FROM
+      OUTPUT_SECTIONS
+    WHERE
+      TOP_N > 0
+  )
+  UNION ALL
+  SELECT
+    S.LINE_NO,
+    S.STATEMENT_HASH,
+    S.SQL_TYPE TP,
+    S.POS,
+    S.VALUE,
+    S.VALUE_PER_EXEC,
+    S.PCT
+  FROM
+    BASIS_INFO BI,
+  ( SELECT
+      LINE_NO + SUBLINE_NO LINE_NO,
+      STATEMENT_HASH,
+      CASE
+        WHEN STATEMENT_STRING_CLEANED LIKE 'ALTER INDEX%'       THEN 'AI'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'ALTER SYSTEM%'      THEN 'AS'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'ALTER TABLE%'       THEN 'AT'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'ALTER%'             THEN 'AL'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'CALL%'              THEN 'CA'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'COMMIT%'            THEN 'CO'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'CREATE INDEX%'      THEN 'CI'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'CREATE TABLE%'      THEN 'CT'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'CREATE%'            THEN 'CR'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'DELETE%'            THEN 'DE'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'DROP INDEX%'        THEN 'DI'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'DROP TABLE%'        THEN 'DT'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'DROP%'              THEN 'DR'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'EXECUTE%'           THEN 'EX'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'INSERT%'            THEN 'IN'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'REPLACE%'           THEN 'RE'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'ROLLBACK%'          THEN 'RO'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'SELECT%FOR UPDATE%' THEN 'SU'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'SELECT%'            THEN 'SE'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'TRUNCATE%'          THEN 'TR'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'UPDATE%'            THEN 'UP'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'UPSERT%'            THEN 'US'
+        WHEN STATEMENT_STRING_CLEANED LIKE 'WITH%'              THEN 'WI'
+        ELSE 'unknown'
+      END SQL_TYPE,
+      LPAD(SUBLINE_NO, 3) POS,
+      LPAD(TO_DECIMAL(ROUND(KEY_FIGURE), 20, 0), 20) VALUE,
+      LPAD(TO_DECIMAL(MAP(EXECUTIONS, 0, 0, KEY_FIGURE / EXECUTIONS), 10, 2), 15) VALUE_PER_EXEC,
+      LPAD(TO_DECIMAL(MAP(KEY_FIGURE_TOTAL, 0, 0, KEY_FIGURE / KEY_FIGURE_TOTAL * 100), 10, 2), 5) PCT
+    FROM
+    ( SELECT
+        LINE_NO,
+        SUBLINE_NO,
+        STATEMENT_HASH,
+        KEY_FIGURE,
+        EXECUTIONS,
+        KEY_FIGURE_TOTAL,
+        ( SELECT
+            MAX(STATEMENT_STRING_CLEANED)
+          FROM
+          ( SELECT
+              REPLACE(UPPER(LTRIM(MAP(SUBSTR(TO_VARCHAR(STATEMENT_STRING), 1, 2), '/*', SUBSTR(TO_VARCHAR(STATEMENT_STRING), LOCATE(TO_VARCHAR(STATEMENT_STRING), '*/') + 2), TO_VARCHAR(STATEMENT_STRING)), ' ({')), CHAR(10), '') STATEMENT_STRING_CLEANED
+            FROM
+              M_SQL_PLAN_CACHE SP
+            WHERE
+              SP.STATEMENT_HASH = S.STATEMENT_HASH
+          )
+        ) STATEMENT_STRING_CLEANED
+      FROM
+      ( SELECT
+          LINE_NO,
+          STATEMENT_HASH,
+          MAP(KEY_FIGURE,
+            'ELAPSED TIME (MS)',      TOP_N_ELAPSED,
+            'PREPARE TIME (MS)',      TOP_N_PREPARE,
+            'LOCK WAIT TIME (MS)',    TOP_N_LOCK_WAIT,
+            'NETWORK TIME (MS)',      TOP_N_NETWORK,
+            'RECORDS',                TOP_N_RECORDS,
+            'EXECUTIONS',             TOP_N_EXECUTIONS,
+            'CALLED THREADS',         TOP_N_THREADS,
+            'MEMORY ALLOCATION (KB)', TOP_N_MEMORY,
+            'METADATA MISSES',        TOP_N_METADATA) SUBLINE_NO,
+          MAP(KEY_FIGURE,
+            'ELAPSED TIME (MS)',      TOTAL_ELAPSED_TIME / 1000,
+            'PREPARE TIME (MS)',      TOTAL_PREPARATION_TIME / 1000,
+            'LOCK WAIT TIME (MS)',    TOTAL_LOCK_WAIT_DURATION / 1000,
+            'NETWORK TIME (MS)',      TOTAL_SERVICE_NETWORK_REQUEST_DURATION / 1000,
+            'RECORDS',                TOTAL_RESULT_RECORD_COUNT,
+            'EXECUTIONS',             EXECUTION_COUNT,
+            'CALLED THREADS',         TOTAL_CALLED_THREAD_COUNT,
+            'MEMORY ALLOCATION (KB)', TOTAL_EXECUTION_MEMORY_SIZE / 1024,
+            'METADATA MISSES',        TOTAL_METADATA_CACHE_MISS_COUNT ) KEY_FIGURE,
+          EXECUTION_COUNT EXECUTIONS,
+          MAP(KEY_FIGURE,
+            'ELAPSED TIME (MS)',      SUM_TOTAL_ELAPSED_TIME / 1000,
+            'PREPARE TIME (MS)',      SUM_TOTAL_PREPARATION_TIME / 1000,
+            'LOCK WAIT TIME (MS)',    SUM_TOTAL_LOCK_WAIT_DURATION / 1000,
+            'NETWORK TIME (MS)',      SUM_TOTAL_SERVICE_NETWORK_REQUEST_DURATION / 1000,
+            'RECORDS',                SUM_TOTAL_RESULT_RECORD_COUNT,
+            'EXECUTIONS',             SUM_EXECUTION_COUNT,
+            'CALLED THREADS',         SUM_TOTAL_CALLED_THREAD_COUNT,
+            'MEMORY ALLOCATION (KB)', SUM_TOTAL_EXECUTION_MEMORY_SIZE,
+            'METADATA MISSES',        SUM_TOTAL_METADATA_CACHE_MISS_COUNT ) KEY_FIGURE_TOTAL
+        FROM
+        ( SELECT
+            S.*,
+            C.*
+          FROM
+            OUTPUT_SECTIONS S,
+            SQL_CACHE C
+        )
+        WHERE
+        ( KEY_FIGURE = 'ELAPSED TIME (MS)'      AND TOP_N >= TOP_N_ELAPSED    OR
+          KEY_FIGURE = 'PREPARE TIME (MS)'      AND TOP_N >= TOP_N_PREPARE    OR
+          KEY_FIGURE = 'LOCK WAIT TIME (MS)'    AND TOP_N >= TOP_N_LOCK_WAIT  OR
+          KEY_FIGURE = 'NETWORK TIME (MS)'      AND TOP_N >= TOP_N_NETWORK    OR
+          KEY_FIGURE = 'RECORDS'                AND TOP_N >= TOP_N_RECORDS    OR
+          KEY_FIGURE = 'EXECUTIONS'             AND TOP_N >= TOP_N_EXECUTIONS OR
+          KEY_FIGURE = 'CALLED THREADS'         AND TOP_N >= TOP_N_THREADS    OR
+          KEY_FIGURE = 'MEMORY ALLOCATION (KB)' AND TOP_N >= TOP_N_MEMORY     OR
+          KEY_FIGURE = 'METADATA MISSES'        AND TOP_N >= TOP_N_METADATA
+        )
+      ) S
+    )
+  ) S
+  WHERE
+  ( BI.SQL_TYPE = 'DM' AND S.SQL_TYPE IN ('IN', 'UP', 'DEL', 'SU', 'US' ) OR
+    S.SQL_TYPE LIKE BI.SQL_TYPE
+  )
+)
+ORDER BY
+  LINE_NO

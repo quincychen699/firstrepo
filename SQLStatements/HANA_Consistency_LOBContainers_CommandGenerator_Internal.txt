@@ -1,0 +1,177 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Consistency_LOBContainers_CommandGenerator_Internal
+
+[DESCRIPTION]
+
+- Checks for records which reference a non-existing physical disk LOB container
+- Does not work for packed LOBs as no monitoring view exists that contains all references / containers. Use CHECK_TABLE_CONSISTENCY with 'CHECK_LOB' instead
+- Result of command execution is a SQL statement that has to be executed in the second step
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- GET_GLOBALCONTAINERID function is not documented and should not be published
+
+- Based on this function it is also possible to identify how many LOB values are loaded into memory and how many remain on disk, e.g.:
+
+  SELECT
+    MAP(SUBSTR(GET_GLOBALCONTAINERID("CLUSTD"), 1, 1), 'I', 'MEMORY', 'D', 'DISK', 'n/a'),
+    COUNT(*)
+  FROM
+    SOFFCONT1
+  GROUP BY
+    MAP(SUBSTR(GET_GLOBALCONTAINERID("CLUSTD"), 1, 1), 'I', 'MEMORY', 'D', 'DISK', 'n/a')
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2014/10/13:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_TABLE_LOB_FILES
+
+[INPUT PARAMETERS]
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name (no pattern allowed)
+
+  'T000'          --> Specific table T000
+
+- LOB_COLUMN
+
+  Name of LOB column (mandatory)
+
+- OUTPUT_COLUMNS
+
+  List of output columns (of table defined in TABLE_NAME) separated by comma, primary key columns proper identification of records useful
+
+  'GUID'          --> Output column GUID
+  'MANDT, GUID'   --> Output columns MANDT and GUID
+  
+[OUTPUT PARAMETERS]
+
+- TABLE_NAME:        Table name
+- TAB_CONTAINER_ID:  LOB container ID referenced in table record
+- PERS_CONTAINER_ID: LOB container ID on disk (missing if empty)
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------
+|LINE                                                                 |
+-----------------------------------------------------------------------
+|SELECT                                                               |
+|  '/POSDW/PLOG1S' TABLE_NAME,                                        |
+|  MANDT, GUID,                                                       |
+|  IFNULL(TO_VARCHAR(T.TAB_CONTAINER_ID), '') TAB_CONTAINER_ID,       |
+|  IFNULL(TO_VARCHAR(L.PERS_CONTAINER_ID),  '') PERS_CONTAINER_ID     |
+|FROM                                                                 |
+|  ( SELECT                                                           |
+|      MANDT, GUID,                                                   |
+|      GET_GLOBALCONTAINERID("PROCESSLOGDATA") TAB_CONTAINER_ID       |
+|    FROM                                                             |
+|      "/POSDW/PLOG1S"                                                |
+|    WHERE                                                            |
+|      GET_GLOBALCONTAINERID(PROCESSLOGDATA) != 'INPLACE_BLOB'        |
+|  ) T FULL OUTER JOIN                                                |
+|  ( SELECT                                                           |
+|      CONTAINER_ID PERS_CONTAINER_ID                                 |
+|    FROM                                                             |
+|      M_TABLE_LOB_FILES                                              |
+|    WHERE                                                            |
+|      TABLE_NAME = '/POSDW/PLOG1S'                                   |
+|  ) L ON                                                             |
+|    T.TAB_CONTAINER_ID LIKE '%' || L.PERS_CONTAINER_ID               |
+|WHERE                                                                |
+|  ( T.TAB_CONTAINER_ID IS NULL AND L.PERS_CONTAINER_ID IS NOT NULL OR|
+|    T.TAB_CONTAINER_ID IS NOT NULL AND L.PERS_CONTAINER_ID IS NULL ) |
+|ORDER BY                                                             |
+|  MANDT, GUID                                                        |
+-----------------------------------------------------------------------
+
+--> Needs to be executed and returns e.g.:
+
+--------------------------------------------------------------------------------------------------
+|TABLE_NAME   |MANDT|                            GUID|TAB_CONTAINER_ID         |PERS_CONTAINER_ID|
+--------------------------------------------------------------------------------------------------
+|/POSDW/PLOG1S|500  |0050568809891ED48BAC6A28CC76C22A|DISK_BLOB:5:1090923520736|                 |
+|/POSDW/PLOG1S|500  |0050568809891ED48BAC6A93F945422A|DISK_BLOB:5:1090923520738|                 |
+|/POSDW/PLOG1S|500  |0050568809891ED48BDF8BCE3C7CB722|DISK_BLOB:5:1090923521595|                 |
+|/POSDW/PLOG1S|500  |0050568809891ED48BDF8BD4BC9C7722|DISK_BLOB:5:1090923521594|                 |
+|/POSDW/PLOG1S|500  |0050568809891ED48BDF8D55E6493724|DISK_BLOB:5:1090923521596|                 |
+|/POSDW/PLOG1S|500  |0050568809891ED48BF7058235931D2A|DISK_BLOB:5:1090923521771|                 |
+|/POSDW/PLOG1S|500  |0050568809891ED48BF7068D70971D2A|DISK_BLOB:5:1090923521777|                 |
+|/POSDW/PLOG1S|500  |0050568809891ED48BF7071D7D8EDD2A|DISK_BLOB:5:1090923521778|                 |
+|/POSDW/PLOG1S|500  |0050568809891ED48BF7073D8F783D2A|DISK_BLOB:5:1090923521774|                 |
+--------------------------------------------------------------------------------------------------
+
+-> The mentioned records with empty PERS_CONTAINER_ID are corrupted
+-> Selecting them results in errors like:
+
+   persistence error: exception 70029007: Storage object does not exist: DISK_BLOB:5:1090923520736  at function __trex_field_Hybrid
+
+*/
+
+  CASE L.LINE_NO
+    WHEN  1 THEN 'SELECT'
+    WHEN  2 THEN CHAR(32) || CHAR(32) || CHAR(39) || BI.TABLE_NAME || CHAR(39) || CHAR(32) || 'TABLE_NAME,'
+    WHEN  3 THEN CHAR(32) || CHAR(32) || BI.OUTPUT_COLUMNS || ','
+    WHEN  4 THEN CHAR(32) || CHAR(32) || 'IFNULL(TO_VARCHAR(T.TAB_CONTAINER_ID),' || CHAR(32) || CHAR(39) || CHAR(39) || ') TAB_CONTAINER_ID,'
+    WHEN  5 THEN CHAR(32) || CHAR(32) || 'IFNULL(TO_VARCHAR(L.PERS_CONTAINER_ID), ' || CHAR(32) || CHAR(39) || CHAR(39) || ') PERS_CONTAINER_ID'
+    WHEN  6 THEN 'FROM'
+    WHEN  7 THEN CHAR(32) || CHAR(32) || '( SELECT'
+    WHEN  8 THEN CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || BI.OUTPUT_COLUMNS || ','
+    WHEN  9 THEN CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || 'GET_GLOBALCONTAINERID("' || LOB_COLUMN || '") TAB_CONTAINER_ID'
+    WHEN 10 THEN CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || 'FROM'
+    WHEN 11 THEN CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || CASE WHEN BI.SCHEMA_NAME = '%' THEN '' ELSE '"' || BI.SCHEMA_NAME || '".' END || '"' || BI.TABLE_NAME || '"'
+    WHEN 12 THEN CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || 'WHERE'
+    WHEN 13 THEN CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || 'GET_GLOBALCONTAINERID("' || LOB_COLUMN || '") != ' || CHAR(39) || 'INPLACE_BLOB' || CHAR(39) 
+    WHEN 14 THEN CHAR(32) || CHAR(32) || ') T FULL OUTER JOIN'
+    WHEN 15 THEN CHAR(32) || CHAR(32) || '( SELECT'
+    WHEN 16 THEN CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || 'CONTAINER_ID PERS_CONTAINER_ID'
+    WHEN 17 THEN CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || 'FROM'
+    WHEN 18 THEN CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || 'M_TABLE_LOB_FILES'
+    WHEN 19 THEN CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || 'WHERE'
+    WHEN 20 THEN CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || 'TABLE_NAME = ' || CHAR(39) || BI.TABLE_NAME || CHAR(39)
+    WHEN 21 THEN CHAR(32) || CHAR(32) || ') L ON'
+    WHEN 22 THEN CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || 'T.TAB_CONTAINER_ID LIKE' || CHAR(32) || CHAR(39) || '%' || CHAR(39) || CHAR(32) || '|| L.PERS_CONTAINER_ID'
+    WHEN 23 THEN 'WHERE'
+    WHEN 24 THEN CHAR(32) || CHAR(32) || '( T.TAB_CONTAINER_ID IS NULL AND L.PERS_CONTAINER_ID IS NOT NULL OR'
+    WHEN 25 THEN CHAR(32) || CHAR(32) || CHAR(32) || CHAR(32) || 'T.TAB_CONTAINER_ID IS NOT NULL AND L.PERS_CONTAINER_ID IS NULL )'
+    WHEN 26 THEN 'ORDER BY'
+    WHEN 27 THEN CHAR(32) || CHAR(32) || BI.OUTPUT_COLUMNS
+  END LINE
+FROM
+( SELECT                   /* Modification section */
+    '%' SCHEMA_NAME,
+    '/POSDW/PLOG1S' TABLE_NAME,
+    'PROCESSLOGDATA' LOB_COLUMN,
+    'MANDT, GUID' OUTPUT_COLUMNS
+  FROM
+    DUMMY
+) BI,
+( SELECT TOP 27 ROW_NUMBER () OVER () LINE_NO FROM OBJECTS ) L
+

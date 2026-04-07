@@ -1,0 +1,348 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Transactions_History_Internal
+
+[DESCRIPTION]
+
+- Overview of historic transactions
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2024/05/25:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_DEV_TRANSACTIONS_HISTORY_
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- CONN_ID
+
+  Connection ID
+
+  330655          --> Connection ID 330655
+  -1              --> No connection ID restriction
+
+- UPDATE_TRANSACTION_ID
+
+  Update transaction identifier (used for DML operations)
+
+  123456          --> Update transaction identifier 123456
+  -1              --> No restriction to specific update transaction identifier
+
+- TRANSACTION_STATUS
+
+  Status of transaction
+
+  'ABORTED'       --> Aborted transactions
+  'COMMITTED'     --> Committed transactions
+  '%'             --> No restriction related to transaction status
+
+- TRANSACTION_TYPE
+
+  Transaction type
+
+  'INTERNAL TRANSACTION' --> Internal transactions
+  'USER TRANSACTION'     --> User transactions
+  '%'                    --> No restriction related to transaction type
+
+- AGGREGATION_TYPE
+
+  Type of aggregation
+
+  'AVG'           --> Average value
+  'SUM'           --> Total value
+  'MAX'           --> Maximum value
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'TIME'          --> Sorting by start time
+  'UNDO'          --> Sorting by undo volume
+
+[OUTPUT PARAMETERS]
+
+- START_TIME:   Transaction start time
+- ST:           System replication site ID
+- HOST:         Host name
+- PORT:         Port
+- UTID:         Update transaction ID
+- S:            Transaction status (A -> aborted, C -> committed)
+- T:            Transaction type (E -> external, I -> internal, U -> user)
+- AGG:          Aggregation type
+- COUNT:        Transaction count
+- TRANS_S:      Transaction time (s)
+- COMMIT_MS:    Last commit time (ms)
+- PREP_COMM_MS: Prepare commit time (ms)
+- PREP_LOG_MS:  Prepare log time (ms)
+- REDO_MB:      Redo volume (MB)
+- UNDO_MB:      Undo volume (MB)
+
+[EXAMPLE OUTPUT]
+
+--------------------------------------------------------------------------------------------------------------------------------
+|START_TIME         |HOST      |PORT |CONN_ID|UTID         |S|T|TRANS_S   |COMMIT_MS|PREP_COMM_MS|PREP_LOG_MS|REDO_MB |UNDO_MB |
+--------------------------------------------------------------------------------------------------------------------------------
+|2024/05/25 15:17:42|saphana073|30003| 949457|  67283818892|C|U|      7.35|  3534.61|     3527.17|       1.94|    0.00|    0.00|
+|2024/05/25 15:17:46|saphana075|30003|1207632|  67283549935|C|U|      7.78|  3470.85|     3463.86|       3.25|    0.00|    0.00|
+|2024/05/25 15:17:50|saphana075|30003|1255682|  67283549945|C|U|      4.69|  3285.14|     3281.74|       1.49|    0.00|    0.00|
+|2024/05/25 15:17:49|saphana072|30003| 847102|  67284064317|C|U|      4.15|  3276.32|     3274.96|       1.37|    0.00|    0.00|
+|2024/05/25 15:17:28|saphana074|30003|1062841|  67283504332|C|U|     25.57|  3215.75|     3214.17|       4.77|    0.00|    0.00|
+|2024/05/25 15:17:44|saphana073|30003| 954717|  67283818904|C|U|     10.15|  3205.33|     3203.19|       6.79|    0.00|    0.00|
+|2024/05/25 15:17:36|saphana076|30003| 419713|  67283679625|C|U|     19.13|  3150.75|     3147.76|       1.85|    0.00|    0.00|
+|2024/05/25 15:17:50|saphana072|30003| 842701|  67284064318|C|U|      5.41|  3147.33|     3145.85|       1.67|    0.00|    0.00|
+|2024/05/25 15:18:10|saphana073|30003| 931622|  67283819098|C|U|      6.14|  3134.84|     3131.19|       8.19|    0.00|    0.00|
+|2024/05/25 15:17:43|saphana074|30003|1003513|  67283504384|C|U|     10.56|  3055.41|     3053.75|       1.44|    0.00|    0.00|
+--------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  START_TIME,
+  LPAD(SITE_ID, 2) ST,
+  HOST,
+  LPAD(PORT, 5) PORT,
+  LPAD(CONN_ID, 7) CONN_ID,
+  LPAD(UTID, 13) UTID,
+  MAP(TRANSACTION_STATUS, 'ABORTED', 'A', 'COMMITTED', 'C', TRANSACTION_STATUS) S,
+  MAP(TRANSACTION_TYPE, 'EXTERNAL TRANSACTION', 'E', 'INTERNAL TRANSACTION', 'I', 'USER TRANSACTION', 'U', TRANSACTION_TYPE) T,
+  AGGREGATION_TYPE AGG,
+  LPAD(CNT, 5) "COUNT",
+  LPAD(TO_DECIMAL(TRANS_S, 10, 2), 10) TRANS_S,
+  LPAD(TO_DECIMAL(COMMIT_MS, 10, 2), 9) COMMIT_MS,
+  LPAD(TO_DECIMAL(PREP_COMM_MS, 10, 2), 12) PREP_COMM_MS,
+  LPAD(TO_DECIMAL(PREP_LOG_MS, 10, 2), 11) PREP_LOG_MS,
+  LPAD(TO_DECIMAL(REDO_MB, 10, 2), 8) REDO_MB,
+  LPAD(TO_DECIMAL(UNDO_MB, 10, 2), 8) UNDO_MB
+FROM
+( SELECT
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(T.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE T.START_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(T.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE T.START_TIME END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END START_TIME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SITE_ID')    != 0 THEN TO_VARCHAR(T.SITE_ID)               ELSE MAP(BI.SITE_ID,               -1, 'any', TO_VARCHAR(BI.SITE_ID))               END SITE_ID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')       != 0 THEN T.HOST                              ELSE MAP(BI.HOST,                 '%', 'any', BI.HOST)                              END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')       != 0 THEN TO_VARCHAR(T.PORT)                  ELSE MAP(BI.PORT,                 '%', 'any', BI.PORT)                              END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CONN_ID')    != 0 THEN TO_VARCHAR(T.CONNECTION_ID)         ELSE MAP(BI.CONN_ID,               -1, 'any', TO_VARCHAR(BI.CONN_ID))               END CONN_ID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'UTID')       != 0 THEN TO_VARCHAR(T.UPDATE_TRANSACTION_ID) ELSE MAP(BI.UPDATE_TRANSACTION_ID, -1, 'any', TO_VARCHAR(BI.UPDATE_TRANSACTION_ID)) END UTID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STATUS')     != 0 THEN T.TRANSACTION_STATUS                ELSE MAP(BI.TRANSACTION_STATUS,   '%', 'any', BI.TRANSACTION_STATUS)                END TRANSACTION_STATUS,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')       != 0 THEN T.TRANSACTION_TYPE                  ELSE MAP(BI.TRANSACTION_TYPE,     '%', 'any', BI.TRANSACTION_TYPE)                  END TRANSACTION_TYPE,
+    COUNT(*) CNT,
+    MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(NANO100_BETWEEN(T.START_TIME, T.END_TIME)), 'SUM', SUM(NANO100_BETWEEN(T.START_TIME, T.END_TIME)), 'AVG', AVG(NANO100_BETWEEN(T.START_TIME, T.END_TIME))) / 10000000 TRANS_S,
+    MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(T.REDO_LOG_AMOUNT), 'SUM', SUM(T.REDO_LOG_AMOUNT), 'AVG', AVG(T.REDO_LOG_AMOUNT)) / 1024 / 1024 REDO_MB,
+    MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(T.UNDO_LOG_AMOUNT), 'SUM', SUM(T.UNDO_LOG_AMOUNT), 'AVG', AVG(T.UNDO_LOG_AMOUNT)) / 1024 / 1024 UNDO_MB,
+    MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(T.LAST_COMMIT_DURATION), 'SUM', SUM(T.LAST_COMMIT_DURATION), 'AVG', AVG(T.LAST_COMMIT_DURATION)) / 1000 COMMIT_MS,
+    MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(T.PREPARE_COMMIT_WAIT_TIME), 'SUM', SUM(T.PREPARE_COMMIT_WAIT_TIME), 'AVG', AVG(T.PREPARE_COMMIT_WAIT_TIME)) / 1000 PREP_COMM_MS,
+    MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(T.PREPARE_LOG_WAIT_TIME), 'SUM', SUM(T.PREPARE_LOG_WAIT_TIME), 'AVG', AVG(T.PREPARE_LOG_WAIT_TIME)) / 1000 PREP_LOG_MS,
+    BI.AGGREGATION_TYPE,
+    BI.ORDER_BY
+  FROM
+  ( SELECT
+      CASE
+        WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+        WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+        WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+        WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+        WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+        WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+        WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END BEGIN_TIME,
+      CASE
+        WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+        WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+        WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+        WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+        WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+        WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+        WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+        WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+        WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+        WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+        WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END END_TIME,
+      TIMEZONE,
+      SITE_ID,
+      HOST,
+      PORT,
+      CONN_ID,
+      UPDATE_TRANSACTION_ID,
+      TRANSACTION_STATUS,
+      TRANSACTION_TYPE,
+      AGGREGATION_TYPE,
+      AGGREGATE_BY,
+      MAP(TIME_AGGREGATE_BY,
+        'NONE',        'YYYY/MM/DD HH24:MI:SS',
+        'HOUR',        'YYYY/MM/DD HH24',
+        'DAY',         'YYYY/MM/DD (DY)',
+        'HOUR_OF_DAY', 'HH24',
+        TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+      ORDER_BY  
+    FROM
+    ( SELECT                      /* Modification section */
+        '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+        '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+        'SERVER' TIMEZONE,                              /* SERVER, UTC */
+        -1 SITE_ID,
+        '%' HOST,
+        '%' PORT,
+        -1 CONN_ID,
+        -1 UPDATE_TRANSACTION_ID,
+        '%' TRANSACTION_STATUS,
+        '%' TRANSACTION_TYPE,
+        'AVG' AGGREGATION_TYPE,                       /* MAX, AVG, SUM */
+        'NONE' AGGREGATE_BY,         /* TIME, HOST, PORT, SITE_ID, CONN_ID, UTID, STATUS, TYPE or comma separated combinations, NONE for no aggregation */
+        'NONE' TIME_AGGREGATE_BY,     /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+        'PREP_COMM' ORDER_BY                   /* TIME, TOTAL, COMMIT, PREP_COMM, PREP_LOG, HOST, CONN_ID, REDO, UNDO */
+      FROM
+        DUMMY
+    )
+  ) BI,
+    SYS.M_DEV_TRANSACTIONS_HISTORY_ T
+  WHERE
+    ( BI.SITE_ID = -1 OR ( BI.SITE_ID = 0 AND T.SITE_ID IN (-1, 0) ) OR T.SITE_ID = BI.SITE_ID ) AND
+    T.HOST LIKE BI.HOST AND  
+    TO_VARCHAR(T.PORT) LIKE BI.PORT AND
+    CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(T.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE T.START_TIME END BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+    ( BI.CONN_ID = -1 OR T.CONNECTION_ID = BI.CONN_ID ) AND
+    ( BI.UPDATE_TRANSACTION_ID = -1 OR T.UPDATE_TRANSACTION_ID = BI.UPDATE_TRANSACTION_ID ) AND
+    T.TRANSACTION_STATUS LIKE BI.TRANSACTION_STATUS AND
+    T.TRANSACTION_TYPE LIKE BI.TRANSACTION_TYPE
+  GROUP BY
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(T.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE T.START_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(T.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE T.START_TIME END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any'
+    END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SITE_ID')    != 0 THEN TO_VARCHAR(T.SITE_ID)               ELSE MAP(BI.SITE_ID,               -1, 'any', TO_VARCHAR(BI.SITE_ID))               END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')       != 0 THEN T.HOST                              ELSE MAP(BI.HOST,                 '%', 'any', BI.HOST)                              END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')       != 0 THEN TO_VARCHAR(T.PORT)                  ELSE MAP(BI.PORT,                 '%', 'any', BI.PORT)                              END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CONN_ID')    != 0 THEN TO_VARCHAR(T.CONNECTION_ID)         ELSE MAP(BI.CONN_ID,               -1, 'any', TO_VARCHAR(BI.CONN_ID))               END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'UTID')       != 0 THEN TO_VARCHAR(T.UPDATE_TRANSACTION_ID) ELSE MAP(BI.UPDATE_TRANSACTION_ID, -1, 'any', TO_VARCHAR(BI.UPDATE_TRANSACTION_ID)) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STATUS')     != 0 THEN T.TRANSACTION_STATUS                ELSE MAP(BI.TRANSACTION_STATUS,   '%', 'any', BI.TRANSACTION_STATUS)                END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')       != 0 THEN T.TRANSACTION_TYPE                  ELSE MAP(BI.TRANSACTION_TYPE,     '%', 'any', BI.TRANSACTION_TYPE)                  END,
+    BI.AGGREGATION_TYPE,
+    BI.ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'TOTAL', TRANS_S, 'COMMIT', COMMIT_MS, 'PREP_LOG', PREP_LOG_MS, 'PREP_COMM', PREP_COMM_MS, 'REDO', REDO_MB, 'UNDO', UNDO_MB) DESC,
+  MAP(ORDER_BY, 'HOST', SITE_ID || HOST || PORT, 'CONN_ID', CONN_ID),
+  START_TIME DESC,
+  SITE_ID,
+  HOST,
+  PORT,
+  CONN_ID
+  

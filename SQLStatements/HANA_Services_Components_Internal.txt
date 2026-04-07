@@ -1,0 +1,162 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Services_Components_Internal
+
+[DESCRIPTION]
+
+- Service component times (startup, assign, reconfigure)
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+- SYS.M_SERVICE_COMPONENTS_ only available internally
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2020/04/08:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_SERVICE_COMPONENTS_
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SITE_ID
+
+  System replication site ID
+
+  1               --> Site ID 1
+  -1              --> No restriction related to system replication site ID
+
+- COMPONENT
+
+  Service component
+
+  'Fuzzy Search'  --> Service component "Fuzzy Search"
+  '%'             --> No restriction related to service component
+
+- IS_ENABLED
+
+  Enabled state
+
+  'TRUE'          --> Only list enabled components
+  'FALSE'         --> Only list components not being enabled
+  '%'             --> No restriction related to enabled state
+
+- ACTIVE_STATUS
+
+  Active status
+
+  'Started'       --> Only list started components
+  'Stopped'       --> Only list stopped components
+
+- MIN_START_DURATION_S
+
+  Threshold for minimum startup duration (s)
+
+  1               --> Only list components with a startup time of at least 1 second
+  -1              --> No restriction related to component startup time
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'COMPONENT'     --> Sorting by component name
+  'START_S'       --> Sorting by startup duration
+
+[OUTPUT PARAMETERS]
+
+- HOST:               Host
+- PORT:               Port
+- SITE_ID:            System replication site ID
+- COMPONENT:          Service component name
+- E:                  'X' if component is enabled, otherwise ' '
+- S:                  'X' if component is started, otherwise ' '
+- START_TIMESTAMP:    Start timestamp
+- START_S:            Start duration (s)
+- ASSIGN_TIMESTAMP:   Assign timestamp
+- ASSIGN_S:           Assign duration (s)
+- RECONFIG_TIMESTAMP: Reconfigure timestamp
+- RECONFIG_S:         Maximum reconfigure duration (s)
+
+[EXAMPLE OUTPUT]
+
+------------------------------------------------------------------------------------------------------------------------------------
+|HOST      |PORT |SITE_ID|COMPONENT       |E|S|START_TIMESTAMP    |START_S|ASSIGN_TIMESTAMP|ASSIGN_S|RECONFIG_TIMESTAMP |RECONFIG_S|
+------------------------------------------------------------------------------------------------------------------------------------
+|saphanadb1|32140|      1|Fuzzy Search    |X|X|2020/01/31 13:16:14|   1.02|                |    0.00|2020/04/07 13:06:36|      0.00|
+|saphanadb1|32140|      1|XSEngine        |X|X|2020/01/31 13:16:13|   0.01|                |    0.00|2020/04/07 13:06:36|      0.08|
+|saphanadb1|32140|      1|Attribute Engine|X|X|2020/01/31 13:16:13|   0.01|                |    0.00|2020/04/07 13:06:36|      0.04|
+------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  C.HOST,
+  LPAD(C.PORT, 5) PORT,
+  LPAD(C.SITE_ID, 7) SITE_ID,
+  C.STATISTICS_NAME COMPONENT,
+  MAP(C.IS_ENABLED, 'TRUE', 'X', '') E,
+  MAP(C.ACTIVE_STATUS, 'Started', 'X', '') S,
+  TO_VARCHAR(C.START_TIMESTAMP, 'YYYY/MM/DD HH24:MI:SS') START_TIMESTAMP,
+  LPAD(TO_DECIMAL(C.START_DURATION / 1000000, 10, 2), 7) START_S,
+  IFNULL(TO_VARCHAR(C.ASSIGN_TIMESTAMP, 'YYYY/MM/DD HH24:MI:SS'), '') ASSIGN_TIMESTAMP,
+  LPAD(TO_DECIMAL(C.ASSIGN_DURATION / 1000000, 10, 2), 8) ASSIGN_S,
+  IFNULL(TO_VARCHAR(C.LAST_RECONFIG_TIMESTAMP, 'YYYY/MM/DD HH24:MI:SS'), '') RECONFIG_TIMESTAMP,
+  LPAD(TO_DECIMAL(C.MAX_RECONFIG_DURATION / 1000000, 10, 2), 10) RECONFIG_S
+FROM
+( SELECT              /* Modification section */
+    '%' HOST,
+    '%' PORT,
+    1 SITE_ID,
+    '%' COMPONENT,
+    '%' IS_ENABLED,
+    '%' ACTIVE_STATUS,
+    0.1 MIN_START_DURATION_S,
+    'START_S' ORDER_BY           /* COMPONENT, START_S */
+  FROM
+    DUMMY
+) BI,
+  SYS.M_SERVICE_COMPONENTS_ C
+WHERE
+  C.HOST LIKE BI.HOST AND
+  TO_VARCHAR(C.PORT) LIKE BI.PORT AND
+  ( BI.SITE_ID = -1 OR C.SITE_ID = BI.SITE_ID ) AND
+  C.STATISTICS_NAME LIKE BI.COMPONENT AND
+  C.IS_ENABLED LIKE BI.IS_ENABLED AND
+  C.ACTIVE_STATUS LIKE BI.ACTIVE_STATUS AND
+  ( BI.MIN_START_DURATION_S = -1 OR C.START_DURATION / 1000000 >= BI.MIN_START_DURATION_S )
+ORDER BY
+  MAP(BI.ORDER_BY, 'START_S', C.START_DURATION) DESC,
+  C.STATISTICS_NAME,
+  C.HOST,
+  C.PORT

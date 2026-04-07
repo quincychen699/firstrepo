@@ -1,0 +1,170 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Topology_History_Internal_2.00.000+
+
+[DESCRIPTION]
+
+- Overview of historic transactions
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+- M_DEV_MACHINE_TOPOLOGY_HISTORY available with SAP HANA >= 2.0 SPS 00
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.000
+
+[SQL COMMAND VERSION]
+
+- 2024/07/13:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_DEV_MACHINE_TOPOLOGY_HISTORY
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- SITE_ID
+
+  System replication site ID
+
+  1               --> Site ID 1
+  -1              --> No restriction related to system replication site ID
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- STATISTICS_NAME
+
+  Statistics name
+
+  'Basis/MachineTopologyChanges/Singleton' --> Statistics name Basis/MachineTopologyChanges/Singleton
+  '%'                                      --> No restriction related to statistics name
+
+[OUTPUT PARAMETERS]
+
+- TIMESTAMP:           Timestamp
+- ST:                  System replication site ID
+- HOST:                Host name
+- PORT:                Port
+- STATISTICS_NAME:     Statistics name
+- CORE_COUNT:          CPU core count
+- AFFINITY:            Configured affinity
+- NODES_WITH_CPU:      NUMA nodes with CPU
+- NODES_WITH_MEM:      NUMA nodes with memory
+- CGROUP_MEM_LIMIT_GB: cgroup memory limit (GB)
+
+[EXAMPLE OUTPUT]
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+|TIMESTAMP          |ST|HOST        |PORT |STATISTICS_NAME                       |CORE_COUNT|AFFINITY|NODES_WITH_CPU|NODES_WITH_MEM|CGROUP_MEM_LIMIT_GB|
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+|2024/04/03 11:32:52|-1|saphananode1|30006|Basis/MachineTopologyChanges/Singleton|        32|    0-31|           0-1|           0-1|                345|
+|2024/04/03 11:30:05|-1|saphananode1|30002|Basis/MachineTopologyChanges/Singleton|        32|    0-31|           0-1|           0-1|                345|
+|2024/04/03 11:30:05|-1|saphananode1|30010|Basis/MachineTopologyChanges/Singleton|        32|    0-31|           0-1|           0-1|                345|
+|2024/04/03 11:28:59|-1|saphananode1|30001|Basis/MachineTopologyChanges/Singleton|        32|    0-31|           0-1|           0-1|                345|
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  TO_VARCHAR(T.TIMESTAMP, 'YYYY/MM/DD HH24:MI:SS') TIMESTAMP,
+  LPAD(T.SITE_ID, 2) ST,
+  T.HOST,
+  LPAD(T.PORT, 5) PORT,
+  T.STATISTICS_NAME,
+  LPAD(T.CORE_COUNT, 10) CORE_COUNT,
+  LPAD(T.AFFINITY, 8) AFFINITY,
+  LPAD(T.NODES_WITH_CPU, 14) NODES_WITH_CPU,
+  LPAD(T.NODES_WITH_MEM, 14) NODES_WITH_MEM,
+  LPAD(TO_DECIMAL(T.CGROUP_MEM_LIMIT / 1024 / 1024 / 1024, 10, 0), 19) CGROUP_MEM_LIMIT_GB
+FROM
+( SELECT                      /* Modification section */
+    '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+    '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+    'SERVER' TIMEZONE,                              /* SERVER, UTC */
+    -1 SITE_ID,
+    '%' HOST,
+    '%' PORT,
+    '%' STATISTICS_NAME
+  FROM
+    DUMMY
+) BI,
+  SYS.M_DEV_MACHINE_TOPOLOGY_HISTORY T
+WHERE
+  ( BI.SITE_ID = -1 OR ( BI.SITE_ID = 0 AND T.SITE_ID IN (-1, 0) ) OR T.SITE_ID = BI.SITE_ID ) AND
+  T.HOST LIKE BI.HOST AND  
+  TO_VARCHAR(T.PORT) LIKE BI.PORT AND
+  CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(T.TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE T.TIMESTAMP END BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+  T.STATISTICS_NAME LIKE BI.STATISTICS_NAME
+ORDER BY
+  T.TIMESTAMP DESC,
+  T.SITE_ID,
+  T.HOST,
+  T.PORT

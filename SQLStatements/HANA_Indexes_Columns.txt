@@ -1,0 +1,416 @@
+WITH
+/* 
+
+[NAME]
+
+- HANA_Indexes_Columns
+
+[DESCRIPTION]
+
+- Index column information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- NO_JOIN_REMOVAL hint required as workaround for bug 110097 (Rev. 112.02, "Execution flow must not reach here", "scalar subquery is not allowed")
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2014/03/06:  1.0 (initial version)
+- 2014/05/13:  1.1 (NUM_DISTINCT included)
+- 2017/03/02:  1.2 (INDEX_TYPE filter added)
+- 2017/09/21:  1.3 (implicit indexes added)
+- 2017/10/21:  1.4 (concat attributes added)
+- 2018/01/27:  1.5 (memory size added)
+- 2018/02/07:  1.6 (TP column added)
+
+[INVOLVED TABLES]
+
+- INDEXES
+- INDEX_COLUMNS
+- M_CS_ALL_COLUMNS
+
+[INPUT PARAMETERS]
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- INDEX_NAME
+
+  Index name or pattern
+
+  'EDIDC~1'       --> Specific index EDIDC~1
+  '%~2'           --> All indexes ending with '~2'
+  '%'             --> All indexes
+
+- INDEX_TYPE
+
+  Index type
+
+  'INVERTED HASH' --> Only display INVERTED HASH indexes
+  '%'             --> No restriction related to index type
+
+- INCLUDE_IMPLICIT_INDEXES
+
+  Possibility to include / exclude implicit indexes in the output
+  (implicit indexes are single column indexes created by SAP HANA implicitely, e.g. due to a primary key or due to an optimize compression decision)
+
+  'X'             --> Also display implicit indexes
+  ' '             --> Do not display implicit indexes
+
+- INCLUDE_CONCAT_ATTRIBUTES
+
+  Possibility to display also internal concat attributes that are not linked to a named index
+
+  'X'             --> Also display internal concat attributes
+  ' '             --> Do not display internal concat attributes
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'SIZE'          --> Sorting by size 
+  'TYPE'          --> Sorting by index type
+
+[OUTPUT PARAMETERS]
+
+- SCHEMA_NAME:  Schema name
+- TABLE_NAME:   Table name
+- INDEX_NAME:   Index name
+- C:            Constraint (P -> primary key constraint, U -> unique constraint)
+- TP:           Index type (B -> BTREE, C -> CPBTREE, IH -> INVERTED HASH, IV -> INVERTED VALUE, F -> FULLTEXT, FTA -> FULLTEXT TEXT ANALYSIS)
+- MEMORY_MB:    Index size in memory (MB)
+- COLUMN_NAME:  Index column name
+- NUM_DISTINCT: Number of distinct value
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------
+|SCHEMA_NAME|TABLE_NAME |INDEX_NAME                  |C|TP|COLUMN_NAME|MEMORY_MB|NUM_DISTINCT|
+----------------------------------------------------------------------------------------------
+|SAPSR3     |/SVT/NM_TMH|FT_IDX_/SVT/NM_TMH          | |F |STEXT      |   484.18|     1978094|
+|SAPSR3     |/SVT/NM_TMH|/SVT/NM_TMH~ARI             | |IV|POINTER    |    70.15|     6765916|
+|SAPSR3     |/SVT/NM_TMH|_SYS_TREE_CS_#6632398_#0_#P0|P|IV|MANDT      |    69.87|           2|
+|           |           |                            | |  |CSINSTA    |         |          15|
+|           |           |                            | |  |MNUMM      |         |     1303513|
+|           |           |                            | |  |MYEAR      |         |          22|
+|SAPSR3     |/SVT/NM_TMH|implicit                    | |IV|MNUMM      |    45.06|     1303513|
+|SAPSR3     |/SVT/NM_TMH|/SVT/NM_TMH~REP             | |IV|REPORTER   |    28.80|      357081|
+|SAPSR3     |/SVT/NM_TMH|implicit                    | |IV|CSINSTA    |     4.93|          15|
+|SAPSR3     |/SVT/NM_TMH|implicit                    | |IV|SPRSL      |     1.46|          44|
+|SAPSR3     |/SVT/NM_TMH|implicit                    | |IV|MYEAR      |     1.05|          22|
+|SAPSR3     |/SVT/NM_TMH|/SVT/NM_TMH~PRC             | |IV|PROCESSOR  |     0.55|           2|
+|SAPSR3     |/SVT/NM_TMH|implicit                    | |IV|MANDT      |     0.55|           2|
+----------------------------------------------------------------------------------------------
+
+*/
+
+BASIS_INFO AS
+( SELECT                               /* Modification section */
+    '%' SCHEMA_NAME,
+    'BSEG' TABLE_NAME,
+    '%' INDEX_NAME,
+    '%' INDEX_TYPE,
+    'X' INCLUDE_IMPLICIT_INDEXES,
+    'X' INCLUDE_CONCAT_ATTRIBUTES,
+    'SIZE' ORDER_BY                          /* SIZE, TYPE */
+  FROM
+    DUMMY
+),
+TEMP_CS_COLUMNS AS
+( SELECT
+    AC.SCHEMA_NAME,
+    AC.TABLE_NAME,
+    AC.COLUMN_NAME,
+    SUM(AC.MAIN_MEMORY_SIZE_IN_INDEX + AC.DELTA_MEMORY_SIZE_IN_INDEX) / 1024 / 1024 INV_INDEX_MB,
+    SUM(AC.MEMORY_SIZE_IN_TOTAL) / 1024 / 1024 COL_SIZE_MB,
+    MAX(AC.DISTINCT_COUNT) DISTINCT_COUNT,
+    AC.INTERNAL_ATTRIBUTE_TYPE,
+    MAP(MIN(AC.INDEX_TYPE), MAX(AC.INDEX_TYPE), MIN(AC.INDEX_TYPE), 'various') INDEX_TYPE
+  FROM
+    BASIS_INFO BI,
+    M_CS_ALL_COLUMNS AC
+  WHERE
+    AC.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    AC.TABLE_NAME LIKE BI.TABLE_NAME
+  GROUP BY
+    AC.SCHEMA_NAME,
+    AC.TABLE_NAME,
+    AC.COLUMN_NAME,
+    AC.INTERNAL_ATTRIBUTE_TYPE
+),
+TEMP_INDEX_COLUMNS AS
+( SELECT
+    ( SELECT '$' || STRING_AGG(IC2.COLUMN_NAME, '$' ORDER BY IC2.POSITION) || '$' FROM INDEX_COLUMNS IC2 
+        WHERE IC2.SCHEMA_NAME = I.SCHEMA_NAME AND IC2.TABLE_NAME = I.TABLE_NAME AND IC2.INDEX_NAME = IC.INDEX_NAME
+    ) CONCAT_NAME,
+    IC.SCHEMA_NAME,
+    IC.TABLE_NAME,
+    IC.INDEX_NAME,
+    I.INDEX_TYPE,
+    IFNULL(IC.CONSTRAINT, '') CONSTRAINT,
+    IC.COLUMN_NAME,
+    IC.POSITION,
+    COUNT(*) OVER (PARTITION BY IC.SCHEMA_NAME, IC.TABLE_NAME, IC.INDEX_NAME) NUM_COLUMNS
+  FROM
+    BASIS_INFO BI,
+    INDEXES I,
+    INDEX_COLUMNS IC
+  WHERE
+    I.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    I.TABLE_NAME LIKE BI.TABLE_NAME AND
+    I.INDEX_NAME LIKE BI.INDEX_NAME AND
+    I.INDEX_TYPE LIKE BI.INDEX_TYPE AND
+    IC.SCHEMA_NAME = I.SCHEMA_NAME AND
+    IC.TABLE_NAME = I.TABLE_NAME AND
+    IC.INDEX_NAME = I.INDEX_NAME
+),
+CONCAT_ATTRIBUTES AS
+( SELECT
+    C.SCHEMA_NAME,
+    C.TABLE_NAME,
+    C.INDEX_NAME,
+    C.CONCAT_NAME,
+    C.COLUMN_NAME,
+    C.POSITION,
+    COUNT(*) OVER (PARTITION BY C.SCHEMA_NAME, C.TABLE_NAME, C.CONCAT_NAME) NUM_COLUMNS,
+    C.COL_SIZE_MB
+  FROM
+  ( SELECT
+      C.SCHEMA_NAME,
+      C.TABLE_NAME,
+      'CONCAT ATTRIBUTE' INDEX_NAME,
+      C.COLUMN_NAME CONCAT_NAME,
+      SUBSTR(C.COLUMN_NAME, LOCATE(C.COLUMN_NAME, '$', 1, P.POSITION) + 1, LOCATE(C.COLUMN_NAME, '$', 1, P.POSITION + 1) - LOCATE(C.COLUMN_NAME, '$', 1, P.POSITION) - 1 ) COLUMN_NAME,
+      P.POSITION,
+      C.COL_SIZE_MB
+    FROM
+      ( SELECT TOP 200 ROW_NUMBER () OVER () POSITION FROM OBJECTS ) P,
+      BASIS_INFO BI,
+      TEMP_CS_COLUMNS C
+    WHERE
+      C.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+      C.TABLE_NAME LIKE BI.TABLE_NAME AND
+      C.INTERNAL_ATTRIBUTE_TYPE = 'CONCAT_ATTRIBUTE' AND
+      C.COLUMN_NAME NOT LIKE '$uc%'
+  ) C
+  WHERE
+    COLUMN_NAME != '' AND
+    NOT EXISTS
+    ( SELECT 
+        1 
+      FROM
+      ( SELECT
+          '$' || STRING_AGG(IC.COLUMN_NAME, '$' ORDER BY IC.POSITION) || '$' INDEX_NAME
+        FROM
+          INDEX_COLUMNS IC 
+        WHERE 
+          IC.SCHEMA_NAME = C.SCHEMA_NAME AND 
+          IC.TABLE_NAME = C.TABLE_NAME
+        GROUP BY
+          IC.INDEX_NAME
+      ) IC
+      WHERE 
+        IC.INDEX_NAME = C.CONCAT_NAME
+    )
+)
+SELECT
+  MAP(POSITION, 1, S.SCHEMA_NAME, ' ') SCHEMA_NAME,
+  MAP(POSITION, 1, S.TABLE_NAME, ' ') TABLE_NAME,
+  MAP(POSITION, 1, S.INDEX_NAME, ' ') INDEX_NAME,
+  MAP(POSITION, 1, S.CONSTRAINT, ' ' ) C,
+  MAP(POSITION, 1, MAP(S.INDEX_TYPE, 'BTREE', 'B', 'BTREE UNIQUE', 'B', 'CPBTREE', 'C', 'CPBTREE UNIQUE', 'C', 'INVERTED HASH', 'IH', 'INVERTED HASH UNIQUE', 'IH', 
+    'INVERTED VALUE', 'IV', 'INVERTED VALUE UNIQUE', 'IV', 'FULLTEXT', 'F', 'FULLTEXT TEXT ANALYIS', 'FTA', S.INDEX_TYPE), '') TP,
+  S.COLUMN_NAME,
+  CASE WHEN S.INDEX_TYPE LIKE '%BTREE%' THEN '' ELSE MAP(POSITION, 1, LPAD(TO_DECIMAL(AVG(S.MEM_MB), 9, 2), 9), ' ') END MEMORY_MB,
+  CASE WHEN S.INDEX_TYPE LIKE '%BTREE%' THEN '' ELSE LPAD(MAX(S.DISTINCT_COUNT), 12) END NUM_DISTINCT
+FROM
+  BASIS_INFO BI,
+( SELECT                                    /* CS, primary key */
+    10 INDEX_CLASS,
+    IC.SCHEMA_NAME,
+    IC.TABLE_NAME,
+    IC.INDEX_NAME,
+    '' CONCAT_NAME,
+    IC.COLUMN_NAME,
+    IC.INDEX_TYPE,
+    'P' CONSTRAINT,
+    IC.POSITION,
+    ( SELECT DISTINCT_COUNT FROM TEMP_CS_COLUMNS C2 WHERE C2.SCHEMA_NAME = IC.SCHEMA_NAME AND C2.TABLE_NAME = IC.TABLE_NAME AND C2. COLUMN_NAME = IC.COLUMN_NAME ) DISTINCT_COUNT,
+    C.COL_SIZE_MB MEM_MB
+  FROM
+    TEMP_INDEX_COLUMNS IC,
+    TEMP_CS_COLUMNS C
+  WHERE
+    IC.SCHEMA_NAME = C.SCHEMA_NAME AND
+    IC.TABLE_NAME = C.TABLE_NAME AND
+    IC.CONSTRAINT = 'PRIMARY KEY' AND
+    ( IC.NUM_COLUMNS > 1 AND C.COLUMN_NAME = '$trexexternalkey$' OR
+      IC.NUM_COLUMNS = 1 AND C.COLUMN_NAME = IC.COLUMN_NAME )
+  UNION ALL
+  SELECT                                    /* CS, unique indexes */
+    20 INDEX_CLASS,
+    IC.SCHEMA_NAME,
+    IC.TABLE_NAME,
+    IC.INDEX_NAME,
+    '' CONCAT_NAME,
+    IC.COLUMN_NAME,
+    IC.INDEX_TYPE,
+    'U' CONSTRAINT,
+    IC.POSITION,
+    ( SELECT MAX(DISTINCT_COUNT) FROM TEMP_CS_COLUMNS C2 WHERE C2.SCHEMA_NAME = IC.SCHEMA_NAME AND C2.TABLE_NAME = IC.TABLE_NAME AND C2. COLUMN_NAME = IC.COLUMN_NAME ) DISTINCT_COUNT,
+    C.COL_SIZE_MB MEM_MB
+  FROM
+    TEMP_INDEX_COLUMNS IC,
+    TEMP_CS_COLUMNS C
+  WHERE
+    IC.SCHEMA_NAME = C.SCHEMA_NAME AND
+    IC.TABLE_NAME = C.TABLE_NAME AND
+    IC.CONSTRAINT LIKE '%UNIQUE%' AND
+    C.COLUMN_NAME LIKE '$uc_' || IC.INDEX_NAME || '$'
+  UNION ALL
+  SELECT                                    /* CS, fulltext indexes */
+    30 INDEX_CLASS,
+    IC.SCHEMA_NAME,
+    IC.TABLE_NAME,
+    IC.INDEX_NAME,
+    '' CONCAT_NAME,
+    IC.COLUMN_NAME,
+    IC.INDEX_TYPE,
+    '' CONSTRAINT,
+    IC.POSITION,
+    C.DISTINCT_COUNT,
+    C.COL_SIZE_MB MEM_MB
+  FROM
+    TEMP_INDEX_COLUMNS IC,
+    TEMP_CS_COLUMNS C
+  WHERE
+    IC.SCHEMA_NAME = C.SCHEMA_NAME AND
+    IC.TABLE_NAME = C.TABLE_NAME AND
+    IC.INDEX_TYPE = 'FULLTEXT' AND
+    C.COLUMN_NAME LIKE '$_SYS_SHADOW_' || IC.COLUMN_NAME || '$'
+  UNION ALL
+  SELECT                                    /* CS, all other indexes */
+    40 INDEX_CLASS,
+    IC.SCHEMA_NAME,
+    IC.TABLE_NAME,
+    IC.INDEX_NAME,
+    '' CONCAT_NAME,
+    IC.COLUMN_NAME,
+    IC.INDEX_TYPE,
+    '' CONSTRAINT,
+    IC.POSITION,
+    ( SELECT DISTINCT_COUNT FROM TEMP_CS_COLUMNS C2 WHERE C2.SCHEMA_NAME = IC.SCHEMA_NAME AND C2.TABLE_NAME = IC.TABLE_NAME AND C2. COLUMN_NAME = IC.COLUMN_NAME ) DISTINCT_COUNT,
+    MAP(IC.NUM_COLUMNS, 1, C.INV_INDEX_MB, C.COL_SIZE_MB) MEM_MB
+  FROM
+    TEMP_INDEX_COLUMNS IC,
+    TEMP_CS_COLUMNS C
+  WHERE
+    IC.SCHEMA_NAME = C.SCHEMA_NAME AND
+    IC.TABLE_NAME = C.TABLE_NAME AND
+    IC.INDEX_TYPE != 'FULLTEXT' AND 
+    IC.CONSTRAINT != 'PRIMARY KEY' AND
+    IC.CONSTRAINT NOT LIKE '%UNIQUE%' AND
+    ( IC.NUM_COLUMNS = 1 AND C.COLUMN_NAME = IC.COLUMN_NAME OR
+      IC.NUM_COLUMNS > 1 AND C.COLUMN_NAME = IC.CONCAT_NAME )
+  UNION ALL
+  SELECT                                    /* CS, concat attributes without explicit index */
+    50 INDEX_CLASS,
+    CA.SCHEMA_NAME,
+    CA.TABLE_NAME,
+    CA.INDEX_NAME,
+    CA.CONCAT_NAME,
+    CA.COLUMN_NAME,
+    'INVERTED VALUE' INDEX_TYPE,
+    '' CONSTRAINT,
+    CA.POSITION,
+    ( SELECT DISTINCT_COUNT FROM TEMP_CS_COLUMNS C2 WHERE C2.SCHEMA_NAME = CA.SCHEMA_NAME AND C2.TABLE_NAME = CA.TABLE_NAME AND C2. COLUMN_NAME = CA.COLUMN_NAME ) DISTINCT_COUNT,
+    CA.COL_SIZE_MB MEM_MB
+  FROM
+    BASIS_INFO BI,
+    CONCAT_ATTRIBUTES CA
+  WHERE
+    BI.INCLUDE_CONCAT_ATTRIBUTES = 'X'
+  UNION ALL
+  SELECT                                    /* CS, implicit single column indexes */
+    60 INDEX_CLASS,
+    C.SCHEMA_NAME,
+    C.TABLE_NAME,
+    'implicit' INDEX_NAME,
+    '' CONCAT_NAME,
+    C.COLUMN_NAME,
+    'INVERTED VALUE' INDEX_TYPE,
+    '' CONSTRAINT,
+    1 POSITION,
+    C.DISTINCT_COUNT,
+    C.INV_INDEX_MB MEM_MB
+  FROM
+    BASIS_INFO BI,
+    TEMP_CS_COLUMNS C
+  WHERE
+    BI.INCLUDE_IMPLICIT_INDEXES = 'X' AND
+    BI.INDEX_NAME IN ('%', 'implicit') AND
+    C.COLUMN_NAME NOT LIKE '$%$' AND
+    'INVERTED VALUE' LIKE BI.INDEX_TYPE AND
+    C.INDEX_TYPE != 'NONE' AND
+    NOT EXISTS ( SELECT 1 FROM TEMP_INDEX_COLUMNS IC WHERE IC.SCHEMA_NAME = C.SCHEMA_NAME AND IC.TABLE_NAME = C.TABLE_NAME AND IC.NUM_COLUMNS = 1 AND IC.COLUMN_NAME = C.COLUMN_NAME )  
+  UNION ALL
+  SELECT                                    /* RS */
+    70 INDEX_CLASS,
+    IC.SCHEMA_NAME,
+    IC.TABLE_NAME,
+    IC.INDEX_NAME,
+    '' CONCAT_NAME,
+    IC.COLUMN_NAME,
+    IC.INDEX_TYPE,
+    CASE WHEN IC.CONSTRAINT LIKE '%PRIMARY KEY%' THEN 'P' WHEN IC.CONSTRAINT LIKE '%UNIQUE%' THEN 'U' ELSE '' END CONSTRAINT,
+    IC.POSITION,
+    -1 DISTINCT_COUNT,
+    -1 MEM_MB
+  FROM
+    TEMP_INDEX_COLUMNS IC
+  WHERE
+    IC.INDEX_TYPE LIKE '%BTREE%'
+) S
+GROUP BY
+  S.INDEX_CLASS,
+  S.SCHEMA_NAME,
+  S.TABLE_NAME,
+  S.INDEX_NAME,
+  S.CONCAT_NAME,
+  S.INDEX_TYPE,
+  S.CONSTRAINT,
+  S.COLUMN_NAME,
+  S.POSITION,
+  S.MEM_MB,
+  BI.ORDER_BY
+ORDER BY
+  MAP(BI.ORDER_BY, 'SIZE', S.MEM_MB) DESC,
+  S.SCHEMA_NAME,
+  S.TABLE_NAME,
+  S.INDEX_CLASS,
+  S.INDEX_NAME,
+  S.CONCAT_NAME,
+  S.POSITION,
+  S.COLUMN_NAME
+WITH HINT (NO_JOIN_REMOVAL)

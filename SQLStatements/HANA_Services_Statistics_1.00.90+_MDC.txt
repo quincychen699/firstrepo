@@ -1,0 +1,286 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Services_Statistics_1.00.90+_MDC
+
+[DESCRIPTION]
+
+- HANA service information (CPU, memory, request processing)
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Has to be run in system database of an MDC system, otherwise it terminates with error "[362]: invalid schema name: SYS_DATABASES"
+- Multitenant database containers (MDC) are available starting with SAP HANA 1.00.90
+- No history available for MDC service statistics
+- REQUEST columns are related to a specific kind of internal TrexNet requests that can not be compared with database requests from client side
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.120
+- System type:            MDC system database
+
+[SQL COMMAND VERSION]
+
+- 2015/03/11:  1.0 (initial version)
+- 2016/06/25:  1.1 (BEGIN_TIME, END_TIME, EXEC_REQ and EXEQ_EXT_REQ added)
+- 2016/12/31:  1.2 (TIME_AGGREGATE_BY = 'TS<seconds>' included)
+- 2017/01/11:  1.3 (dedicated MDC version)
+- 2017/10/26:  1.4 (TIMEZONE included)
+- 2017/11/07:  1.5 (removed BEGIN_TIME, END_TIME)
+- 2018/02/28:  1.6 (OPEN_FILE_COUNT included)
+
+[INVOLVED TABLES]
+
+- SYS_DATABASES.M_SERVICE_STATISTICS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- DB_NAME
+
+  Multitenant database name
+
+  'SYSTEMDB'      --> System database
+  'C11'           --> Tenant C11
+  '%'             --> No restriction to multitenant database
+
+- MIN_CPUS_USED
+
+  Minimum number of CPUs used
+
+  10              --> Only show entries where in average at least 10 CPUs are used
+  -1              --> No restriction in terms of CPU utilization
+
+- MIN_RESPONSE_TIME_MS
+
+  Minimum response time (ms)
+
+  10              --> Only display entries with average response time of at least 10 ms
+  -1              --> No restriction in terms of response time
+
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_ tables)
+  'HISTORY'       --> Data from persisted history information (HOST_ tables)
+  '%'             --> All data sources
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'SIZE'          --> Sorting by size 
+  'TABLE'         --> Sorting by table name
+
+[OUTPUT PARAMETERS]
+
+- HOST:          Host name
+- PORT:          Port
+- SERVICE:       Service name
+- DB_NAME:       Database name
+- CPUS_USED:     Average number of CPUs used
+- ALLOC_MEM_GB:  Average allocated memory (GB)
+- ACT_REQ:       Average active requests
+- PND_REQ:       Average pending requests
+- ACT_THR:       Average active threads
+- REQ_PER_S:     Average requests per second
+- AVG_RESP_MS:   Average response time (ms)
+- HANDLES:       Average open file handles
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------------------------------------------------------
+|ANALYSIS_TIME   |HOST      |PORT |SERVICE_NAME|CPUS_USED|ALLOC_MEM_GB|ACT_REQ|PND_REQ|ACT_THR|REQ_PER_S|AVG_RESP_MS|
+---------------------------------------------------------------------------------------------------------------------
+|2015/03/11 (WED)|saphana156|30003|indexserver |    26.02|     1747.31|   1.62|   0.00|  28.50|     6.79|      41.90|
+|2015/03/10 (TUE)|saphana156|30003|indexserver |    35.74|     1724.38|   1.18|   0.00|  31.52|     7.03|      43.66|
+|2015/03/09 (MON)|saphana156|30003|indexserver |    66.80|     1674.86|   1.21|   0.00|  63.58|     6.98|      38.69|
+|2015/03/08 (SUN)|saphana156|30003|indexserver |     4.09|     1565.66|   1.10|   0.00|   4.94|     9.42|      18.26|
+|2015/03/07 (SAT)|saphana156|30003|indexserver |     4.45|     1806.60|   1.10|   0.00|   7.87|     7.79|      23.72|
+|2015/03/06 (FRI)|saphana156|30003|indexserver |    49.78|     1916.92|   1.16|   0.00|  59.01|     6.96|      35.67|
+|2015/03/05 (THU)|saphana156|30003|indexserver |    53.63|     1833.55|   1.30|   0.00|  60.09|     8.15|      33.42|
+|2015/03/04 (WED)|saphana156|30003|indexserver |    56.68|     1625.03|   1.26|   0.00|  61.01|     8.61|      32.46|
+|2015/03/03 (TUE)|saphana156|30003|indexserver |    17.15|     1438.55|   1.07|   0.00|  36.65|    17.64|      17.61|
+|2015/03/03 (TUE)|saphana157|30003|indexserver |    41.81|     1425.45|   1.15|   0.00|  59.49|     6.43|      34.97|
+|2015/03/02 (MON)|saphana156|30003|indexserver |    24.71|     1938.69|   1.45|   0.00|  24.27|    12.75|      19.37|
+|2015/03/02 (MON)|saphana157|30003|indexserver |    58.19|     1404.45|   1.36|   0.02| 100.15|     6.58|      51.62|
+---------------------------------------------------------------------------------------------------------------------
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SERVICE_NAME SERVICE,
+  DATABASE_NAME DB_NAME,
+  LPAD(TO_DECIMAL(CPUS_USED, 10, 2), 9) CPUS_USED,
+  LPAD(TO_DECIMAL(ALLOC_MEM_GB, 10, 2), 12) ALLOC_MEM_GB,
+  LPAD(TO_DECIMAL(ACT_REQ, 10, 2), 7) ACT_REQ,
+  LPAD(TO_DECIMAL(PND_REQ, 10, 2), 7) PND_REQ,
+  LPAD(TO_DECIMAL(ROUND(EXEC_REQ), 10, 0), 8) EXEC_REQ,
+  LPAD(TO_DECIMAL(ROUND(EXEC_EXT_REQ), 10, 0), 12) EXEC_EXT_REQ,
+  LPAD(TO_DECIMAL(ACT_THR, 10, 2), 7) ACT_THR,
+  LPAD(TO_DECIMAL(REQ_PER_S, 10, 2), 9) REQ_PER_S,
+  LPAD(TO_DECIMAL(AVG_RESP_MS, 10, 2), 11) AVG_RESP_MS,
+  LPAD(TO_DECIMAL(HANDLES, 10, 0), 7) HANDLES
+FROM
+( SELECT
+    HOST,
+    PORT,
+    SERVICE_NAME,
+    DATABASE_NAME,
+    CPUS_USED,
+    ALLOC_MEM_GB,
+    REQ_PER_S,
+    ACT_REQ,
+    PND_REQ,
+    EXEC_REQ,
+    EXEC_EXT_REQ,
+    ACT_THR,
+    HANDLES,
+    AVG_RESP_MS,
+    ROW_NUMBER () OVER (ORDER BY HOST, PORT) ROW_NUM
+  FROM
+  ( SELECT
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')    != 0 THEN HOST             ELSE MAP(BI_HOST,         '%', 'any', BI_HOST)         END HOST,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(PORT) ELSE MAP(BI_PORT,         '%', 'any', BI_PORT)         END PORT,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SERVICE') != 0 THEN SERVICE_NAME     ELSE MAP(BI_SERVICE_NAME, '%', 'any', BI_SERVICE_NAME) END SERVICE_NAME,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'DB_NAME') != 0 THEN DATABASE_NAME    ELSE MAP(BI_DB_NAME,      '%', 'any', BI_DB_NAME)      END DATABASE_NAME,
+      SUM(CPUS_USED) CPUS_USED,
+      SUM(ALLOC_MEM_GB) ALLOC_MEM_GB,
+      SUM(REQ_PER_S) REQ_PER_S,
+      SUM(ACT_REQ) ACT_REQ,
+      SUM(PND_REQ) PND_REQ,
+      SUM(EXEC_REQ) EXEC_REQ,
+      SUM(EXEC_EXT_REQ) EXEC_EXT_REQ,
+      SUM(ACT_THR) ACT_THR,
+      SUM(HANDLES) HANDLES,
+      SUM(AVG_RESP_MS) AVG_RESP_MS,
+      ORDER_BY,
+      MIN_CPUS_USED,
+      MIN_RESPONSE_TIME_MS
+    FROM
+    ( SELECT
+        S.HOST,
+        S.PORT,
+        S.SERVICE_NAME,
+        S.DATABASE_NAME,
+        AVG(S.CPUS_USED) CPUS_USED,
+        AVG(S.ALLOC_MEM_GB) ALLOC_MEM_GB,
+        AVG(S.REQUESTS_PER_SEC) REQ_PER_S,
+        AVG(S.ACTIVE_REQUEST_COUNT) ACT_REQ,
+        AVG(S.PENDING_REQUEST_COUNT) PND_REQ,
+        SUM(S.FINISHED_REQUESTS) EXEC_REQ,
+        SUM(S.FINISHED_EXT_REQUESTS) EXEC_EXT_REQ,
+        AVG(S.ACTIVE_THREAD_COUNT) ACT_THR,
+        AVG(S.OPEN_FILE_COUNT) HANDLES,
+        AVG(S.RESPONSE_TIME) AVG_RESP_MS,
+        BI.AGGREGATE_BY,
+        BI.HOST BI_HOST,
+        BI.PORT BI_PORT,
+        BI.SERVICE_NAME BI_SERVICE_NAME,
+        BI.DB_NAME BI_DB_NAME,
+        BI.ORDER_BY,
+        BI.MIN_CPUS_USED,
+        BI.MIN_RESPONSE_TIME_MS
+      FROM
+      ( SELECT              /* Modification section */
+          '%' HOST,
+          '%' PORT,
+          '%' SERVICE_NAME,
+          '%' DB_NAME,
+          -1 MIN_CPUS_USED,
+          -1 MIN_RESPONSE_TIME_MS,
+          'NONE' AGGREGATE_BY,          /* HOST, PORT, SERVICE, TIME or comma separated combinations, NONE for no aggregation */
+          'HOST' ORDER_BY               /* HOST */
+        FROM
+          DUMMY
+      ) BI,
+      ( SELECT
+          CURRENT_TIMESTAMP ANALYSIS_TIME,
+          HOST,
+          PORT,
+          SERVICE_NAME,
+          DATABASE_NAME,
+          PROCESS_CPU_TIME / SECONDS_BETWEEN(START_TIME, CURRENT_TIMESTAMP) / 1000 CPUS_USED,
+          PROCESS_MEMORY / 1024 / 1024 / 1024 ALLOC_MEM_GB,
+          REQUESTS_PER_SEC,
+          ACTIVE_REQUEST_COUNT,
+          PENDING_REQUEST_COUNT,
+          ALL_FINISHED_REQUEST_COUNT FINISHED_REQUESTS,
+          FINISHED_NON_INTERNAL_REQUEST_COUNT FINISHED_EXT_REQUESTS,
+          ACTIVE_THREAD_COUNT,
+          OPEN_FILE_COUNT,
+          RESPONSE_TIME
+        FROM
+          SYS_DATABASES.M_SERVICE_STATISTICS S
+      ) S 
+      WHERE
+        S.HOST LIKE BI.HOST AND
+        TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+        S.SERVICE_NAME LIKE BI.SERVICE_NAME
+      GROUP BY
+        S.ANALYSIS_TIME,
+        S.HOST,
+        S.PORT,
+        S.SERVICE_NAME,
+        S.DATABASE_NAME,
+        BI.AGGREGATE_BY,
+        BI.HOST,
+        BI.PORT,
+        BI.SERVICE_NAME,
+        BI.DB_NAME,
+        BI.ORDER_BY,
+        BI.MIN_CPUS_USED,
+        BI.MIN_RESPONSE_TIME_MS
+    )
+    GROUP BY
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')    != 0 THEN HOST             ELSE MAP(BI_HOST,         '%', 'any', BI_HOST)         END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(PORT) ELSE MAP(BI_PORT,      '%', 'any', BI_PORT)            END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SERVICE') != 0 THEN SERVICE_NAME     ELSE MAP(BI_SERVICE_NAME, '%', 'any', BI_SERVICE_NAME) END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'DB_NAME') != 0 THEN DATABASE_NAME    ELSE MAP(BI_DB_NAME,      '%', 'any', BI_DB_NAME)      END,
+      ORDER_BY,
+      MIN_CPUS_USED,
+      MIN_RESPONSE_TIME_MS
+  )
+  WHERE
+    ( MIN_RESPONSE_TIME_MS = -1 OR AVG_RESP_MS >= MIN_RESPONSE_TIME_MS ) AND
+    ( MIN_CPUS_USED = -1 OR CPUS_USED >= MIN_CPUS_USED )
+)
+ORDER BY
+  ROW_NUM

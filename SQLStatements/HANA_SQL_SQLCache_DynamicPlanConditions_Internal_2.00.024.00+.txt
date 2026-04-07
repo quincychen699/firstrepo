@@ -1,0 +1,202 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_SQL_SQLCache_DynamicPlanConditions_Internal_2.00.024.00+
+
+[DESCRIPTION]
+
+- Overview of dynamic plan conditions related to SQL cache entries
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+- APPLICATION_SOURCE and APPLICATION_NAME in M_SQL_PLAN_CACHE available starting with Rev. 1.00.122.15 (and 2.00.012.04 / 2.00.024.00)
+- RESET can be performed via:
+
+  ALTER SYSTEM RESET MONITORING VIEW M_SQL_PLAN_CACHE_RESET_
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.024.00
+
+[SQL COMMAND VERSION]
+
+- 2020/10/16:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_SQL_PLAN_CACHE_
+- M_SQL_PLAN_CACHE_RESET_
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- STATEMENT_HASH      
+ 
+  Hash of SQL statement to be analyzed
+
+  '2e960d7535bf4134e2bd26b9d80bd4fa' --> SQL statement with hash '2e960d7535bf4134e2bd26b9d80bd4fa'
+  '%'                                --> No statement hash restriction (only possible if hash is not mandatory)
+
+- ACCESSED_OBJECTS
+
+  Filter for objects accessed by the database request
+
+  '%KONV%'        --> Restrict result to requests with object list containing 'KONV'
+  '%'             --> No restriction related to object list
+
+- APP_NAME
+
+  Application name
+
+  'HANACockpit'   --> Application name HANACockpit
+  '%'             --> No application name restriction
+
+- APP_SOURCE
+
+  Application source
+
+  'SAPL2:437'     --> Application source 'SAPL2:437'
+  'SAPMSSY2%'     --> Application sources starting with SAPMSSY2
+  '%'             --> No application source restriction
+
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_* tables)
+  'RESET'         --> Data from reset memory information (M_*_RESET tables)
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HASH'          --> Aggregation by statement hash
+  'HOST, PLAN_ID' --> Aggregation by host and SQL plan ID
+  'NONE'          --> No aggregation
+
+[OUTPUT PARAMETERS]
+
+- HOST:             Host name
+- PORT:             Port
+- STATEMENT_HASH:   Statement hash
+- DPC_COSTS:        Dynamic plan condition cost value (sum(#executions * #dpc_count))
+- STATEMENTS:       Statement count
+- AVG_EXECS:        Average execution count per statement
+- AVG_DPC_CNT:      Average dynamic plan conditions per statement
+- APP_NAME:         Application name
+- APP_SOURCE:       Application source
+- ACCESSED_OBJECTS: Accessed objects
+
+[EXAMPLE OUTPUT]
+
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  STATEMENT_HASH,
+  LPAD(TO_DECIMAL(DPC_COSTS, 10, 0), 10) DPC_COSTS,
+  LPAD(TO_DECIMAL(STATEMENTS, 10, 0), 10) STATEMENTS,
+  LPAD(TO_DECIMAL(EXECUTIONS / STATEMENTS, 10, 2), 10) AVG_EXECS,
+  LPAD(TO_DECIMAL(DPC_COUNT / STATEMENTS, 10, 2), 11) AVG_DPC_CNT,
+  APP_NAME,
+  APP_SOURCE,
+  ACCESSED_OBJECTS
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')             != 0 THEN SP.HOST                         ELSE MAP(BI.HOST,             '%', 'any', BI.HOST)             END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')             != 0 THEN TO_VARCHAR(SP.PORT)             ELSE MAP(BI.PORT,             '%', 'any', BI.PORT)             END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HASH')             != 0 THEN TO_VARCHAR(SP.STATEMENT_HASH)   ELSE MAP(BI.STATEMENT_HASH,   '%', 'any', BI.STATEMENT_HASH)   END STATEMENT_HASH,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_NAME')         != 0 THEN TO_VARCHAR(SP.APP_NAME)         ELSE MAP(BI.APP_NAME,         '%', 'any', BI.APP_NAME)         END APP_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_SOURCE')       != 0 THEN TO_VARCHAR(SP.APP_SOURCE)       ELSE MAP(BI.APP_SOURCE,       '%', 'any', BI.APP_SOURCE)       END APP_SOURCE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'ACCESSED_OBJECTS') != 0 THEN TO_VARCHAR(SP.ACCESSED_OBJECTS) ELSE MAP(BI.ACCESSED_OBJECTS, '%', 'any', BI.ACCESSED_OBJECTS) END ACCESSED_OBJECTS,
+    SUM(SP.DPC_COUNT) DPC_COUNT,
+    SUM(SP.EXECUTION_COUNT) EXECUTIONS,
+    SUM(SP.DPC_COUNT * SP.EXECUTION_COUNT) DPC_COSTS,
+    COUNT(*) STATEMENTS
+  FROM
+  ( SELECT                   /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      '%' STATEMENT_HASH,
+      '%' APP_NAME,
+      '%' APP_SOURCE,
+      '%' ACCESSED_OBJECTS,
+      -1 MIN_DPC_COUNT,
+      'CURRENT' DATA_SOURCE                      /* CURRENT, RESET */
+      'HOST,APP_NAME' AGGREGATE_BY               /* HOST, PORT, HASH, APP_NAME, APP_SOURCE, ACCESSED_OBJECTS or comma separated combinations, NONE for no aggregation */
+    FROM
+      DUMMY
+  ) BI,
+  ( SELECT
+      'CURRENT' DATA_SOURCE,
+      HOST,
+      PORT,
+      STATEMENT_HASH,
+      IFNULL(APPLICATION_NAME, '') APP_NAME,
+      IFNULL(APPLICATION_SOURCE, '') APP_SOURCE,
+      TO_VARCHAR(ACCESSED_OBJECT_NAMES) ACCESSED_OBJECTS,
+      EXECUTION_COUNT,
+      DYNAMIC_PLAN_CONDITIONS, 
+      TO_DECIMAL((LENGTH(DYNAMIC_PLAN_CONDITIONS) - LENGTH(REPLACE(DYNAMIC_PLAN_CONDITIONS, '),', ''))) / 2, 10, 0) DPC_COUNT
+    FROM
+      SYS.M_SQL_PLAN_CACHE_
+    UNION ALL
+    SELECT
+      'RESET' DATA_SOURCE,
+      HOST,
+      PORT,
+      STATEMENT_HASH,
+      IFNULL(APPLICATION_NAME, '') APP_NAME,
+      IFNULL(APPLICATION_SOURCE, '') APP_SOURCE,
+      TO_VARCHAR(ACCESSED_OBJECT_NAMES) ACCESSED_OBJECTS,
+      EXECUTION_COUNT,
+      DYNAMIC_PLAN_CONDITIONS, 
+      TO_DECIMAL((LENGTH(DYNAMIC_PLAN_CONDITIONS) - LENGTH(REPLACE(DYNAMIC_PLAN_CONDITIONS, '),', ''))) / 2, 10, 0) DPC_COUNT
+    FROM
+      SYS.M_SQL_PLAN_CACHE_RESET_
+  ) SP
+  WHERE
+    SP.DATA_SOURCE = BI.DATA_SOURCE AND
+    SP.HOST LIKE BI.HOST AND
+    TO_VARCHAR(SP.PORT) LIKE BI.PORT AND
+    SP.STATEMENT_HASH LIKE BI.STATEMENT_HASH AND
+    SP.APP_NAME LIKE BI.APP_NAME AND
+    SP.APP_SOURCE LIKE BI.APP_SOURCE AND
+    SP.ACCESSED_OBJECTS LIKE BI.ACCESSED_OBJECTS AND
+    ( BI.MIN_DPC_COUNT = -1 OR SP.DPC_COUNT >= BI.MIN_DPC_COUNT )
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')             != 0 THEN SP.HOST                         ELSE MAP(BI.HOST,             '%', 'any', BI.HOST)             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')             != 0 THEN TO_VARCHAR(SP.PORT)             ELSE MAP(BI.PORT,             '%', 'any', BI.PORT)             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HASH')             != 0 THEN TO_VARCHAR(SP.STATEMENT_HASH)   ELSE MAP(BI.STATEMENT_HASH,   '%', 'any', BI.STATEMENT_HASH)   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_NAME')         != 0 THEN TO_VARCHAR(SP.APP_NAME)         ELSE MAP(BI.APP_NAME,         '%', 'any', BI.APP_NAME)         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_SOURCE')       != 0 THEN TO_VARCHAR(SP.APP_SOURCE)       ELSE MAP(BI.APP_SOURCE,       '%', 'any', BI.APP_SOURCE)       END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'ACCESSED_OBJECTS') != 0 THEN TO_VARCHAR(SP.ACCESSED_OBJECTS) ELSE MAP(BI.ACCESSED_OBJECTS, '%', 'any', BI.ACCESSED_OBJECTS) END
+)
+ORDER BY
+  DPC_COSTS DESC

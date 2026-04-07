@@ -1,0 +1,622 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_ABAP_SDFSMON_Overview_STPI23+
+
+[DESCRIPTION]
+
+- /SDF/SMON overview information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- /SDF/SMON only available in SAP ABAP environments
+- Data only available if /SDF/SMON is enabled, /SDF/MON is not sufficient
+- Available historic data depends on configured /SDF/SMON retention time. It is only available via SQL if the /SDF/SMON data is extracted.
+  This typically applies for the current and a few recent days. For older data (Status = Clustered), you have to extract the data in 
+  /SDF/SMON at first by displaying the relevant historic days.
+- You have to be connected to the SAP<sid> schema otherwise the following error is issued:
+
+  [259]: invalid table name: Could not find table/view /SDF/SMON_HEADER in schema
+
+- If access to ABAP objects is possible but you cannot log on as ABAP user, you can switch the default schema before executing the command:
+
+  SET SCHEMA SAP<sid>
+
+- /SDF/SMON_HEADER.NETRTT available with ST-PI >= SP 23 (SAP Note 3318669)
+- Displayed RTT_MS value may be too high with ST/PI 7.40 (28) (SAP Note 3537775)
+
+[VALID FOR]
+
+- Revisions:              all
+- Client application:     ABAP,  ST-PI >= SP 23
+
+[SQL COMMAND VERSION]
+
+- 2025/03/23:  1.0 (initial version)
+- 2025/05/10:  1.1 (dedicated STPI23+ version including NETRTT
+
+[INVOLVED TABLES]
+
+- /SDF/SMON_HEADER
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- APP_SERVER
+
+  SAP application server
+
+  'sapabap01'      --> Restrict output to application server sapabap01
+  '%'              --> No restriction related to SAP application server
+
+- MIN_ACT_WPS
+
+  Minimum number of active work processes
+
+  100              --> Only display lines with at least 100 active work processes
+  -1               --> No limitation related to the number of active work processes
+
+- MIN_DIA_WPS
+
+  Minimum number of active dialog work processes
+
+  100              --> Only display lines with at least 100 active dialog work processes
+  -1               --> No limitation related to the number of active dialog work processes
+
+- MIN_PRIV_WPS
+
+  Minimum number of work processes in PRIV mode
+
+  100              --> Only display lines with at least 100 work processes in PRIV mode
+  -1               --> No limitation related to the number of work processes in PRIV mode
+
+- MIN_CPU_USER_PCT
+
+  Minimum user CPU consumption (%)
+
+  80               --> Only display lines with at least 80 % user CPU consumption
+  -1               --> No limitation related to user CPU consumption
+
+- MIN_CPU_SYS_PCT
+
+  Minimum system CPU consumption (%)
+
+  20               --> Only display lines with at least 20 % system CPU consumption
+  -1               --> No limitation related to system CPU consumption
+
+- MIN_PAGE_OUT_PCT
+
+  Minimum page out (% of memory, per hour)
+
+  30               --> Only display lines with at least 30 % of memory being paged out per hour
+  -1               --> No limitation related to page out activities
+
+- MAX_FREEMEM_PCT
+
+  Maximum free memory size (%)
+
+  10               --> Only display lines with up to 10 % of free memory
+  -1               --> No limitation related to free memory
+
+- MAX_FREEMEM_GB
+
+  Maximum free memory size (GB)
+
+  50               --> Only display lines with up to 50 GB of free memory
+  -1               --> No limitation related to free memory
+
+- MIN_EXTMEM_GB
+
+  Minimum extended memory size (GB)
+
+  100              --> Only display lines with at least 100 GB of extended memory used
+  -1               --> No limitation related to extended memory size
+
+- MIN_HEAPMEM_GB
+
+  Minimum heap memory size (GB)
+
+  100              --> Only display lines with at least 100 GB of heap memory used
+  -1               --> No limitation related to heap memory size
+
+- MIN_DIA_QUEUE
+
+  Minimum dialog queue length
+
+  250              --> Only display lines with a dialog queue length of at least 250 requests
+  -1               --> No limitation related to dialog queue length
+
+- MIN_UPD_QUEUE
+
+  Minimum update queue length
+
+  100              --> Only display lines with a update queue length of at least 100 requests
+  -1               --> No limitation related to update queue length
+
+- MIN_ENQ_QUEUE
+
+  Minimum enqueue queue length
+
+  250              --> Only display lines with an enqueue queue length of at least 250 requests
+  -1               --> No limitation related to enqueue queue length
+
+- MIN_ENQ_COUNT
+
+  Minimum enqueue count
+
+  1000             --> Only display lines with at least 1000 active enqueues
+  -1               --> No limitation related to enqueue requests
+
+- MIN_QIN_QUEUE
+
+  Minimum queued RFC inbound queue requests
+
+  50               --> Only display lines with an queued RFC inbound queue of at least 50 requests
+  -1               --> No limitation related to queued RFC inbound queue requests
+
+- MIN_QOUT_QUEUE
+
+  Minimum queued RFC outbound queue requests
+
+  50               --> Only display lines with an queued RFC outbound queue of at least 50 requests
+  -1               --> No limitation related to queued RFC outbound queue requests
+
+- MAX_TRFC_FREE
+
+  Maximum free dialog work processes for transactional RFC 
+
+  50               --> Only display lines with a maximum of 50 free dialog work processes for transactional RFC
+  -1               --> No limitation related to free dialog work processes available for transactional RFC
+
+- MIN_RTT_MS
+
+  Minimum roundtrip time (latency) to database (ms)
+
+  0.80             --> Only display lines with a minimum of 0.80 ms roundtrip time between ABAP and SAP HANA
+  -1               --> No limitation related to roundtrip time between ABAP and SAP HANA
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'SERVER'        --> Aggregation by application server
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'TIME'          --> Sorting by sample time 
+  'SAMPLES'       --> Sorting by number of samples
+  
+[OUTPUT PARAMETERS]
+
+- START_TIME:   Start time of considered time interval
+- SERVERS:      Number of application servers
+- APP_SERVER:   Application server name
+- RTT_MS:       Roundtrip time ABAP <-> SAP HANA (ms)
+- ACT_WPS:      Number of active work processes
+- ACT_DIA:      Number of active dialog work processes
+- PRIV_WPS:     Work processes in PRIV mode
+- CPU_USER_PCT: User CPU consumption (%)
+- CPU_SYS_PCT:  System CPU consumption (%)
+- PAGE_OUT_PCT: Page out (% of memory per hour)
+- FREEMEM_PCT:  Free memory without file system cache (%)
+- FREEMEM_GB:   Free memory including file system cache (GB)
+- EXTMEM_GB:    Extended memory used (GB)
+- HEAPMEM_GB:   Heap memory used (GB)
+- DIA_QUEUE:    Dialog queue size
+- UPD_QUEUE:    Update queue size
+- ENQ_QUEUE:    Enqueue queue size
+- QIN_QUEUE:    qRFC inbound queue size
+- QOUT_QUEUE:   qRFC outbound queue size
+- TRFC_FREE:    Available work processes for transactional RFC handling
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|START_TIME         |APP_SERVER         |RTT_MS|ACT_WPS|ACT_DIA|PRIV_WPS|CPU_USER_PCT|CPU_SYS_PCT|PAGE_OUT_PCT|FREEMEM_GB|EXTMEM_GB|HEAPMEM_GB|DIA_QUEUE|TRFC_FREE|
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|2025/03/22 12:53:30|abapserver01_C11_00|  0.54|      2|      1|       0|       15.00|       4.00|        0.00|     43.11|    22.52|      1.91|        3|       64|
+|2025/03/22 12:53:20|abapserver01_C11_00|  0.54|      3|      2|       0|       15.00|       4.00|        0.00|     43.11|    22.53|      1.91|        3|       63|
+|2025/03/22 12:53:10|abapserver01_C11_00|  0.54|      4|      3|       0|       15.00|       4.00|        0.00|     43.11|    22.68|      1.91|        3|       63|
+|2025/03/22 12:53:00|abapserver01_C11_00|  0.39|      2|      1|       0|       15.00|       4.00|        0.00|     43.11|    22.68|      1.91|        3|       64|
+|2025/03/22 12:52:50|abapserver01_C11_00|  0.39|     58|     57|       0|       15.00|       4.00|        0.00|     43.11|    24.63|      1.91|      489|       64|
+|2025/03/22 12:52:40|abapserver01_C11_00|  0.39|     62|     61|       0|       10.00|       3.00|        0.00|     43.09|    23.86|      1.91|      509|       60|
+|2025/03/22 12:52:30|abapserver01_C11_00|  0.39|     60|     59|       0|       10.00|       3.00|        0.00|     43.09|    23.80|      1.91|      508|       62|
+|2025/03/22 12:52:20|abapserver01_C11_00|  0.39|     59|     57|       0|       10.00|       3.00|        0.00|     43.09|    23.73|      1.91|      509|       64|
+|2025/03/22 12:52:10|abapserver01_C11_00|  0.48|     60|     59|       0|       10.00|       3.00|        0.00|     43.09|    23.70|      1.91|      509|       62|
+|2025/03/22 12:52:00|abapserver01_C11_00|  0.48|     58|     57|       0|       10.00|       3.00|        0.00|     43.09|    23.64|      1.91|      513|       64|
+|2025/03/22 12:51:50|abapserver01_C11_00|  0.48|     59|     58|       0|       10.00|       3.00|        0.00|     43.09|    23.64|      1.91|      514|       64|
+|2025/03/22 12:51:40|abapserver01_C11_00|  0.48|     61|     59|       0|       12.00|       3.00|        0.00|     43.15|    23.59|      1.91|      515|       62|
+|2025/03/22 12:51:30|abapserver01_C11_00|  0.48|     60|     59|       0|       12.00|       3.00|        0.00|     43.15|    23.50|      1.91|      518|       62|
+|2025/03/22 12:51:20|abapserver01_C11_00|  0.41|     59|     58|       0|       12.00|       3.00|        0.00|     43.15|    23.45|      1.90|      520|       64|
+|2025/03/22 12:51:10|abapserver01_C11_00|  0.41|     59|     58|       0|       12.00|       3.00|        0.00|     43.15|    23.44|      1.90|      519|       63|
+|2025/03/22 12:51:00|abapserver01_C11_00|  0.41|     59|     58|       0|       12.00|       3.00|        0.00|     43.15|    23.42|      1.90|      525|       63|
+|2025/03/22 12:50:50|abapserver01_C11_00|  0.41|     58|     57|       0|       12.00|       3.00|        0.00|     43.15|    23.32|      1.90|      527|       64|
+|2025/03/22 12:50:40|abapserver01_C11_00|  0.41|     61|     60|       0|       19.00|       4.00|        0.00|     43.13|    23.27|      1.90|      529|       63|
+|2025/03/22 12:50:30|abapserver01_C11_00|  0.44|     58|     57|       0|       19.00|       4.00|        0.00|     43.13|    23.28|      1.90|      529|       64|
+|2025/03/22 12:50:20|abapserver01_C11_00|  0.44|     59|     58|       0|       19.00|       4.00|        0.00|     43.13|    23.23|      1.90|      533|       64|
+|2025/03/22 12:50:10|abapserver01_C11_00|  0.44|     58|     57|       0|       19.00|       4.00|        0.00|     43.13|    23.10|      1.90|      483|       64|
+|2025/03/22 12:50:00|abapserver01_C11_00|  0.44|     60|     59|       0|       19.00|       4.00|        0.00|     43.13|    23.08|      1.89|      355|       64|
+|2025/03/22 12:49:50|abapserver01_C11_00|  0.44|     58|     57|       0|       19.00|       4.00|        0.00|     43.13|    23.03|      1.89|      193|       64|
+|2025/03/22 12:49:40|abapserver01_C11_00|  0.48|     58|     57|       0|       20.00|       4.00|        0.00|     43.16|    22.91|      1.89|       87|       64|
+|2025/03/22 12:49:30|abapserver01_C11_00|  0.48|     19|     18|       0|       20.00|       4.00|        0.00|     43.16|    22.74|      1.89|        3|       63|
+|2025/03/22 12:49:20|abapserver01_C11_00|  0.48|      7|      6|       0|       20.00|       4.00|        0.00|     43.16|    22.75|      1.89|        3|       64|
+|2025/03/22 12:49:10|abapserver01_C11_00|  0.48|     23|     22|       0|       20.00|       4.00|        0.00|     43.16|    22.72|      1.89|        3|       64|
+|2025/03/22 12:49:00|abapserver01_C11_00|  0.48|     20|     19|       0|       20.00|       4.00|        0.00|     43.16|    22.72|      1.89|        3|       64|
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  START_TIME,
+  LPAD(TO_DECIMAL(CNT, 10, 0), 7) SERVERS,
+  APP_SERVER,
+  LPAD(TO_DECIMAL(RTT_MS, 10, 2), 6) RTT_MS,
+  LPAD(TO_DECIMAL(ACT_WPS, 10, 0), 7) ACT_WPS,
+  LPAD(TO_DECIMAL(ACT_DIA, 10, 0), 7) ACT_DIA,
+  LPAD(TO_DECIMAL(PRIV_WPS, 10, 0), 8) PRIV_WPS,
+  LPAD(TO_DECIMAL(CPU_USER_PCT, 10, 2), 12) CPU_USER_PCT,
+  LPAD(TO_DECIMAL(CPU_SYS_PCT, 10, 2), 11) CPU_SYS_PCT,
+  LPAD(TO_DECIMAL(PAGE_OUT_PCT, 10, 2), 12) PAGE_OUT_PCT,
+  LPAD(TO_DECIMAL(FREEMEM_PCT, 10, 2), 11) FREEMEM_PCT,
+  LPAD(TO_DECIMAL(FREEMEM_GB, 10, 2), 10) FREEMEM_GB,
+  LPAD(TO_DECIMAL(EXTMEM_GB, 10, 2), 9) EXTMEM_GB,
+  LPAD(TO_DECIMAL(HEAPMEM_GB, 10, 2), 10) HEAPMEM_GB,
+  LPAD(TO_DECIMAL(DIA_QUEUE, 10, 0), 9) DIA_QUEUE,
+  LPAD(TO_DECIMAL(UPD_QUEUE, 10, 0), 9) UPD_QUEUE,
+  LPAD(TO_DECIMAL(ENQ_QUEUE, 10, 0), 9) ENQ_QUEUE,
+  LPAD(TO_DECIMAL(ENQ_COUNT, 10, 0), 9) ENQ_COUNT,
+  LPAD(TO_DECIMAL(QIN_QUEUE, 10, 0), 9) QIN_QUEUE,
+  LPAD(TO_DECIMAL(QOUT_QUEUE, 10, 0), 10) QOUT_QUEUE,
+  LPAD(TO_DECIMAL(TRFC_FREE, 10, 0), 9) TRFC_FREE
+FROM
+( SELECT
+    CASE 
+      WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), START_TIME) / SUBSTR(TIME_AGGREGATE_BY, 3)) * SUBSTR(TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(START_TIME, TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END START_TIME,
+    APP_SERVER,
+    AVG(CNT) CNT,
+    AVG(ACT_WPS) ACT_WPS,
+    AVG(ACT_DIA) ACT_DIA,
+    AVG(PRIV_WPS) PRIV_WPS,
+    AVG(TRFC_FREE) TRFC_FREE,
+    AVG(CPU_USER_PCT) CPU_USER_PCT,
+    AVG(CPU_SYS_PCT) CPU_SYS_PCT,
+    AVG(PAGE_OUT_PCT) PAGE_OUT_PCT,
+    AVG(FREEMEM_PCT) FREEMEM_PCT,
+    AVG(FREEMEM_GB) FREEMEM_GB,
+    AVG(EXTMEM_GB) EXTMEM_GB,
+    AVG(HEAPMEM_GB) HEAPMEM_GB,
+    AVG(DIA_QUEUE) DIA_QUEUE,
+    AVG(UPD_QUEUE) UPD_QUEUE,
+    AVG(ENQ_QUEUE) ENQ_QUEUE,
+    AVG(ENQ_COUNT) ENQ_COUNT,
+    AVG(QIN_QUEUE) QIN_QUEUE,
+    AVG(QOUT_QUEUE) QOUT_QUEUE,
+    AVG(RTT_MS) RTT_MS,
+    MIN_ACT_WPS,
+    MIN_ACT_DIA,
+    MIN_PRIV_WPS,
+    MAX_TRFC_FREE,
+    MIN_CPU_USER_PCT,
+    MIN_CPU_SYS_PCT,
+    MIN_PAGE_OUT_PCT,
+    MAX_FREEMEM_PCT,
+    MAX_FREEMEM_GB,
+    MIN_EXTMEM_GB,
+    MIN_HEAPMEM_GB,
+    MIN_DIA_QUEUE,
+    MIN_UPD_QUEUE,
+    MIN_ENQ_QUEUE,
+    MIN_ENQ_COUNT,
+    MIN_QIN_QUEUE,
+    MIN_QOUT_QUEUE,
+    MIN_RTT_MS,
+    ORDER_BY
+  FROM
+  ( SELECT
+      S.START_TIME,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVER') != 0 THEN S.APP_SERVER ELSE MAP(BI.APP_SERVER, '%', 'any', BI.APP_SERVER) END APP_SERVER,
+      COUNT(*) CNT,
+      SUM(S.ACT_WPS) ACT_WPS,
+      SUM(S.ACT_DIA) ACT_DIA,
+      SUM(S.PRIV_WPS) PRIV_WPS,
+      AVG(S.TRFC_FREE) TRFC_FREE,
+      AVG(S.CPU_USER_PCT) CPU_USER_PCT,
+      AVG(S.CPU_SYS_PCT) CPU_SYS_PCT,
+      AVG(S.PAGE_OUT_PCT) PAGE_OUT_PCT,
+      AVG(S.FREEMEM_PCT) FREEMEM_PCT,
+      AVG(S.FREEMEM_GB) FREEMEM_GB,
+      AVG(S.EXTMEM_GB) EXTMEM_GB,
+      AVG(S.HEAPMEM_GB) HEAPMEM_GB,
+      MAX(S.DIA_QUEUE) DIA_QUEUE,
+      MAX(S.UPD_QUEUE) UPD_QUEUE,
+      MAX(S.ENQ_QUEUE) ENQ_QUEUE,
+      SUM(S.ENQ_COUNT) ENQ_COUNT,
+      MAX(S.QIN_QUEUE) QIN_QUEUE,
+      MAX(S.QOUT_QUEUE) QOUT_QUEUE,
+      MAX(S.RTT_MS) RTT_MS,
+      BI.MIN_ACT_WPS,
+      BI.MIN_ACT_DIA,
+      BI.MIN_PRIV_WPS,
+      BI.MAX_TRFC_FREE,
+      BI.MIN_CPU_USER_PCT,
+      BI.MIN_CPU_SYS_PCT,
+      BI.MIN_PAGE_OUT_PCT,
+      BI.MAX_FREEMEM_PCT,
+      BI.MAX_FREEMEM_GB,
+      BI.MIN_EXTMEM_GB,
+      BI.MIN_HEAPMEM_GB,
+      BI.MIN_DIA_QUEUE,
+      BI.MIN_UPD_QUEUE,
+      BI.MIN_ENQ_QUEUE,
+      BI.MIN_ENQ_COUNT,
+      BI.MIN_QIN_QUEUE,
+      BI.MIN_QOUT_QUEUE,
+      BI.MIN_RTT_MS,
+      BI.AGGREGATE_BY,
+      BI.TIME_AGGREGATE_BY,
+      BI.ORDER_BY
+    FROM
+    ( SELECT
+        CASE
+          WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+          WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+          WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+          WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+          WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+          WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+          WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+          WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+          WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+          WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+          WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+          WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+          WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+        END BEGIN_TIME,
+        CASE
+          WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+          WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+          WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+          WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+          WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+          WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+          WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+          WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+          WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+          WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+          WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+          WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+          WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+        END END_TIME,
+        APP_SERVER,
+        MIN_ACT_WPS,
+        MIN_ACT_DIA,
+        MIN_PRIV_WPS,
+        MAX_TRFC_FREE,
+        MIN_CPU_USER_PCT,
+        MIN_CPU_SYS_PCT,
+        MIN_PAGE_OUT_PCT,
+        MAX_FREEMEM_PCT,
+        MAX_FREEMEM_GB,
+        MIN_EXTMEM_GB,
+        MIN_HEAPMEM_GB,
+        MIN_DIA_QUEUE,
+        MIN_UPD_QUEUE,
+        MIN_ENQ_QUEUE,
+        MIN_ENQ_COUNT,
+        MIN_QIN_QUEUE,
+        MIN_QOUT_QUEUE,
+        MIN_RTT_MS,
+        AGGREGATE_BY,
+        MAP(TIME_AGGREGATE_BY,
+          'NONE',        'YYYY/MM/DD HH24:MI:SS',
+          'HOUR',        'YYYY/MM/DD HH24',
+          'DAY',         'YYYY/MM/DD (DY)',
+          'HOUR_OF_DAY', 'HH24',
+          TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+        ORDER_BY
+      FROM
+      ( SELECT                          /* Modification section */
+          'C-H1' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+          'C' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+          '%' APP_SERVER,
+          -1 MIN_ACT_WPS,
+          -1 MIN_ACT_DIA,
+          -1 MIN_PRIV_WPS,
+          -1 MIN_CPU_USER_PCT,
+          -1 MIN_CPU_SYS_PCT,
+          -1 MIN_PAGE_OUT_PCT,
+          -1 MAX_FREEMEM_PCT,
+          -1 MAX_FREEMEM_GB,
+          -1 MIN_EXTMEM_GB,
+          -1 MIN_HEAPMEM_GB,
+          -1 MIN_DIA_QUEUE,
+          -1 MIN_UPD_QUEUE,
+          -1 MIN_ENQ_QUEUE,
+          -1 MIN_ENQ_COUNT,
+          -1 MIN_QIN_QUEUE,
+          -1 MIN_QOUT_QUEUE,
+          -1 MAX_TRFC_FREE,
+          -1 MIN_RTT_MS,
+          'NONE' AGGREGATE_BY,         /* TIME, SERVER or comma separated combinations, NONE for no aggregation */
+          'NONE' TIME_AGGREGATE_BY,    /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+          'TIME' ORDER_BY              /* TIME, SAMPLES, SERVER, ACT_WPS, ACT_DIA, PRIV_WPS, TRFC_FREE, CPU_USER, CPU_SYS, PAGE_OUT, FREEMEMPCT, FREEMEMGB, EXTMEM, HEAPMEM, DIA_QUEUE, UPD_QUEUE, ENQ_QUEUE, QIN_QUEUE, QOUT_QUEUE */
+        FROM
+          DUMMY
+      )
+    ) BI,
+    ( SELECT
+        TO_TIMESTAMP(DATUM || TIME, 'YYYYMMDDHH24MISS') START_TIME,
+        SERVER APP_SERVER,
+        ACT_WPS,
+        ACT_DIA,
+        PRIVWPNO PRIV_WPS,
+        TRFC_FREE,
+        USR_TOTAL CPU_USER_PCT,
+        SYS_TOTAL CPU_SYS_PCT,
+        PAGE_OUT_PERC PAGE_OUT_PCT,
+        FREE_MEM_PERC FREEMEM_PCT,
+        FREE_MEM_MB_INC_FS / 1024 FREEMEM_GB,
+        EMALLOC / 1024 EXTMEM_GB,
+        HEAPSUMKB / 1024 / 1024 HEAPMEM_GB,
+        DIAQ DIA_QUEUE,
+        UPDQ UPD_QUEUE,
+        ENQQ ENQ_QUEUE,
+        SM12_CNT ENQ_COUNT,
+        QINLENGTH QIN_QUEUE,
+        QOUTLENGTH QOUT_QUEUE,
+        USERS,
+        SESSIONS,
+        NETRTT / 1000 RTT_MS
+      FROM
+        "/SDF/SMON_HEADER"
+    ) S
+    WHERE
+      S.START_TIME BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+      S.APP_SERVER LIKE BI.APP_SERVER
+    GROUP BY
+      S.START_TIME,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVER') != 0 THEN S.APP_SERVER ELSE MAP(BI.APP_SERVER, '%', 'any', BI.APP_SERVER) END,
+      BI.APP_SERVER,
+      BI.MIN_ACT_WPS,
+      BI.MIN_ACT_DIA,
+      BI.MIN_PRIV_WPS,
+      BI.MAX_TRFC_FREE,
+      BI.MIN_CPU_USER_PCT,
+      BI.MIN_CPU_SYS_PCT,
+      BI.MIN_PAGE_OUT_PCT,
+      BI.MAX_FREEMEM_PCT,
+      BI.MAX_FREEMEM_GB,
+      BI.MIN_EXTMEM_GB,
+      BI.MIN_HEAPMEM_GB,
+      BI.MIN_DIA_QUEUE,
+      BI.MIN_UPD_QUEUE,
+      BI.MIN_ENQ_QUEUE,
+      BI.MIN_ENQ_COUNT,
+      BI.MIN_QIN_QUEUE,
+      BI.MIN_QOUT_QUEUE,
+      BI.MIN_RTT_MS,
+      BI.AGGREGATE_BY,
+      BI.TIME_AGGREGATE_BY,
+      BI.ORDER_BY
+  )
+  GROUP BY
+    CASE
+      WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), START_TIME) / SUBSTR(TIME_AGGREGATE_BY, 3)) * SUBSTR(TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(START_TIME, TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    APP_SERVER,
+    MIN_ACT_WPS,
+    MIN_ACT_DIA,
+    MIN_PRIV_WPS,
+    MAX_TRFC_FREE,
+    MIN_CPU_USER_PCT,
+    MIN_CPU_SYS_PCT,
+    MIN_PAGE_OUT_PCT,
+    MAX_FREEMEM_PCT,
+    MAX_FREEMEM_GB,
+    MIN_EXTMEM_GB,
+    MIN_HEAPMEM_GB,
+    MIN_DIA_QUEUE,
+    MIN_UPD_QUEUE,
+    MIN_ENQ_QUEUE,
+    MIN_ENQ_COUNT,
+    MIN_QIN_QUEUE,
+    MIN_QOUT_QUEUE,
+    MIN_RTT_MS,
+    ORDER_BY
+)
+WHERE
+  ( MIN_ACT_WPS      = -1 OR ACT_WPS      >= MIN_ACT_WPS      ) AND
+  ( MIN_ACT_DIA      = -1 OR ACT_DIA      >= MIN_ACT_DIA      ) AND
+  ( MIN_PRIV_WPS     = -1 OR PRIV_WPS     >= MIN_PRIV_WPS     ) AND
+  ( MAX_TRFC_FREE    = -1 OR TRFC_FREE    <= MAX_TRFC_FREE    ) AND
+  ( MIN_CPU_USER_PCT = -1 OR CPU_USER_PCT >= MIN_CPU_USER_PCT ) AND
+  ( MIN_CPU_SYS_PCT  = -1 OR CPU_SYS_PCT  >= MIN_CPU_SYS_PCT  ) AND
+  ( MIN_PAGE_OUT_PCT = -1 OR PAGE_OUT_PCT >= MIN_PAGE_OUT_PCT ) AND
+  ( MAX_FREEMEM_PCT  = -1 OR FREEMEM_PCT  <= MAX_FREEMEM_PCT  ) AND
+  ( MAX_FREEMEM_GB   = -1 OR FREEMEM_GB   <= MAX_FREEMEM_GB   ) AND
+  ( MIN_EXTMEM_GB    = -1 OR EXTMEM_GB    >= MIN_EXTMEM_GB    ) AND
+  ( MIN_HEAPMEM_GB   = -1 OR HEAPMEM_GB   >= MIN_HEAPMEM_GB   ) AND
+  ( MIN_DIA_QUEUE    = -1 OR DIA_QUEUE    >= MIN_DIA_QUEUE    ) AND
+  ( MIN_UPD_QUEUE    = -1 OR UPD_QUEUE    >= MIN_UPD_QUEUE    ) AND
+  ( MIN_ENQ_QUEUE    = -1 OR ENQ_QUEUE    >= MIN_ENQ_QUEUE    ) AND
+  ( MIN_ENQ_COUNT    = -1 OR ENQ_COUNT    >= MIN_ENQ_COUNT    ) AND
+  ( MIN_QIN_QUEUE    = -1 OR QIN_QUEUE    >= MIN_QIN_QUEUE    ) AND
+  ( MIN_QOUT_QUEUE   = -1 OR QOUT_QUEUE   >= MIN_QOUT_QUEUE   ) AND
+  ( MIN_RTT_MS       = -1 OR RTT_MS       >= MIN_RTT_MS       )
+ORDER BY
+  MAP(ORDER_BY, 'SAMPLES', CNT) DESC,
+  MAP(ORDER_BY, 'TIME', START_TIME) DESC,
+  MAP(ORDER_BY, 'ACT_WPS', ACT_WPS, 'ACT_DIA', ACT_DIA, PRIV_WPS, 'PRIV_WPS', 'CPU_USER', CPU_USER_PCT, 'CPU_SYS', CPU_SYS_PCT, 'PAGE_OUT', PAGE_OUT_PCT,
+    'EXTMEM', EXTMEM_GB, 'HEAPMEM', HEAPMEM_GB, 'DIA_QUEUE', DIA_QUEUE, 'UPD_QUEUE', UPD_QUEUE, 'ENQ_QUEUE', ENQ_QUEUE, 'QIN_QUEUE', QIN_QUEUE, 'QOUT_QUEUE', QOUT_QUEUE) DESC,
+  MAP(ORDER_BY, 'SERVER', APP_SERVER, 'TRFC_FREE', TRFC_FREE, 'FREEMEMGB', FREEMEM_GB, 'FREEMEMPCT', FREEMEM_PCT),
+  START_TIME DESC,
+  APP_SERVER

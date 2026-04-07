@@ -1,0 +1,230 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Locks_Transactional_LockWaits
+
+[DESCRIPTION]
+
+- Current and historic transactional lock wait situations (record locks, object locks)
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2014/04/10:  1.0 (initial version)
+- 2016/12/01:  1.1 (CLIENT_HOST, CLIENT_IP, final blocking session and APPLICATION_SOURCE included)
+- 2016/12/29:  1.2 (consolidation of current and historic lock wait analysis in a single SQL statement)
+
+[INVOLVED TABLES]
+
+- HOST_BLOCKED_TRANSACTIONS
+- M_BLOCKED_TRANSACTIONS
+- M_CONNECTIONS
+- M_SERVICE_THREADS
+- M_SESSION_CONTEXT
+- M_TRANSACTIONS
+
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- MIN_WAIT_TIME_S
+
+  Minimum wait time of displayed lock waits
+
+  30              --> Display lock waits lasting for at least 30 seconds
+  -1              --> Display all current lock waits
+
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_ tables)
+  'HISTORY'       --> Data from persisted history information (HOST_ tables)
+
+[OUTPUT PARAMETERS]
+
+- SNAPSHOT_TIME:       Snapshot timestamp
+- WAIT_S:              Seconds since lock wait started
+- SCHEMA:              Schema name of object related to lock wait
+- OBJECT_NAME:         Object name related to lock wait
+- LT:                  Lock type ('R' -> RECORD, 'T' -> TABLE, 'M' -> METADATA)
+- LM:                  Lock mode ('E' -> EXCLUSIVE, 'IE' -> INTENTIONAL EXCLUSIVE, 'S' -> SHARED)
+- F:                   'X' if lock holder is final blocking session, ' ' if lock holder is blocked by somebody else
+- A:                   'X' if lock holder is active on SAP HANA side, ' ' if lock holder is active outside of SAP HANA (e.g. client, communication)
+- WAIT_CONN:           Connection ID of lock waiter
+- WAIT_UTID:           Update transaction ID of lock waiter
+- BLK_CONN:            Connection ID of lock holder
+- BLK_UTID:            Update transaction ID of lock holder
+- BLK_CLIENT_HOST_PID: Client host and PID of lock holder
+- BLK_APP_SOURCE:      Application source of lock holder
+- HOST:                Host name
+- PORT:                Port number
+- RECORD_ID:           ID of record related to lock wait
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|WAIT_TIMESTAMP     |WAIT_S |SCHEMA|OBJECT_NAME|LT|LM|F|A|WAIT_CONN|WAIT_UTID  |BLK_CONN |BLK_UTID   |BLK_CLIENT_HOST_PID|BLK_APP_SOURCE|BLK_STATEMENT_HASH|HOST    |PORT |RECORD_ID                                    |
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|2016/12/29 14:44:44|     15|SAPERP|S060       |R |E |X| |         | 2240287263|   416874| 2240286646|sapabap1 / 11500   |RSM13000:11436|                  |saphana0|30003|OID=0x000002AF, PARTID=0x0, OFFSET=0xA579D752|
+|2016/12/29 14:44:44|     14|SAPERP|S060       |R |E |X| |         | 2240288893|   416874| 2240286646|sapabap1 / 11500   |RSM13000:11436|                  |saphana0|30003|OID=0x000002AF, PARTID=0x0, OFFSET=0xA579D752|
+|2016/12/29 14:44:44|     14|SAPERP|S060       |R |E |X| |         | 2240287831|   416874| 2240286646|sapabap1 / 11500   |RSM13000:11436|                  |saphana0|30003|OID=0x000002AF, PARTID=0x0, OFFSET=0xA579D752|
+|2016/12/29 14:44:44|     10|SAPERP|S060       |R |E |X| |         | 2240285886|   416874| 2240286646|sapabap1 / 11500   |RSM13000:11436|                  |saphana0|30003|OID=0x000002AF, PARTID=0x0, OFFSET=0xA579D752|
+|2016/12/29 14:44:44|      6|SAPERP|S060       |R |E |X| |         | 2240291176|   416874| 2240286646|sapabap1 / 11500   |RSM13000:11436|                  |saphana0|30003|OID=0x000002AF, PARTID=0x0, OFFSET=0xA579D752|
+|2016/12/28 19:36:44|     19|SAPERP|S060       |R |E |X| |         | 2205344856|   462594| 2205344466|sapabap6 / 9897    |SAPLARFC:1731 |                  |saphana0|30003|OID=0x000002AF, PARTID=0x0, OFFSET=0xA579D752|
+|2016/12/28 19:36:44|     18|SAPERP|S060       |R |E |X| |         | 2205343742|   462594| 2205344466|sapabap6 / 9897    |SAPLARFC:1731 |                  |saphana0|30003|OID=0x000002AF, PARTID=0x0, OFFSET=0xA579D752|
+|2016/12/28 19:36:44|     18|SAPERP|S060       |R |E |X| |         | 2205342647|   462594| 2205344466|sapabap6 / 9897    |SAPLARFC:1731 |                  |saphana0|30003|OID=0x000002AF, PARTID=0x0, OFFSET=0xA579D752|
+|2016/12/28 19:36:44|     17|SAPERP|S060       |R |E |X| |         | 2205345667|   462594| 2205344466|sapabap6 / 9897    |SAPLARFC:1731 |                  |saphana0|30003|OID=0x000002AF, PARTID=0x0, OFFSET=0xA579D752|
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  TO_VARCHAR(BT.END_TIMESTAMP, 'YYYY/MM/DD HH24:MI:SS') SNAPSHOT_TIME,
+  LPAD(SECONDS_BETWEEN(BT.START_TIMESTAMP, BT.END_TIMESTAMP), 7) WAIT_S,
+  BT.WAITING_SCHEMA_NAME SCHEMA,
+  BT.WAITING_OBJECT_NAME OBJECT_NAME,
+  MAP(BT.LOCK_TYPE, 'RECORD_LOCK', 'R', 'TABLE_LOCK', 'T', 'OBJECT_LOCK', 'T', 'METADATA', 'M', BT.LOCK_TYPE) LT,
+  MAP(BT.LOCK_MODE, 'EXCLUSIVE', 'E', 'INTENTIONAL EXCLUSIVE', 'IE', 'SHARED', 'SHARED', BT.LOCK_MODE) LM,
+  FINAL_BLOCKING_SESSION F,
+  ACTIVE A,
+  LPAD(BT.BLOCKED_CONNECTION_ID, 9) WAIT_CONN,
+  LPAD(BT.BLOCKED_UPDATE_TRANSACTION_ID, 11) WAIT_UTID,
+  LPAD(BT.LOCK_OWNER_CONNECTION_ID, 9) BLK_CONN,
+  LPAD(BT.LOCK_OWNER_UPDATE_TRANSACTION_ID, 11) BLK_UTID,
+  BT.LOCK_OWNER_CLIENT_HOST || CHAR(32) || '/' || CHAR(32) || BT.LOCK_OWNER_CLIENT_PID BLK_CLIENT_HOST_PID,
+  IFNULL(BT.LOCK_OWNER_APPLICATION_SOURCE, '') BLK_APP_SOURCE,
+  BT.HOST,
+  LPAD(BT.PORT, 5) PORT,
+  BT.WAITING_RECORD_ID RECORD_ID
+FROM
+( SELECT                            /* Modification section */
+    '%' HOST,
+    '%' PORT,
+    '%' SERVICE_NAME,
+    '%' SCHEMA_NAME,
+    '%' TABLE_NAME,
+    5 MIN_WAIT_TIME_S,
+    'HISTORY' DATA_SOURCE
+  FROM
+    DUMMY
+) BI,
+( SELECT
+    'CURRENT' DATA_SOURCE,
+    CURRENT_TIMESTAMP END_TIMESTAMP,
+    BT.HOST,
+    BT.PORT,
+    BT.LOCK_TYPE,
+    BT.LOCK_MODE,
+    BT.WAITING_SCHEMA_NAME,
+    BT.WAITING_OBJECT_NAME,
+    BT.WAITING_RECORD_ID,
+    BT.BLOCKED_TIME START_TIMESTAMP,
+    BT.BLOCKED_CONNECTION_ID,
+    BT.BLOCKED_UPDATE_TRANSACTION_ID,
+    BT.LOCK_OWNER_CONNECTION_ID,
+    BT.LOCK_OWNER_UPDATE_TRANSACTION_ID,
+    C.CLIENT_HOST LOCK_OWNER_CLIENT_HOST,
+    C.CLIENT_PID LOCK_OWNER_CLIENT_PID,
+    SC.VALUE LOCK_OWNER_APPLICATION_SOURCE,
+    CASE ( SELECT COUNT(*) WAITERS FROM M_BLOCKED_TRANSACTIONS BT2 WHERE BT2.BLOCKED_UPDATE_TRANSACTION_ID = BT.LOCK_OWNER_UPDATE_TRANSACTION_ID ) WHEN 0 THEN 'X' ELSE ' ' END FINAL_BLOCKING_SESSION,
+    CASE ( SELECT COUNT(*) FROM M_SERVICE_THREADS TH WHERE TH.UPDATE_TRANSACTION_ID = BT.LOCK_OWNER_UPDATE_TRANSACTION_ID ) WHEN 0 THEN ' ' ELSE 'X' END ACTIVE
+  FROM
+    M_BLOCKED_TRANSACTIONS BT,
+    M_CONNECTIONS C,
+    M_TRANSACTIONS T LEFT OUTER JOIN
+    M_SESSION_CONTEXT SC ON
+      SC.HOST = T.HOST AND
+      SC.PORT = T.PORT AND
+      SC.CONNECTION_ID = T.CONNECTION_ID AND
+      SC.KEY = 'APPLICATIONSOURCE'
+  WHERE
+    T.UPDATE_TRANSACTION_ID = BT.LOCK_OWNER_UPDATE_TRANSACTION_ID AND
+    C.HOST = T.HOST AND
+    C.PORT = T.PORT AND
+    C.CONNECTION_ID = T.CONNECTION_ID
+  UNION ALL
+  SELECT
+    'HISTORY' DATA_SOURCE,
+    BT.SERVER_TIMESTAMP END_TIMESTAMP,
+    BT.HOST,
+    BT.PORT,
+    BT.LOCK_TYPE,
+    BT.LOCK_MODE,
+    BT.WAITING_SCHEMA_NAME,
+    BT.WAITING_OBJECT_NAME,
+    BT.WAITING_RECORD_ID,
+    BT.BLOCKED_TIME START_TIMESTAMP,
+    BT.BLOCKED_CONNECTION_ID,
+    BT.BLOCKED_UPDATE_TRANSACTION_ID,
+    BT.LOCK_OWNER_CONNECTION_ID,
+    BT.LOCK_OWNER_UPDATE_TRANSACTION_ID,
+    BT.LOCK_OWNER_HOST LOCK_OWNER_CLIENT_HOST,
+    BT.LOCK_OWNER_PID LOCK_OWNER_CLIENT_PID,
+    BT.LOCK_OWNER_APPLICATION_SOURCE,
+    CASE ( SELECT COUNT(*) WAITERS FROM _SYS_STATISTICS.HOST_BLOCKED_TRANSACTIONS BT2 WHERE BT2.SNAPSHOT_ID = BT.SNAPSHOT_ID AND BT2.BLOCKED_UPDATE_TRANSACTION_ID = BT.LOCK_OWNER_UPDATE_TRANSACTION_ID ) WHEN 0 THEN 'X' ELSE ' ' END FINAL_BLOCKING_SESSION,
+    '' ACTIVE
+  FROM
+    _SYS_STATISTICS.HOST_BLOCKED_TRANSACTIONS BT
+) BT
+WHERE
+  BT.HOST LIKE BI.HOST AND
+  TO_VARCHAR(BT.PORT) LIKE BI.PORT AND
+  BT.WAITING_SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+  BT.WAITING_OBJECT_NAME LIKE BI.TABLE_NAME AND
+  ( BI.MIN_WAIT_TIME_S = -1 OR SECONDS_BETWEEN(BT.START_TIMESTAMP, BT.END_TIMESTAMP) >= BI.MIN_WAIT_TIME_S ) AND
+  BI.DATA_SOURCE = BT.DATA_SOURCE
+ORDER BY
+  BT.END_TIMESTAMP DESC,
+  SECONDS_BETWEEN(BT.START_TIMESTAMP, BT.END_TIMESTAMP) DESC

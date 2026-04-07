@@ -1,0 +1,94 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_SQL_StatementsWithSameABAPCodingLocation
+
+[DESCRIPTION]
+
+- Display different SQL statements originating from the same specified ABAP coding location
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- It is common that the same ABAP coding location generates different SQL statements based on user input or technical aspects
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2015/04/15:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_PREPARED_STATEMENTS
+- M_SQL_PLAN_CACHE
+
+[INPUT PARAMETERS]
+
+- APPLICATION_SOURCE
+
+  Application source
+
+  'SAPLBTCH:7556' -> List SQL statements originating from application source SAPLBTCH:7556
+  
+[OUTPUT PARAMETERS]
+
+- APPLICATION_SOURCE: Application source
+- STATEMENT_HASH:     Statement hash
+- EXECUTIONS:         Number of executions
+- TIME_PER_EXEC_MS:   Average time per execution (ms)
+- REC_PER_EXEC:       Average number of records per execution
+- STATEMENT_STRING:   SQL text
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|APPLICATION_SOURCE                 |STATEMENT_HASH                  |EXECUTIONS|TIME_PER_EXEC_MS|REC_PER_EXEC|STATEMENT_STRING                                                                                                                                                                                                                                               |
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|ZCL_IM_CR_BM0063==============CP:86|e62ae4d267c59864b78f7ca66e5f8357|      1997|        18995.95|  3156605.32|SELECT "BUT000" . "PARTNER" , "BUT000" . "PARTNER_GUID" FROM "BUT000" INNER JOIN "DFKKBPTAXNUM" ON "BUT000" . "CLIENT" = "DFKKBPTAXNUM" . "CLIENT" AND "BUT000" . "PARTNER" = "DFKKBPTAXNUM" . "PARTNER" WHERE "BUT000" . "CLIENT" = X                         |
+|ZCL_IM_CR_BM0063==============CP:86|5f507d6a731db1022700846a0d1f5c75|    382640|            3.05|        0.84|SELECT "BUT000" . "PARTNER" , "BUT000" . "PARTNER_GUID" FROM "BUT000" INNER JOIN "DFKKBPTAXNUM" ON "BUT000" . "CLIENT" = "DFKKBPTAXNUM" . "CLIENT" AND "BUT000" . "PARTNER" = "DFKKBPTAXNUM" . "PARTNER" WHERE "BUT000" . "CLIENT" = X AND "DFKKBPTAXNUM" . "T"|
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  APPLICATION_SOURCE,
+  STATEMENT_HASH,
+  LPAD(SUM(EXECUTIONS), 10) EXECUTIONS,
+  LPAD(TO_DECIMAL(MAP(SUM(EXECUTIONS), 0, 0, SUM(EXEC_MS) / SUM(EXECUTIONS)), 10, 2), 16) TIME_PER_EXEC_MS,
+  LPAD(TO_DECIMAL(MAP(SUM(EXECUTIONS), 0, 0, SUM(RECORDS) / SUM(EXECUTIONS)), 10, 2), 12) REC_PER_EXEC,
+  STATEMENT_STRING
+FROM
+( SELECT
+    P.APPLICATION_SOURCE,
+    IFNULL(S.STATEMENT_HASH, 'n/a') STATEMENT_HASH,
+    IFNULL(S.EXECUTION_COUNT, 0) EXECUTIONS,
+    IFNULL(S.TOTAL_EXECUTION_TIME / 1000, 0) EXEC_MS,
+    IFNULL(S.TOTAL_RESULT_RECORD_COUNT, 0) RECORDS,
+    P.STATEMENT_STRING
+  FROM
+  ( SELECT               /* Modification section */
+      'SAPLSDCL:19359' APPLICATION_SOURCE
+    FROM
+      DUMMY
+  ) BI INNER JOIN
+  ( SELECT DISTINCT
+      APPLICATION_SOURCE,
+      TO_VARCHAR(STATEMENT_STRING) STATEMENT_STRING
+    FROM
+      M_PREPARED_STATEMENTS
+  ) P ON
+      P.APPLICATION_SOURCE LIKE BI.APPLICATION_SOURCE LEFT OUTER JOIN
+    M_SQL_PLAN_CACHE S ON
+      TO_VARCHAR(S.STATEMENT_STRING) = TO_VARCHAR(P.STATEMENT_STRING)
+)
+GROUP BY
+  APPLICATION_SOURCE,
+  STATEMENT_HASH,
+  STATEMENT_STRING

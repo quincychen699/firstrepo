@@ -1,0 +1,105 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Heap_TranslationTables_Internal_1.00.85.99-
+
+[DESCRIPTION]
+
+- Show current content of Pool/JoinEvaluator/TranslationTables heap area
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+
+[VALID FOR]
+
+- Revisions:              <= 1.00.85.99
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2014/03/19:  1.0 (initial version)
+- 2014/08/31:  1.1 (AGGREGATE_BY included)
+
+[INVOLVED TABLES]
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- RESULT_ROWS
+
+  Number of records to be returned by the query
+
+  100             --> Return a maximum number of 100 records
+  -1              --> Return all records
+
+[OUTPUT PARAMETERS]
+
+- HOST:                Host name
+- SERVICE_NAME:        Service name
+- SCHEMA_NAME_1:       Schema name of first table to be joined
+- TABLE_NAME_1:        First table name
+- COLUMN_NAME_1:       Join column name of first table
+- SCHEMA_NAME_2:       Schema name of second table to be joined
+- TABLE_NAME_2:        Second table name
+- COLUMN_NAME_2:       Join column name of second table
+- TRANS_TABLE_SIZE_MB: Size of translation table (in MB)
+- SIZE_PCT:            Size of translation table compared to overall translation tables size (in %)
+
+[EXAMPLE OUTPUT]
+
+HOST  |SERVICE_NAME|SCHEMA_NAME_1|TABLE_NAME_1    |COLUMN_NAME_1|SCHEMA_NAME_2|TABLE_NAME_2    |COLUMN_NAME_2|TRANS_TABLE_SIZE_MB|SIZE_PCT|CHANGE_TIME     
+   
+shana5|indexserver |SAPBWP       |/BIC/SPBUP_GEN  |/BIC/PBUP_GEN|SAPBWP       |/BIC/TPBUP_GEN  |/BIC/PBUP_GEN|             536.51|    0.47|2014/03/17 21:22:36
+shana5|indexserver |SAPBWP       |/BIC/AOLSOR1340 |/BIC/PBUP_GEN|SAPBWP       |/BIC/SPBUP_GEN  |/BIC/PBUP_GEN|             426.59|    0.37|2014/03/18 07:17:56
+shana7|indexserver |SAPBWP       |/BI0/PDOC_NUMBER|DOC_NUMBER   |SAPBWP       |/BI0/SDOC_NUMBER|DOC_NUMBER   |             222.14|    0.19|2014/03/19 09:28:36
+shana3|indexserver |SAPBWP       |/BI0/0600000670 |SID          |SAPBWP       |/BIC/SPBUP_GTMT |SID          |             214.24|    0.18|2014/03/19 02:21:24
+shana2|indexserver |SAPBWP       |/BI0/0600000049 |SID          |SAPBWP       |/BI0/SMAT_SALES |SID          |             169.37|    0.14|2014/03/18 06:56:51
+shana2|indexserver |SAPBWP       |/BI0/0600000237 |SID          |SAPBWP       |/BI0/SMAT_SALES |SID          |             169.35|    0.14|2014/03/18 06:56:41
+shana5|indexserver |SAPBWP       |/BI0/0600000049 |SID          |SAPBWP       |/BI0/SMAT_SALES |SID          |             169.28|    0.14|2014/03/18 06:56:51
+shana2|indexserver |SAPBWP       |/BI0/0600000230 |SID          |SAPBWP       |/BI0/SMAT_SALES |SID          |             169.27|    0.14|2014/03/18 06:56:16
+shana2|indexserver |SAPBWP       |/BI0/0600000672 |SID          |SAPBWP       |/BI0/SMAT_SALES |SID          |             169.26|    0.14|2014/03/18 06:56:24
+shana2|indexserver |SAPBWP       |/BI0/0600002629 |SID          |SAPBWP       |/BI0/SMAT_SALES |SID          |             169.26|    0.14|2014/03/18 06:56:12
+
+*/
+
+  'Only available SAP internally, see internal SAP Note 2082221.' INFORMATION
+FROM
+  DUMMY

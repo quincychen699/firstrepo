@@ -1,0 +1,549 @@
+SELECT 
+/*
+
+[NAME]
+
+HANA_Threads_ThreadSamples_FilterAndAggregation_1.00.80+_ESS
+
+[DESCRIPTION]
+
+- Filtering and aggregation of thread sample histories
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- HOST_SERVICE_THREAD_SAMPLES included
+- HOST_SERVICE_THREAD_SAMPLES.DURATION only available as of Revision 80
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.80
+- Statistics server type: new (SAP Note 1917938)
+
+[SQL COMMAND VERSION]
+
+- 2014/03/11:  1.0 (initial version)
+- 2014/09/24:  1.1 (THREAD_DETAIL included)
+- 2015/04/29:  1.2 (CLIENT_IP and DB_USER included)
+
+[INVOLVED TABLES]
+
+- M_SERVICE_THREAD_SAMPLES
+- HOST_SERVICE_THREAD_SAMPLES
+- M_SQL_PLAN_CACHE
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  TO_TIMESTAMP('2014/06/05 14:05:00', 'YYYY/MM/DD HH24:MI:SS') --> Set begin time to 5th of June 2014, 14:05 
+  ADD_DAYS(CURRENT_TIMESTAMP, -2)                              --> Set begin time to two days before current time 
+
+- END_TIME
+
+  End time
+
+  TO_TIMESTAMP('2014/06/08 14:05:00', 'YYYY/MM/DD HH24:MI:SS') --> Set end time to 8th of June 2014, 14:05 
+  CURRENT_TIMESTAMP                                            --> Set end time to current time 
+
+- HOST
+
+  Host name
+
+  'saphana01'    --> Specific host saphana01
+  'saphana%'     --> All hosts starting with saphana
+  '%'            --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- THREAD_ID
+
+  Thread identifier
+
+  4567            --> Thread 4567
+  -1              --> No thread identifier restriction
+
+- THREAD_TYPE
+
+  Type of thread (e.g. 'SqlExecutor', 'JobWorker' or 'MergedogMonitor')
+
+  'SqlExecutor'   --> Threads with type 'SqlExecutor'
+  '%'             --> No thread type restriction
+
+- THREAD_STATE 
+
+  State of thread (e.g. e.g. 'Running', 'Network Read' or 'Semaphore Wait')
+
+  'Running'       --> Threads with state 'Running'
+  '%'             --> No thread state restriction
+
+- THREAD_DETAIL
+
+  Thread detail information (e.g. SQL text)
+
+  '%insert%'      --> Only thread details containing 'insert'
+  '%'             --> No thread detail restriction
+
+- STATEMENT_HASH      
+ 
+  Hash of SQL statement to be analyzed
+
+  '2e960d7535bf4134e2bd26b9d80bd4fa' --> SQL statement with hash '2e960d7535bf4134e2bd26b9d80bd4fa'
+  '%'                                --> No statement hash restriction (only possible if hash is not mandatory)
+
+- DB_USER
+
+  Database user
+
+  'SYSTEM'        --> Database user 'SYSTEM'
+  '%'             --> No database user restriction
+
+- APP_NAME
+
+  Name of application
+
+  'ABAP:C11'      --> Application name 'ABAP:C11'
+  '%'             --> No application name restriction
+
+- APP_USER
+
+  Application user
+
+  'SAPSYS'        --> Application user 'SAPSYS'
+  '%'             --> No application user restriction
+  
+- APP_SOURCE
+
+  Application source
+
+  'SAPL2:437'     --> Application source 'SAPL2:437'
+  'SAPMSSY2%'     --> Application sources starting with SAPMSSY2
+  '%'             --> No application source restriction
+
+- CLIENT_IP
+
+  IP address of client
+
+  '172.23.4.12'   --> IP address 172.23.4.12 
+  '%'             --> No restriction related to IP address
+
+- CLIENT_PID
+
+  Client process ID
+
+  10264           --> Client process ID 10264
+  -1              --> No client process ID restriction
+
+- CONN_ID
+
+  Connection ID
+
+  330655          --> Connection ID 330655
+  -1              --> No connection ID restriction
+
+- MIN_DURATION_MS
+
+  Minimum duration time in milli seconds
+
+  100             --> Minimum duration time of 100 ms
+  -1              --> No restriction of minimum duration time
+
+- SQL_TEXT_LENGTH
+
+  Maximum displayed size of SQL statement text
+
+  50              --> SQL text is truncated to 50 characters
+  -1              --> No SQL text size limitation
+
+- EXCLUDE_SERVICE_THREAD_SAMPLER
+
+  Possibility to ignore samples related to service thread sampling
+
+  'X'             --> Samples related to service thread sampling are not shown
+  ' '             --> All samples are displayed
+
+- EXCLUDE_NEGATIVE_THREAD_IDS
+
+  Possibility to ignore samples related to negative thread IDs
+
+  'X'             --> Samples related to negative thread IDs are ignored
+  ' '             --> All samples are displayed
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by sample time
+  'HOST, PORT'    --> Aggregation by host and port
+  '%'             --> No aggregation, pure filtering 
+
+- DURATION_AGGREGATION_TYPE
+
+  Type of aggregation (e.g. MAX, AVG, SUM)
+
+  'AVG'           --> Determination of average values
+  'MAX'           --> Determination of maximum values
+  'SUM'           --> Determination of total values
+
+- RESULT_ROWS
+
+  Number of records to be returned by the query
+
+  100             --> Return a maximum number of 100 records
+  -1              --> Return all records
+
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_ tables)
+  'HISTORY'       --> Data from persisted history information (HOST_ tables)
+
+[OUTPUT PARAMETERS]
+
+- MIN_SAMPLE_TIME:  Minimum timestamp of a sample
+- MAX_SAMPLE_TIME:  Maximum timestamp of a sample
+- NUM_SAMPLES:      Number of samples
+- PERCENT:          Percentage of samples compared to overall number of samples
+- ACT_THREADS:      Average number of active threads
+- SAMPLE_TIME:      Sample timestamp
+- HOST:             Host name
+- PORT:             Port
+- CONN_ID:          Connection identifier
+- THREAD_ID:        Thread identifier
+- THREAD_TYPE:      Thread type
+- THREAD_METHOD:    Thread method
+- THREAD_STATE:     Thread state
+- THREAD_DETAIL:    Thread detail
+- DURATION_MS:      Duration (in ms), value is aggregated based on DURATION_AGGREGATION_TYPE
+- STATEMENT_HASH:   SQL statement hash value
+- DB_USER:          Database user
+- APP_NAME:         Application name
+- APP_USER:         Application user
+- APP_SOURCE:       Application source
+- CLIENT_IP:        IP address of client
+- CLIENT_PID:       Client process ID
+- LOCK_COMPONENT:   Lock component
+- LOCK_NAME:        Lock name
+- BLOCKING_THREAD:  Thread responsible for lock wait
+- SQL_TEXT:         SQL statement text (currently disabled)
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|MIN_SAMPLE_TIME    |MAX_SAMPLE_TIME    |NUM_SAMPLES|PERCENT|ACT_THREADS|DURATION_MS    |STATEMENT_HASH                  |SQL_TEXT                                |
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|2014/03/09 04:25:50|2014/03/11 16:47:37|     574400|  96.86|       2.64|     3136954.32|no SQL                          |                                        |
+|2014/03/09 04:39:16|2014/03/11 16:39:32|       2360|   0.39|       0.01|          16.67|51fbc84c81236491c0e30ec6394a54c0|select ... from sys.m_cs_unloads where U|
+|2014/03/09 04:38:59|2014/03/11 16:39:15|       2328|   0.39|       0.01|          17.07|d4353cc2f1efbad813ad7106cecfc9bf|select ... from sys.m_cs_unloads group b|
+|2014/03/09 04:39:35|2014/03/11 16:39:49|       1712|   0.28|       0.00|          18.53|b887b4d7ec612fbaf942cb664cb44a94|select ... FROM (select ifnull(sum(insta|
+|2014/03/10 16:23:41|2014/03/11 16:38:58|       1590|   0.26|       0.00|           9.52|905dbaa93a672b087c6f226bc283431d|select ... from sys.tables as t where t.|
+|2014/03/09 23:38:37|2014/03/11 16:38:54|       1308|   0.22|       0.00|          18.21|71991dbf589bc4bccb542e45e0843140|select ... FROM SYS.M_SERVICE_COMPONENT_|
+|2014/03/09 12:38:37|2014/03/11 16:38:40|       1178|   0.19|       0.00|           3.91|062a118a73583797125c01e2871f7d4c|SELECT ... FROM "PUBLIC".M_BACKUP_CATALO|
+|2014/03/09 05:48:37|2014/03/11 16:47:37|       1044|   0.17|       0.00|      441987.73|2e960d7535bf4134e2bd26b9d80bd4fa|SELECT ... FROM m_blocked_transactions b|
+|2014/03/09 13:39:50|2014/03/11 16:40:05|        813|   0.13|       0.00|          16.38|f6d34a3b244677718557cbc092794bf7|select ... from SYS."M_RS_TABLES" where |
+|2014/03/10 16:23:49|2014/03/11 16:38:58|        794|   0.13|       0.00|           8.41|67300b9fa874852496035d12131e8eda|select ... from PUBLIC.M_EXTRACTORS wher|
+|2014/03/10 16:15:50|2014/03/11 16:45:48|        558|   0.09|       0.00|           0.96|0475d259ff221f6430e69e495d9459e3|select ... from M_BACKUP_CATALOG  where |
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+  MIN_SAMPLE_TIME,
+  MAX_SAMPLE_TIME,
+  NUM_SAMPLES,
+  PERCENT,
+  ACT_THREADS,
+  SAMPLE_TIME,
+  HOST,
+  PORT,
+  CONN_ID,
+  THREAD_ID,
+  THREAD_TYPE,
+  THREAD_METHOD,
+  THREAD_STATE,
+  THREAD_DETAIL,
+  DURATION_MS,
+  STATEMENT_HASH,
+  DB_USER,
+  APP_NAME,
+  APP_USER,
+  APP_SOURCE,
+  CLIENT_IP,
+  CLIENT_PID,
+  LOCK_COMPONENT,
+  LOCK_NAME,
+  BLOCKING_THREAD,
+  IFNULL(SQL_TEXT, ' ') SQL_TEXT
+FROM
+( SELECT
+    TO_VARCHAR(MIN_SAMPLE_TIME, 'YYYY/MM/DD HH24:MI:SS') MIN_SAMPLE_TIME,
+    TO_VARCHAR(MAX_SAMPLE_TIME, 'YYYY/MM/DD HH24:MI:SS') MAX_SAMPLE_TIME,
+    LPAD(NUM_SAMPLES, 11) NUM_SAMPLES,
+    LPAD(TO_DECIMAL(MAP(SUM(NUM_SAMPLES) OVER (), 0, 0, NUM_SAMPLES / SUM(NUM_SAMPLES) OVER () * 100), 10, 2), 11) PERCENT,
+    LPAD(TO_DECIMAL(MAP(SECONDS, 0, 0, NUM_SAMPLES * SAMPLE_INTERVAL / SECONDS), 10, 2), 11) ACT_THREADS,
+    SAMPLE_TIME,
+    HOST,
+    LPAD(PORT, 5) PORT,
+    LPAD(THREAD_ID, 9) THREAD_ID,
+    THREAD_TYPE,
+    THREAD_METHOD,
+    THREAD_STATE,
+    THREAD_DETAIL,
+    LPAD(ROUND(DURATION_MS), 11) DURATION_MS,
+    CASE WHEN STATEMENT_HASH = CHAR(63) THEN 'no SQL' || CHAR(32) || '(' || THREAD_METHOD || ')' ELSE STATEMENT_HASH END STATEMENT_HASH,
+    LPAD(CONN_ID, 7) CONN_ID,
+    DB_USER,
+    APP_NAME,
+    APP_USER,
+    APP_SOURCE,
+    CLIENT_IP,
+    LPAD(CLIENT_PID, 10) CLIENT_PID,
+    LOCK_COMPONENT,
+    LOCK_NAME,
+    BLOCKING_THREAD,
+    ( SELECT
+        MIN(STATEMENT_STRING)
+      FROM
+      ( SELECT
+          MAP(T.SQL_TEXT_LENGTH, -1, STATEMENT_STRING, SUBSTR(STATEMENT_STRING, 1, T.SQL_TEXT_LENGTH)) STATEMENT_STRING
+        FROM
+        ( SELECT 
+            CASE
+              WHEN FROM_POS <= 15 THEN
+                STATEMENT_STRING
+              ELSE
+                SUBSTR(STATEMENT_STRING, 1, LOCATE(STATEMENT_STRING, CHAR(32))) || '...' || SUBSTR(STATEMENT_STRING, FROM_POS - 1)
+            END STATEMENT_STRING
+          FROM 
+          ( SELECT TO_VARCHAR(STATEMENT_STRING) STATEMENT_STRING, LOCATE(UPPER(TO_VARCHAR(STATEMENT_STRING)), 'FROM') FROM_POS 
+              FROM M_SQL_PLAN_CACHE P WHERE T.STATEMENT_HASH != CHAR(63) AND P.STATEMENT_HASH = T.STATEMENT_HASH UNION
+            SELECT TO_VARCHAR(STATEMENT_STRING) STATEMENT_STRING, LOCATE(UPPER(TO_VARCHAR(STATEMENT_STRING)), 'FROM') FROM_POS 
+              FROM _SYS_STATISTICS.HOST_SQL_PLAN_CACHE P WHERE T.STATEMENT_HASH != CHAR(63) AND P.STATEMENT_HASH = T.STATEMENT_HASH 
+          )
+        )
+      )
+    ) SQL_TEXT,
+    RESULT_ROWS,
+    ROW_NUMBER () OVER (ORDER BY NUM_SAMPLES DESC, SAMPLE_TIME DESC) ROW_NUM
+  FROM
+  ( SELECT
+      MIN(SAMPLE_TIME) MIN_SAMPLE_TIME,
+      MAX(SAMPLE_TIME) MAX_SAMPLE_TIME,
+      SECONDS_BETWEEN(MIN(MIN(SAMPLE_TIME)) OVER (), MAX(MAX(SAMPLE_TIME)) OVER ()) SECONDS,
+      COUNT(*) NUM_SAMPLES,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SAMPLE_TIME')    != 0 THEN TO_VARCHAR(T.SAMPLE_TIME, 'YYYY/MM/DD HH24:MI:SS') ELSE 'any'                                                 END SAMPLE_TIME,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')           != 0 THEN T.HOST                                          ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                     END HOST,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')           != 0 THEN TO_VARCHAR(T.PORT)                                 ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                     END PORT,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_ID')      != 0 THEN TO_VARCHAR(T.THREAD_ID)                            ELSE MAP(BI.THREAD_ID, -1, 'any', TO_VARCHAR(BI.THREAD_ID))   END THREAD_ID,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_TYPE')    != 0 THEN T.THREAD_TYPE                                   ELSE MAP(BI.THREAD_TYPE, '%', 'any', BI.THREAD_TYPE)       END THREAD_TYPE,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_METHOD')  != 0 THEN T.THREAD_METHOD                                 ELSE MAP(BI.THREAD_METHOD, '%', 'any', BI.THrEAD_METHOD)   END THREAD_METHOD,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_STATE')   != 0 THEN T.THREAD_STATE                                  ELSE MAP(BI.THREAD_STATE, '%', 'any', BI.THREAD_STATE)     END THREAD_STATE,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_DETAIL')  != 0 THEN T.THREAD_DETAIL                                 ELSE MAP(BI.THREAD_DETAIL, '%', 'any', BI.THREAD_DETAIL)   END THREAD_DETAIL,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HASH')           != 0 THEN T.STATEMENT_HASH                                ELSE MAP(BI.STATEMENT_HASH, '%', 'any', BI.STATEMENT_HASH) END STATEMENT_HASH,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CONN_ID')        != 0 THEN TO_VARCHAR(T.CONN_ID)                              ELSE MAP(BI.CONN_ID, -1, 'any', TO_VARCHAR(BI.CONN_ID))       END CONN_ID,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'DB_USER')        != 0 THEN T.DB_USER                                       ELSE MAP(BI.DB_USER, '%', 'any', BI.DB_USER)               END DB_USER,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_NAME')       != 0 THEN T.APP_NAME                                      ELSE MAP(BI.APP_NAME, '%', 'any', BI.APP_NAME)             END APP_NAME,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_USER')       != 0 THEN T.APP_USER                                      ELSE MAP(BI.APP_USER, '%', 'any', BI.APP_USER)             END APP_USER,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_SOURCE')     != 0 THEN T.APP_SOURCE                                    ELSE MAP(BI.APP_SOURCE, '%', 'any', BI.APP_SOURCE)         END APP_SOURCE,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CLIENT_IP')      != 0 THEN TO_VARCHAR(T.CLIENT_IP)                            ELSE MAP(BI.CLIENT_IP, '%', 'any', BI.CLIENT_IP)           END CLIENT_IP,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CLIENT_PID')     != 0 THEN TO_VARCHAR(T.CLIENT_PID)                           ELSE MAP(BI.CLIENT_PID, -1, 'any', TO_VARCHAR(BI.CLIENT_PID)) END CLIENT_PID,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOCK_NAME')      != 0 THEN T.LOCK_NAME                                     ELSE 'any'                                                 END LOCK_NAME,
+      MAP(BI.DURATION_AGGREGATION_TYPE, 'MAX', MAX(DURATION_MS), 'AVG', AVG(DURATION_MS), 'SUM', SUM(DURATION_MS)) DURATION_MS,
+      MAP(MIN(T.LOCK_COMPONENT), MAX(T.LOCK_COMPONENT), MIN(T.LOCK_COMPONENT), 'any') LOCK_COMPONENT,
+      MAP(MIN(T.BLOCKING_THREAD), MAX(T.BLOCKING_THREAD), LPAD(MIN(T.BLOCKING_THREAD), 15), 'any') BLOCKING_THREAD,
+      BI.RESULT_ROWS,
+      BI.SQL_TEXT_LENGTH,
+      MAP(BI.DATA_SOURCE, 'CURRENT', I.SAMPLE_INTERVAL, I.SAMPLE_INTERVAL * 50) SAMPLE_INTERVAL
+    FROM
+    ( SELECT                                                      /* Modification section */
+        TO_TIMESTAMP('2015/09/23 00:00:00', 'YYYY/MM/DD HH24:MI:SS') BEGIN_TIME,  
+        TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS') END_TIME,
+        '%' HOST,
+        '%' PORT,
+        -1  THREAD_ID,
+        '%' THREAD_STATE,               /* e.g. 'Running', 'Network Read' or 'Semaphore Wait' */
+        '%' THREAD_TYPE,                /* e.g. 'SqlExecutor', 'JobWorker' or 'MergedogMonitor' */
+        '%' THREAD_METHOD,
+        '%' THREAD_DETAIL,
+        '%' STATEMENT_HASH,
+        '%' DB_USER,
+        '%' APP_NAME,
+        '%' APP_USER,
+        '%' APP_SOURCE,
+        '%' LOCK_NAME,
+        '%' CLIENT_IP,
+        -1  CLIENT_PID,
+        -1 CONN_ID,
+        -1  MIN_DURATION_MS,
+        80  SQL_TEXT_LENGTH,
+        'X' EXCLUDE_SERVICE_THREAD_SAMPLER,
+        'X' EXCLUDE_NEGATIVE_THREAD_IDS,
+        'HASH' AGGREGATE_BY,                /* HOST, PORT, THREAD_ID, THREAD_TYPE, THREAD_METHOD, THREAD_STATE, THREAD_DETAIL, HASH, DB_USER, APP_NAME, APP_USER,
+                                            APP_SOURCE, CLIENT_IP, CLIENT_PID, CONN_ID, LOCK_NAME or comma separated combinations, NONE for no aggregation */
+        'MAX' DURATION_AGGREGATION_TYPE,       /* MAX, AVG, SUM */
+        -1 RESULT_ROWS,
+        'HISTORY' DATA_SOURCE           /* CURRENT, HISTORY */
+      FROM
+        DUMMY
+    ) BI,
+    ( SELECT
+        DATA_SOURCE,
+        HOST,
+        PORT,
+        SAMPLE_TIME,
+        THREAD_ID,
+        MAP(THREAD_TYPE, CHAR(63), THREAD_METHOD, THREAD_TYPE) THREAD_TYPE,
+        MAP(THREAD_METHOD, CHAR(63), THREAD_TYPE, THREAD_METHOD) THREAD_METHOD,
+        MAP(THREAD_DETAIL, CHAR(63), MAP(THREAD_METHOD, CHAR(63), THREAD_TYPE,   THREAD_METHOD), THREAD_DETAIL) THREAD_DETAIL,
+        THREAD_STATE,
+        DURATION_MS,
+        CASE
+          WHEN STATEMENT_HASH = CHAR(63) THEN 'no SQL (' || MAP(THREAD_METHOD, CHAR(63), THREAD_TYPE, THREAD_METHOD) || ')'
+          ELSE STATEMENT_HASH
+        END STATEMENT_HASH,
+        CONN_ID,
+        DB_USER,
+        MAP(APP_NAME, CHAR(63), MAP(THREAD_TYPE, CHAR(63), THREAD_METHOD, THREAD_TYPE), APP_NAME) APP_NAME,
+        APP_USER,
+        MAP(APP_SOURCE, CHAR(63), MAP(THREAD_TYPE, CHAR(63), THREAD_METHOD, THREAD_TYPE), APP_SOURCE) APP_SOURCE,
+        CLIENT_IP,
+        CLIENT_PID,
+        LOCK_COMPONENT,
+        LOCK_NAME,
+        BLOCKING_THREAD
+      FROM
+      ( SELECT
+          'CURRENT' DATA_SOURCE,
+          HOST,
+          PORT,
+          TIMESTAMP SAMPLE_TIME,
+          THREAD_ID,
+          CASE
+            WHEN THREAD_TYPE LIKE 'JobWrk%' THEN 'JobWorker'
+            ELSE THREAD_TYPE
+          END THREAD_TYPE,
+          CASE 
+            WHEN THREAD_METHOD LIKE 'GCJob%' THEN 'GCJob' 
+            ELSE THREAD_METHOD 
+          END THREAD_METHOD,
+          THREAD_STATE,
+          THREAD_DETAIL,
+          DURATION DURATION_MS,
+          STATEMENT_HASH,
+          CONNECTION_ID CONN_ID,
+          USER_NAME DB_USER,
+          APPLICATION_NAME APP_NAME,
+          APPLICATION_USER_NAME APP_USER,
+          APPLICATION_SOURCE APP_SOURCE,
+          CLIENT_IP,
+          CLIENT_PID,
+          LOCK_WAIT_COMPONENT LOCK_COMPONENT,
+          LOCK_WAIT_NAME LOCK_NAME,
+          LOCK_OWNER_THREAD_ID BLOCKING_THREAD
+        FROM
+          M_SERVICE_THREAD_SAMPLES
+        UNION ALL
+        ( SELECT
+          'HISTORY' DATA_SOURCE,
+          HOST,
+          PORT,
+          TIMESTAMP SAMPLE_TIME,
+          THREAD_ID,
+          CASE
+            WHEN THREAD_TYPE LIKE 'JobWrk%' THEN 'JobWorker'
+            ELSE THREAD_TYPE
+          END THREAD_TYPE,
+          CASE 
+            WHEN THREAD_METHOD LIKE 'GCJob%' THEN 'GCJob' 
+            ELSE THREAD_METHOD 
+          END THREAD_METHOD,
+          THREAD_STATE,
+          IFNULL(THREAD_DETAIL, '') THREAD_DETAIL,
+          DURATION DURATION_MS,
+          IFNULL(STATEMENT_HASH, '') STATEMENT_HASH,
+          CONNECTION_ID CONN_ID,
+          IFNULL(USER_NAME, '') DB_USER,
+          IFNULL(APPLICATION_NAME, '') APP_NAME,
+          IFNULL(APPLICATION_USER_NAME, '') APP_USER,
+          IFNULL(APPLICATION_SOURCE, '') APP_SOURCE,
+          CLIENT_IP,
+          CLIENT_PID,
+          LOCK_WAIT_COMPONENT LOCK_COMPONENT,
+          LOCK_WAIT_NAME LOCK_NAME,
+          LOCK_OWNER_THREAD_ID BLOCKING_THREAD
+        FROM
+          _SYS_STATISTICS.HOST_SERVICE_THREAD_SAMPLES
+        )
+      )
+    ) T,
+    ( SELECT DISTINCT
+        IFNULL(MAX(MAP(LAYER_NAME, 'SYSTEM', VALUE, NULL)), MAX(MAP(LAYER_NAME, 'DEFAULT', VALUE))) SAMPLE_INTERVAL
+      FROM
+        M_INIFILE_CONTENTS
+      WHERE
+        FILE_NAME = 'global.ini' AND
+        SECTION = 'resource_tracking' AND
+        KEY = 'service_thread_sampling_monitor_sample_interval'
+    ) I
+    WHERE
+      T.HOST LIKE BI.HOST AND
+      TO_VARCHAR(T.PORT) LIKE BI.PORT AND
+      T.SAMPLE_TIME BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+      ( BI.THREAD_ID = -1 OR T.THREAD_ID = BI.THREAD_ID ) AND 
+      T.THREAD_TYPE LIKE BI.THREAD_TYPE AND
+      T.THREAD_STATE LIKE BI.THREAD_STATE AND
+      T.THREAD_DETAIL LIKE BI.THREAD_DETAIL AND
+      T.THREAD_METHOD LIKE BI.THREAD_METHOD AND
+      T.STATEMENT_HASH LIKE BI.STATEMENT_HASH AND
+      T.DB_USER LIKE BI.DB_USER AND
+      T.APP_USER LIKE BI.APP_USER AND
+      T.APP_SOURCE LIKE BI.APP_SOURCE AND
+      T.LOCK_NAME LIKE BI.LOCK_NAME AND
+      IFNULL(T.CLIENT_IP, '') LIKE BI.CLIENT_IP AND
+      ( BI.CLIENT_PID = -1 OR T.CLIENT_PID = BI.CLIENT_PID ) AND
+      ( BI.CONN_ID = -1 OR T.CONN_ID = BI.CONN_ID ) AND
+      ( BI.MIN_DURATION_MS = -1 OR T.DURATION_MS >= BI.MIN_DURATION_MS ) AND
+      ( BI.EXCLUDE_SERVICE_THREAD_SAMPLER = ' ' OR T.THREAD_TYPE != 'service thread sampler' ) AND
+      ( BI.EXCLUDE_NEGATIVE_THREAD_IDS = ' ' OR T.THREAD_ID >= 0 ) AND
+      BI.DATA_SOURCE = T.DATA_SOURCE
+    GROUP BY
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SAMPLE_TIME')    != 0 THEN TO_VARCHAR(T.SAMPLE_TIME, 'YYYY/MM/DD HH24:MI:SS') ELSE 'any'                                                 END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')           != 0 THEN T.HOST                                          ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                     END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')           != 0 THEN TO_VARCHAR(T.PORT)                                 ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                     END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_ID')      != 0 THEN TO_VARCHAR(T.THREAD_ID)                            ELSE MAP(BI.THREAD_ID, -1, 'any', TO_VARCHAR(BI.THREAD_ID))   END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_TYPE')    != 0 THEN T.THREAD_TYPE                                   ELSE MAP(BI.THREAD_TYPE, '%', 'any', BI.THREAD_TYPE)       END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_METHOD')  != 0 THEN T.THREAD_METHOD                                 ELSE MAP(BI.THREAD_METHOD, '%', 'any', BI.THrEAD_METHOD)   END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_STATE')   != 0 THEN T.THREAD_STATE                                  ELSE MAP(BI.THREAD_STATE, '%', 'any', BI.THREAD_STATE)     END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_DETAIL')  != 0 THEN T.THREAD_DETAIL                                 ELSE MAP(BI.THREAD_DETAIL, '%', 'any', BI.THREAD_DETAIL)   END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HASH')           != 0 THEN T.STATEMENT_HASH                                ELSE MAP(BI.STATEMENT_HASH, '%', 'any', BI.STATEMENT_HASH) END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CONN_ID')        != 0 THEN TO_VARCHAR(T.CONN_ID)                              ELSE MAP(BI.CONN_ID, -1, 'any', TO_VARCHAR(BI.CONN_ID))       END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'DB_USER')        != 0 THEN T.DB_USER                                       ELSE MAP(BI.DB_USER, '%', 'any', BI.DB_USER)               END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_NAME')       != 0 THEN T.APP_NAME                                      ELSE MAP(BI.APP_NAME, '%', 'any', BI.APP_NAME)             END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_USER')       != 0 THEN T.APP_USER                                      ELSE MAP(BI.APP_USER, '%', 'any', BI.APP_USER)             END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_SOURCE')     != 0 THEN T.APP_SOURCE                                    ELSE MAP(BI.APP_SOURCE, '%', 'any', BI.APP_SOURCE)         END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CLIENT_IP')      != 0 THEN TO_VARCHAR(T.CLIENT_IP)                            ELSE MAP(BI.CLIENT_IP, '%', 'any', BI.CLIENT_IP)           END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CLIENT_PID')     != 0 THEN TO_VARCHAR(T.CLIENT_PID)                           ELSE MAP(BI.CLIENT_PID, -1, 'any', TO_VARCHAR(BI.CLIENT_PID)) END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOCK_NAME')      != 0 THEN T.LOCK_NAME                                     ELSE 'any'                                                 END,
+      BI.RESULT_ROWS,
+      BI.DURATION_AGGREGATION_TYPE,
+      BI.SQL_TEXT_LENGTH,
+      BI.DATA_SOURCE,
+      I.SAMPLE_INTERVAL
+  ) T
+  ORDER BY
+    NUM_SAMPLES DESC,
+    SAMPLE_TIME DESC,
+    CONN_ID
+)
+WHERE
+  ( RESULT_ROWS = -1 OR ROW_NUM <= RESULT_ROWS )

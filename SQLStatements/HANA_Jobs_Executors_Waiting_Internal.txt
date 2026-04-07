@@ -1,0 +1,149 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Jobs_Executors_Waiting_Internal
+
+[DESCRIPTION]
+
+- Overview of waiting job executors
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+
+[VALID FOR]
+
+- Revisions:              any
+- Statistics server type: any
+
+[SQL COMMAND VERSION]
+
+- 2017/03/11:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_DEV_JOBEXWAITING
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- STATISTICS_NAME
+
+  JobExecutor statistics name
+
+  'jx-tg01'       --> Restrict output to JobExecutor thread group 01
+  'JobsWait%'     --> Restrict output to statistics starting with 'JobsWait'
+  '%'             --> No restriction related to statistics name
+
+- MIN_WAITING
+
+  Minimum number of waiting JobExecutors
+
+  50              --> Only display statistics with at least 50 waiting JobExecutors
+  -1              --> No restriction related to number of waiting JobExecutors
+
+- MIN_WAITING
+
+  Minimum number of JobExecutors in NOSTEAL mode on primary socket
+
+  50              --> Only display statistics with at least 50 JobExecutors in NOSTEAL mode on primary socket
+  -1              --> No restriction related to threads in NOSTEAL mode
+
+[OUTPUT PARAMETERS]
+
+- HOST:             Host name
+- PORT:             Port
+- STATISTICS_NAME:  JobExecutor statistics name
+- TOTAL:            Total number of waiting JobExecutors
+- NOPREF:           Number of NOPREF JobExecutors
+- NUMAPREF:         Number of NUMAPREF JobExecutors
+- NOSTEAL:          Number of NOSTEAL JobExecutors
+- SYSTEM:           Number of SYSTEM JobExecutors
+- OTHER:            Number of OTHER JobExecutors
+- WAITING:          Number of WAITING JobExecutors
+- COMPLETED_JOBS:   Number of completed jobs
+- JOBBARRIER_WAITS: Number of Job barrier waits
+
+[EXAMPLE OUTPUT]
+-------------------------------------------------------------------------------------------------------------------
+|HOST    |PORT |STATISTICS_NAME|TOTAL|NOPREF|NUMAPREF|NOSTEAL|SYSTEM|OTHER|WAITING|COMPLETED_JOBS|JOBBARRIER_WAITS|
+-------------------------------------------------------------------------------------------------------------------
+|emlhd040|30003|JobsWaitDiag   |    0|     0|       0|      0|     0|    0|      0|        562411|               0|
+|emlhd040|30003|JobsWaitNormal |   21|     0|       0|      0|     0|    0|      0|    6718805262|       772448984|
+|emlhd040|30003|JobsWaitSystem |    0|     0|       0|      0|     0|    0|      0|     348998419|               1|
+|emlhd040|30003|jx-tg00        |    0|     0|       0|      0|     0|    0|      0|     649868977|        35870836|
+|emlhd040|30003|jx-tg01        |    0|     0|       0|      0|     0|    0|      0|     609826503|        26292063|
+|emlhd040|30003|jx-tg02        |    0|     0|       0|      0|     0|    0|      0|     465580893|        21439076|
+|emlhd040|30003|jx-tg03        |    0|     0|       0|      0|     0|    0|      0|     579644387|        20429963|
+|emlhd040|30003|jx-tg04        |    0|     0|       0|      0|     0|    0|      0|     397766475|        18036305|
+|emlhd040|30003|jx-tg05        |    0|     0|       0|      0|     0|    0|      0|     424545048|        17538790|
+|emlhd040|30003|jx-tg06        |    0|     0|       0|      0|     0|    0|      0|     398273816|        17346091|
+|emlhd040|30003|jx-tg07        |    0|     0|       0|      0|     0|    0|      0|     394916493|        18550321|
+|emlhd040|30003|jx-tg08        |    0|     0|       0|      0|     0|    0|      0|     428061056|        20507834|
+|emlhd040|30003|jx-tg09        |    0|     0|       0|      0|     0|    0|      0|     406404688|        17055953|
+|emlhd040|30003|jx-tg10        |    0|     0|       0|      0|     0|    0|      0|     455220312|        18307905|
+|emlhd040|30003|jx-tg11        |    0|     0|       0|      0|     0|    0|      0|     392119090|        19171014|
+|emlhd040|30003|jx-tg12        |    0|     0|       0|      0|     0|    0|      0|     457193289|        17283539|
+|emlhd040|30003|jx-tg13        |    0|     0|       0|      0|     0|    0|      0|     409578241|        19412395|
+|emlhd040|30003|jx-tg14        |    0|     0|       0|      0|     0|    0|      0|     413003273|        16655666|
+|emlhd040|30003|jx-tg15        |    0|     0|       0|      0|     0|    0|      0|     469361760|        23702284|
+-------------------------------------------------------------------------------------------------------------------
+
+*/
+  J.HOST,
+  LPAD(J.PORT, 5) PORT,
+  J.STATISTICS_NAME,
+  LPAD(J.TOTAL_WAITING_COUNT, 5) TOTAL,
+  LPAD(J.OPEN_NOPREF_PRIMARY_COUNT, 6) NOPREF,
+  LPAD(J.OPEN_NUMAPREF_PRIMARY_COUNT, 8) NUMAPREF,
+  LPAD(J.OPEN_NOSTEAL_PRIMARY_COUNT, 7) NOSTEAL,
+  LPAD(J.OPEN_SYSTEM_PRIMARY_COUNT, 6) SYSTEM,
+  LPAD(J.OPEN_OTHER_PRIMARY_COUNT, 5) OTHER,
+  LPAD(J.OPEN_WAITING_COUNT, 7) WAITING,
+  LPAD(J.COMPLETED_JOBS_COUNT, 14) COMPLETED_JOBS,
+  LPAD(J.JOBBARRIER_WAIT_COUNT, 16) JOBBARRIER_WAITS
+FROM
+( SELECT                    /* Modification section */
+    '%' HOST,
+    '%' PORT,
+    '%' STATISTICS_NAME,
+    -1 MIN_WAITING,
+    -1 MIN_NOSTEAL,
+    'TOTAL' ORDER_BY        /* TOTAL, NOSTEAL, NAME */
+  FROM
+    DUMMY
+) BI,
+  SYS.M_DEV_JOBEXWAITING J
+WHERE
+  J.HOST LIKE BI.HOST AND
+  TO_CHAR(J.PORT) LIKE BI.PORT AND
+  J.STATISTICS_NAME LIKE BI.STATISTICS_NAME AND
+  ( BI.MIN_WAITING = -1 OR J.TOTAL_WAITING_COUNT >= BI.MIN_WAITING ) AND
+  ( BI.MIN_NOSTEAL = -1 OR J.OPEN_NOSTEAL_PRIMARY_COUNT >= BI.MIN_NOSTEAL )
+ORDER BY
+  MAP(BI.ORDER_BY, 'TOTAL', J.TOTAL_WAITING_COUNT, 'NOSTEAL', J.OPEN_NOSTEAL_PRIMARY_COUNT) DESC,
+  MAP(BI.ORDER_BY, 'NAME', J.STATISTICS_NAME )

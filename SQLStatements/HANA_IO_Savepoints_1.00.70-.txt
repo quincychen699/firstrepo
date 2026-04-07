@@ -1,0 +1,257 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_IO_Savepoints_1.00.70-
+
+[DESCRIPTION]
+
+- Display savepoint related information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- TOTAL_SIZE (and as a consequence SUM_SIZE_MB and AVG_SIZE_MB) may be empty due to bug 62788 
+  (fixed with Rev. 90, but similarly observed with Rev. 92)
+- Should only be used up to Rev. 70, because blocking information is not available
+
+[VALID FOR]
+
+- Revisions:              <= 1.00.70
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2014/04/25:  1.0 (initial version)
+- 2014/05/26:  1.1 (history included)
+- 2014/11/27:  1.2 (write throughput MB_PER_S included)
+
+[INVOLVED TABLES]
+
+- M_SAVEPOINTS
+- HOST_SAVEPOINTS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- BEGIN_TIME
+
+  Begin time
+
+  TO_TIMESTAMP('2014/06/05 14:05:00', 'YYYY/MM/DD HH24:MI:SS') --> Set begin time to 5th of June 2014, 14:05 
+  ADD_DAYS(CURRENT_TIMESTAMP, -2)                              --> Set begin time to two days before current time 
+
+- END_TIME
+
+  End time
+
+  TO_TIMESTAMP('2014/06/08 14:05:00', 'YYYY/MM/DD HH24:MI:SS') --> Set end time to 8th of June 2014, 14:05 
+  CURRENT_TIMESTAMP                                            --> Set end time to current time 
+
+- MIN_CRITICAL_PHASE_DURATION_S
+
+  Only show savepoints with a critical phase that exceeds the configured threshold (in seconds)
+
+  10               --> Display savepoints with a critical phase of at least 10 seconds
+  -1               --> Display all savepoints
+
+- MIN_SAVEPOINT_DURATION_S
+
+  Only show savepoints with a critical phase that exceeds the configured threshold (in seconds)
+
+  300              --> Display savepoints with a total duration of at least 300 seconds
+  -1               --> Display all savepoints
+
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_ tables)
+  'HISTORY'       --> Data from persisted history information (HOST_ tables)
+  '%'             --> All data sources
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'NONE'          --> No aggregation
+  
+[OUTPUT PARAMETERS]
+
+- START_TIME:            Start time of considered time interval
+- CRIT_PHASE_START_TIME: Start time of (first) critical phase
+- HOST:                  Host name
+- PORT:                  Port
+- SAVEPOINTS:            Number of savepoints
+- SUM_DURATION_S:        Total savepoint duration (s)
+- MAX_DURATION_S:        Maximum savepoint duration (s)
+- AVG_DURATION_S:        Average savepoint duration (s)
+- MAX_CRIT_PHASE_S:      Maximum duration of critical path (s)
+- AVG_CRIT_PHASE_S:      Average duration of critical path (s)
+- SUM_SIZE_MB:           Total savepoint write size (MB)
+- AVG_SIZE_MB:           Average savepoint write size (MB)
+- MB_PER_S:              Write throughput (MB / s)
+- RS_SIZE_PCT:           Flushed data related to rowstore compared to overall flushed data (%)
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|START_TIME      |HOST     |SERVICE_NAME|SAVEPOINTS|SUM_DURATION_S|MAX_DURATION_S|AVG_DURATION_S|MAX_CRITICAL_PHASE_S|AVG_CRITICAL_PHASE_S|SUM_SIZE_MB|AVG_SIZE_MB|RS_SIZE_PCT|
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|2014/05/26 (MON)|saphana20|indexserver |        45|       5918.08|        626.11|        131.51|                3.93|                2.01|     861705|      19149|       6.86|
+|2014/05/25 (SUN)|saphana20|indexserver |       230|      21724.41|       2595.69|         94.45|                4.69|                2.34|    2835199|      12327|       7.28|
+|2014/05/24 (SAT)|saphana20|indexserver |       186|      20134.43|       1643.51|        108.24|                3.85|                2.25|    2838311|      15260|       6.89|
+|2014/05/23 (FRI)|saphana20|indexserver |       111|      17556.60|       2613.64|        158.16|                7.32|                2.36|    2406131|      21677|       9.55|
+|2014/05/22 (THU)|saphana20|indexserver |       318|      19547.89|       3164.87|         61.47|                7.44|                3.58|    2122936|       6676|       8.37|
+|2014/05/21 (WED)|saphana20|indexserver |       290|      31459.90|      10009.32|        108.48|                8.40|                4.31|    3318363|      11443|       8.94|
+|2014/05/20 (TUE)|saphana20|indexserver |       313|      26608.99|       3240.07|         85.01|                9.15|                4.25|    2630053|       8403|       8.11|
+|2014/05/19 (MON)|saphana20|indexserver |       303|      29189.67|      10650.05|         96.33|                8.26|                4.51|    3445940|      11373|       7.24|
+|2014/05/18 (SUN)|saphana20|indexserver |        25|        924.44|        131.38|         36.97|                2.90|                2.32|      94909|       3796|       6.00|
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  START_TIME,
+  HOST,
+  PORT,
+  SAVEPOINTS,
+  SUM_DURATION_S,
+  MAX_DURATION_S,
+  AVG_DURATION_S,
+  MAX_CRIT_PHASE_S,
+  AVG_CRIT_PHASE_S,
+  SUM_SIZE_MB,
+  AVG_SIZE_MB,
+  MB_PER_S,
+  RS_SIZE_PCT
+FROM 
+( SELECT
+    START_TIME,
+    HOST,
+    LPAD(PORT, 5) PORT,
+    LPAD(NUM_SAVEPOINTS, 10) SAVEPOINTS,
+    LPAD(TO_DECIMAL(SUM_DURATION_S, 12, 2), 14) SUM_DURATION_S,
+    LPAD(TO_DECIMAL(MAX_DURATION_S, 12, 2), 14) MAX_DURATION_S,
+    LPAD(TO_DECIMAL(AVG_DURATION_S, 12, 2), 14) AVG_DURATION_S,
+    LPAD(TO_DECIMAL(MAX_CRITICAL_PHASE_S, 12, 2), 16) MAX_CRIT_PHASE_S,
+    LPAD(TO_DECIMAL(AVG_CRITICAL_PHASE_S, 12, 2), 16) AVG_CRIT_PHASE_S,
+    LPAD(ROUND(SUM_SIZE_MB), 11) SUM_SIZE_MB,
+    LPAD(ROUND(AVG_SIZE_MB), 11) AVG_SIZE_MB,
+    LPAD(TO_DECIMAL(MAP(SUM_DURATION_S, 0, 0, SUM_SIZE_MB / SUM_DURATION_S), 10, 2), 8) MB_PER_S,
+    LPAD(TO_DECIMAL(RS_SIZE_PCT, 12, 2), 11) RS_SIZE_PCT
+  FROM
+  ( SELECT
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN TO_VARCHAR(SP.START_TIME, BI.TIME_AGGREGATE_BY) ELSE 'any'                             END START_TIME,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST') != 0 THEN SP.HOST                                      ELSE MAP(BI.HOST, '%', 'any', BI.HOST) END HOST,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT') != 0 THEN TO_VARCHAR(SP.PORT)                             ELSE MAP(BI.PORT, '%', 'any', BI.PORT) END PORT,
+      COUNT(*) NUM_SAVEPOINTS,
+      SUM(SP.DURATION) / 1000000 SUM_DURATION_S,
+      MAX(SP.DURATION) / 1000000 MAX_DURATION_S,
+      AVG(SP.DURATION) / 1000000 AVG_DURATION_S,
+      MAX(SP.CRITICAL_PHASE_DURATION) / 1000000 MAX_CRITICAL_PHASE_S,
+      AVG(SP.CRITICAL_PHASE_DURATION) / 1000000 AVG_CRITICAL_PHASE_S,
+      SUM(SP.TOTAL_SIZE) / 1024 / 1024 SUM_SIZE_MB,
+      AVG(SP.TOTAL_SIZE) / 1024 / 1024 AVG_SIZE_MB,
+      AVG(MAP(SP.TOTAL_SIZE, 0, 0, SP.FLUSHED_ROWSTORE_SIZE / SP.TOTAL_SIZE * 100)) RS_SIZE_PCT
+    FROM
+    ( SELECT
+        HOST,
+        PORT,
+        BEGIN_TIME,
+        END_TIME,
+        MIN_CRITICAL_PHASE_DURATION_S,
+        MIN_SAVEPOINT_DURATION_S,
+        DATA_SOURCE,
+        AGGREGATE_BY,
+        MAP(TIME_AGGREGATE_BY,
+          'NONE',        'YYYY/MM/DD HH24:MI:SS:FF7',
+          'HOUR',        'YYYY/MM/DD HH24',
+          'DAY',         'YYYY/MM/DD (DY)',
+          'HOUR_OF_DAY', 'HH24',
+          TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY
+      FROM
+      ( SELECT                                                         /* Modification section */
+          '%' HOST,
+          '%' PORT,
+          TO_TIMESTAMP('1000/01/12 12:00:00', 'YYYY/MM/DD HH24:MI:SS') BEGIN_TIME,
+          TO_TIMESTAMP('9999/01/13 12:00:00', 'YYYY/MM/DD HH24:MI:SS') END_TIME,
+          -1 MIN_CRITICAL_PHASE_DURATION_S,
+          9000 MIN_SAVEPOINT_DURATION_S,
+          'CURRENT' DATA_SOURCE,                        /* CURRENT, HISTORY */
+          'HOST' AGGREGATE_BY,          /* HOST, PORT, TIME or comma separated combinations, NONE for no aggregation */
+          'NONE' TIME_AGGREGATE_BY      /* HOUR, DAY, HOUR_OF_DAY or database time pattern, NONE for no aggregation */
+        FROM
+          DUMMY
+      )
+    ) BI,
+    ( SELECT
+        'CURRENT' DATA_SOURCE,
+        HOST,
+        PORT,
+        START_TIME,
+        DURATION,
+        CRITICAL_PHASE_DURATION,
+        TOTAL_SIZE,
+        FLUSHED_RoWSTORE_SIZE
+      FROM
+        M_SAVEPOINTS
+      UNION ALL
+      SELECT
+        'HISTORY' DATA_SOURCE,
+        HOST,
+        PORT,
+        START_TIME,
+        DURATION,
+        CRITICAL_PHASE_DURATION,
+        TOTAL_SIZE,
+        FLUSHED_ROWSTORE_SIZE
+      FROM
+        _SYS_STATISTICS.HOST_SAVEPOINTS
+    ) SP
+    WHERE 
+      SP.HOST LIKE BI.HOST AND  
+      TO_VARCHAR(SP.PORT) LIKE BI.PORT AND    
+      SP.START_TIME BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+      ( BI.MIN_CRITICAL_PHASE_DURATION_S = -1 OR 
+        (SP.CRITICAL_PHASE_DURATION) / 1000000 >= BI.MIN_CRITICAL_PHASE_DURATION_S ) AND
+      ( BI.MIN_SAVEPOINT_DURATION_S = -1 OR 
+        (SP.DURATION) / 1000000 >= BI.MIN_SAVEPOINT_DURATION_S ) AND
+      SP.DATA_SOURCE LIKE BI.DATA_SOURCE
+    GROUP BY
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN TO_VARCHAR(SP.START_TIME, BI.TIME_AGGREGATE_BY) ELSE 'any'                             END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST') != 0 THEN SP.HOST                                      ELSE MAP(BI.HOST, '%', 'any', BI.HOST) END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT') != 0 THEN TO_VARCHAR(SP.PORT)                             ELSE MAP(BI.PORT, '%', 'any', BI.PORT) END
+  )
+)
+ORDER BY
+  START_TIME DESC,
+  HOST,
+  PORT

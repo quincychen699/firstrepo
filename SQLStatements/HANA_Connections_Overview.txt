@@ -1,0 +1,181 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Connections_Overview
+
+[DESCRIPTION]
+
+- Overview of current connections
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2015/07/15:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_CONNECTIONS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- CLIENT_HOST
+
+  Host name
+
+  'sapclnt01'     --> Specific host sapclnt01
+  'sapclnt%'      --> All hosts starting with sapclnt
+  '%'             --> All hosts
+
+- CONNECTION_TYPE
+
+  Connection type
+
+  'Remote'        --> Remote connections
+  '%'             --> No restriction related to connection type
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+[OUTPUT PARAMETERS]
+
+- HOST:            Host name
+- PORT:            Port
+- SERVICE:         Service name
+- CLIENT_HOST:     Client host name
+- CONNECTION_TYPE: Connection type
+- NUM_CONNECTIONS: Number of connections
+- MAX_CONNECTIONS: Maximum connection limit
+- USED_PCT:        Percentage of maximum connections used
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------
+|HOST        |PORT |CLIENT_HOST          |CONNECTION_TYPE |NUM_CONNECTIONS|MAX_CONNECTIONS|USED_PCT|
+----------------------------------------------------------------------------------------------------
+|saphana00001|32503|sapr3_c11ap11        |History (remote)|            366|          65536|    0.55|
+|saphana00001|32503|sapr3_c11ap9         |History (remote)|            353|          65536|    0.53|
+|saphana00001|32503|sapr3_c11ap12        |History (remote)|            311|          65536|    0.47|
+|saphana00001|32503|sapr3_c11ap10        |History (remote)|            300|          65536|    0.45|
+|saphana00001|32503|sapr3_c11ap5         |History (remote)|            297|          65536|    0.45|
+|saphana00001|32503|sapr3_c11ap7         |History (remote)|            284|          65536|    0.43|
+|saphana00001|32503|sapr3_c11ap7         |Remote          |            134|          65536|    0.20|
+|saphana00001|32503|sapr3_c11ap5         |Remote          |            133|          65536|    0.20|
+|saphana00001|32503|sapr3_c11ap9         |Remote          |            133|          65536|    0.20|
+|saphana00001|32503|                     |Local           |            132|          65536|    0.20|
+|saphana00001|32503|sapr3_c11ap11        |Remote          |            132|          65536|    0.20|
+|saphana00001|32503|sapr3_c11ap10        |Remote          |            131|          65536|    0.19|
+|saphana00001|32503|sapr3_c11ap12        |Remote          |            129|          65536|    0.19|
+----------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SERVICE_NAME SERVICE,
+  CLIENT_HOST,
+  CONNECTION_TYPE,
+  LPAD(NUM_CONNECTIONS, 15) NUM_CONNECTIONS,
+  LPAD(MAXIMUM_CONNECTIONS, 15) MAX_CONNECTIONS,
+  LPAD(TO_DECIMAL(MAP(MAXIMUM_CONNECTIONS, 0, 0, NUM_CONNECTIONS / MAXIMUM_CONNECTIONS * 100), 10, 2), 8) USED_PCT
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')    != 0 THEN C.HOST            ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                       END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(C.PORT)   ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                       END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE') != 0 THEN S.SERVICE_NAME    ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME)       END SERVICE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CLIENT')  != 0 THEN C.CLIENT_HOST     ELSE MAP(BI.CLIENT_HOST, '%', 'any', BI.CLIENT_HOST)         END CLIENT_HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')    != 0 THEN C.CONNECTION_TYPE ELSE MAP(BI.CONNECTION_TYPE, '%', 'any', BI.CONNECTION_TYPE) END CONNECTION_TYPE,
+    COUNT(*) NUM_CONNECTIONS,
+    IFNULL(P.MAXIMUM_CONNECTIONS, 65536) MAXIMUM_CONNECTIONS
+  FROM
+  ( SELECT                   /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      '%' SERVICE_NAME,
+      '%' CLIENT_HOST,
+      '%' CONNECTION_TYPE,
+      'CLIENT' AGGREGATE_BY                   /* HOST, PORT, SERVICE, CLIENT, TYPE or comma separated combinations, NONE for no aggregation */
+    FROM
+      DUMMY
+  ) BI INNER JOIN
+    M_SERVICES S ON
+      S.HOST LIKE BI.HOST AND
+      TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+      S.SERVICE_NAME LIKE BI.SERVICE_NAME INNER JOIN
+    M_CONNECTIONS C ON
+      C.HOST LIKE BI.HOST AND
+      C.PORT = S.PORT AND
+      C.HOST = S.HOST AND
+      C.CLIENT_HOST LIKE BI.CLIENT_HOST AND
+      UPPER(C.CONNECTION_TYPE) LIKE UPPER(BI.CONNECTION_TYPE) LEFT OUTER JOIN
+  ( SELECT
+      HOST,
+      IFNULL(SYSTEM_VALUE, IFNULL(HOST_VALUE, DEFAULT_VALUE)) MAXIMUM_CONNECTIONS
+    FROM
+    ( SELECT 
+        HOST,
+        MAX(MAP(LAYER_NAME, 'DEFAULT', VALUE)) DEFAULT_VALUE,
+        MAX(MAP(LAYER_NAME, 'HOST',    VALUE)) HOST_VALUE,
+        MAX(MAP(LAYER_NAME, 'SYSTEM',  VALUE)) SYSTEM_VALUE
+      FROM
+        M_INIFILE_CONTENTS 
+      WHERE 
+        FILE_NAME = 'indexserver.ini' AND
+        SECTION = 'session' AND
+        KEY = 'maximum_connections'
+      GROUP BY
+        HOST
+    )
+  ) P ON
+    C.HOST = P.HOST
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')    != 0 THEN C.HOST            ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                       END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(C.PORT)   ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                       END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE') != 0 THEN S.SERVICE_NAME    ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME)       END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CLIENT')  != 0 THEN C.CLIENT_HOST     ELSE MAP(BI.CLIENT_HOST, '%', 'any', BI.CLIENT_HOST)         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')    != 0 THEN C.CONNECTION_TYPE ELSE MAP(BI.CONNECTION_TYPE, '%', 'any', BI.CONNECTION_TYPE) END,
+    IFNULL(P.MAXIMUM_CONNECTIONS, 65536)
+)
+ORDER BY
+  NUM_CONNECTIONS DESC

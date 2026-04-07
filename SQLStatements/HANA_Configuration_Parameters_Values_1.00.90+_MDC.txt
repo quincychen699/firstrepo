@@ -1,0 +1,158 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Configuration_Parameters_Values_1.00.90+_MDC
+
+[DESCRIPTION]
+
+- Display SAP HANA parameter values
+- Long values are shown in multiple lines
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Has to be run in system database of an MDC system, otherwise it terminates with error "[362]: invalid schema name: SYS_DATABASES"
+- Multitenant database containers (MDC) are available starting with SAP HANA 1.00.90
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.90
+- System type:            MDC system database
+
+[SQL COMMAND VERSION]
+
+- 2014/11/26:  1.0 (initial version)
+- 2017/01/09:  1.1 (dedicated MDC version)
+
+[INVOLVED TABLES]
+
+- SYS_DATABASES.M_INIFILE_CONTENTS
+
+[INPUT PARAMETERS]
+
+- FILE_NAME
+
+  File name
+
+  'alert.trc'     --> File with name alert.trc
+  '%oom%'         --> File with name containing 'oom'
+  '%'             --> All files
+
+- SECTION
+
+  Parameter file section
+
+  'joins'         --> Specific parameter file section 'joins'
+  'stat%'         --> All parameter file sections starting with 'stat'
+  '%'             --> All parameter file sections
+
+- PARAMETER_NAME
+
+  Parameter name
+
+  'enable'        --> Parameters with name 'enable'
+  'unload%'       --> Parameters starting with 'unload'
+  '%'             --> All parameters
+
+- VALUE
+
+  Parameter value
+
+  'true'          --> Parameters with value 'true'
+  '%cons%'        --> Parameter values containing 'cons'
+  '%'             --> No restriction related to parameter value
+
+- LAYER_NAME
+
+  Parameter layer
+
+  'DEFAULT'       --> Default values
+  'SYSTEM'        --> Individual system-wide parameter settings
+  'HOST'          --> Individual host-wide parameter settings
+  '%'             --> No restriction related to parameter layer
+
+- DB_NAME
+
+  Multitenant database name
+
+  'SYSTEMDB'      --> System database
+  'C11'           --> Tenant C11
+  '%'             --> No restriction to multitenant database
+
+- LINE_LENGTH
+
+  Maximum displayed line size
+
+  50              --> Lines are wrapped after 50 characters
+  -1              --> No line wrapping
+
+[OUTPUT PARAMETERS]
+
+- FILE_NAME:      Parameter file name
+- SECTION:        Parameter section
+- PARAMETER_NAME: Parameter name
+- LAYER_NAME:     Layer name (DEFAULT for default settings, SYSTEM for system-wide modifications, HOST for host-specific modifications)
+- DB_NAME:        Database name
+- VALUE:          Parameter value
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|FILE_NAME           |SECTION                                          |PARAMETER_NAME|LAYER_NAME|VALUE                                                                                               |
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|statisticsserver.ini|statisticsserver_view_HOST_DELTA_MERGE_STATISTICS|query         |DEFAULT   |select HOST || ':' || PORT || ':' || SCHEMA_NAME || ':' || TABLE_NAME || ':' || TYPE || ':' || START|
+|                    |                                                 |              |          |_TIME CHECK_HOST, HOST, PORT, TYPE, SCHEMA_NAME, TABLE_NAME, PART_ID, MEMORY_MERGE, PASSPORT, START_|
+|                    |                                                 |              |          |TIME, EXECUTION_TIME, MOTIVATION, SUCCESS, MERGED_DELTA_RECORDS, LAST_ERROR from SYS.M_DELTA_MERGE_S|
+|                    |                                                 |              |          |TATISTICS where START_TIME > IFNULL((select max(ADD_SECONDS(START_TIME,0)) from _SYS_STATISTICS.HOST|
+|                    |                                                 |              |          |_DELTA_MERGE_STATISTICS), '2011-01-01 00:00:00.0')                                                  |
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  MAP(ROW_NUMBER () OVER (PARTITION BY P.FILE_NAME, P.SECTION, P.KEY               ORDER BY P.LAYER_NAME, P.DATABASE_NAME, P.HOST, O.LINE_NO), 1, P.FILE_NAME, '')  FILE_NAME,
+  MAP(ROW_NUMBER () OVER (PARTITION BY P.FILE_NAME, P.SECTION, P.KEY               ORDER BY P.LAYER_NAME, P.DATABASE_NAME, P.HOST, O.LINE_NO), 1, P.SECTION, '')    SECTION,
+  MAP(ROW_NUMBER () OVER (PARTITION BY P.FILE_NAME, P.SECTION, P.KEY               ORDER BY P.LAYER_NAME, P.DATABASE_NAME, P.HOST, O.LINE_NO), 1, P.KEY, '')        PARAMETER_NAME,
+  MAP(ROW_NUMBER () OVER (PARTITION BY P.FILE_NAME, P.SECTION, P.KEY, P.LAYER_NAME ORDER BY P.LAYER_NAME, P.DATABASE_NAME, P.HOST, O.LINE_NO), 1, P.LAYER_NAME, '') LAYER_NAME,
+  P.DATABASE_NAME DB_NAME,
+  P.HOST,
+  SUBSTR(P.VALUE, 1 + ( O.LINE_NO - 1 ) * BI.LINE_LENGTH, BI.LINE_LENGTH) VALUE  
+FROM
+( SELECT                         /* Modification section */
+    '%' FILE_NAME,
+    '%' SECTION,
+    'allocationlimit' PARAMETER_NAME,
+    '%' VALUE,
+    '%' LAYER_NAME,
+    '%' DB_NAME,
+    100 LINE_LENGTH
+  FROM
+    DUMMY
+) BI,
+  SYS_DATABASES.M_INIFILE_CONTENTS P,
+( SELECT
+    ROW_NUMBER () OVER () LINE_NO
+  FROM
+    OBJECTS
+) O 
+WHERE
+  P.FILE_NAME LIKE BI.FILE_NAME AND
+  UPPER(P.SECTION) LIKE UPPER(BI.SECTION) AND
+  UPPER(P.KEY) LIKE UPPER(BI.PARAMETER_NAME) AND
+  UPPER(P.VALUE) LIKE UPPER(BI.VALUE) AND
+  P.LAYER_NAME LIKE BI.LAYER_NAME AND
+  P.DATABASE_NAME LIKE BI.DB_NAME AND
+  O.LINE_NO <= CEILING(LENGTH(P.VALUE) / BI.LINE_LENGTH)
+ORDER BY
+  P.FILE_NAME,
+  P.SECTION,
+  P.KEY,
+  P.LAYER_NAME,
+  P.DATABASE_NAME,
+  P.HOST,
+  O.LINE_NO
+

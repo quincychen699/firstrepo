@@ -1,0 +1,100 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Security_Users_WrongTimestamps_Internal
+[DESCRIPTION]
+
+- Reports syntactically wrong VALID_FROM / VALID_UNTIL dates
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Wrong dates in columns VALID_FROM / VALID_UNTIL of view USERS can result in terminations with:
+
+  [303]: invalid DATE, TIME or TIMESTAMP value
+
+- See SAP Note 2829925 for details.
+- Can only be executed with SAP_INTERNAL_HANA_SUPPORT role or as SYSTEM
+- Attention: Statement is based on internal monitoring views, so compared to normal monitoring views there is an 
+  increased risk of crashes, terminations and wrong results. You use it at your own risk.
+- P_USER_PARAMETERS_ is an internal view that is not available for public use.
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2020/03/30:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- P_USER_PARAMETERS_
+- USERS
+
+[INPUT PARAMETERS]
+
+- PARAMETER_NAME
+
+  Name of parameter
+
+  'VALID FROM'  --> Check VALID_FROM values
+  'VALID UNTIL' --> Check VALID_UNTIL values
+  '%'           --> No restriction related to parameters
+
+[OUTPUT PARAMETERS]
+
+- USER_NAME:       User name
+- PARAMETER_NAME:  Parameter name (VALID FROM / VALID UNTIL)
+- PARAMETER_VALUE: Parameter value
+- COMMAND:         Correction command
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------------------------------------------------
+|USER_NAME|PARAMETER_NAME|PARAMETER_VALUE      |COMMAND                                                       |
+---------------------------------------------------------------------------------------------------------------
+|S00008256|VALID UNTIL   |2019-11-30 00.00.00.0|ALTER USER S00008256 VALID UNTIL '2019-11-30 00:00:00.0000000'|
+|S00012447|VALID UNTIL   |2019-12-31 00.00.00.0|ALTER USER S00012447 VALID UNTIL '2019-12-31 00:00:00.0000000'|
+|S00047908|VALID UNTIL   |2019-12-31 00.00.00.0|ALTER USER S00047908 VALID UNTIL '2019-12-31 00:00:00.0000000'|
+|S00049588|VALID UNTIL   |2020-12-31 00.00.00.0|ALTER USER S00049588 VALID UNTIL '2020-12-31 00:00:00.0000000'|
+|S00110709|VALID UNTIL   |2019-12-31 00.00.00.0|ALTER USER S00110709 VALID UNTIL '2019-12-31 00:00:00.0000000'|
+|S00134922|VALID UNTIL   |2019-12-31 00.00.00.0|ALTER USER S00134922 VALID UNTIL '2019-12-31 00:00:00.0000000'|
+|S00187102|VALID UNTIL   |2019-12-31 00.00.00.0|ALTER USER S00187102 VALID UNTIL '2019-12-31 00:00:00.0000000'|
+|S00199402|VALID UNTIL   |2019-12-31 00.00.00.0|ALTER USER S00199402 VALID UNTIL '2019-12-31 00:00:00.0000000'|
+---------------------------------------------------------------------------------------------------------------
+
+*/
+
+  U.USER_NAME,
+  P.PARAMETER_NAME,
+  P.PARAMETER_VALUE,
+  'ALTER USER' || CHAR(32) || U.USER_NAME || CHAR(32) || 'VALID' || CHAR(32) || MAP(P.PARAMETER_NAME, 'VALID FROM', 'FROM', 'UNTIL') || CHAR(32) || CHAR(39) ||
+    CASE 
+      WHEN TO_TIMESTAMP(SUBSTR(P.PARAMETER_VALUE, 1, 10), 'YYYY-MM-DD') <= CURRENT_DATE THEN ADD_DAYS(CURRENT_DATE, 1)
+      ELSE TO_VARCHAR(TO_TIMESTAMP(SUBSTR(P.PARAMETER_VALUE, 1, 10), 'YYYY-MM-DD')) 
+    END || CHAR(39) || CHAR(59) COMMAND
+FROM
+( SELECT                        /* Modification section */
+    '%' PARAMETER_NAME
+  FROM
+    DUMMY
+) BI,
+  SYS.P_USER_PARAMETERS_ P,
+  USERS U
+WHERE
+  P.PARAMETER_NAME LIKE BI.PARAMETER_NAME AND
+  P.PARAMETER_NAME IN ( 'VALID FROM', 'VALID UNTIL' ) AND 
+  PARAMETER_VALUE LIKE '____-__-__ __.__.__._%' AND
+  U.USER_ID = P.USER_ID
+ORDER BY
+  U.USER_NAME,
+  P.PARAMETER_NAME,
+  P.PARAMETER_VALUE
+  

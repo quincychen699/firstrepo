@@ -17,5 +17,4 @@ __pycache__/
 .DS_Store
 
 # Temp / local files
-SQLStatements/
 ~$*

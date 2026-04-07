@@ -1,0 +1,390 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Security_GrantedRolesAndPrivileges_1.00.120+
+
+[DESCRIPTION]
+
+- Display roles (set of privileges) and individual privileges granted to users and roles
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.120
+
+[SQL COMMAND VERSION]
+
+- 2014/09/30:  1.0 (initial version)
+- 2015/03/01:  1.1 (ROLE_NAME input parameter added)
+- 2015/04/13:  1.2 (EXCLUDE_SYSTEM_USERS added)
+- 2017/06/28:  1.3 (EXCLUDE_DEACTIVATED_USERS, OBJECT_NAME and OBJECT_TYPE filter included)
+- 2017/06/29:  1.4 (dedicates 1.00.120+ version including GRANTEE_SCHEMA_NAME)
+
+[INVOLVED TABLES]
+
+- GRANTED_PRIVILEGES
+- GRANTED_ROLES
+- USERS
+
+[INPUT PARAMETERS]
+
+- GRANTEE_SCHEMA_NAME
+
+  Grantee schema name
+
+  'MYSCHEME'      --> Schema MYSCHEME
+  '%'             --> No restriction related to grantee schemas
+
+- GRANTEE
+
+  User or role to which a role or privilege is granted
+
+  'SAPSR3'        --> Grantee SAPSR3
+  'SAP%'          --> All grantees starting with 'SAP%'
+  '%'             --> No restriction related to grantees
+
+- GRANTEE_TYPE
+
+  Type of grantee
+
+  'USER'          --> User grantees
+  'ROLE'          --> Role grantees
+  '%'             --> No restriction related to grantee type
+
+- ROLE_RECURSION_DEPTH
+
+  Number of recursive checks in case of role -> role assignments (0 to 5)
+
+  0               --> Only display privileges directly assigned to grantee
+  1               --> Display privileges directly assigned and indirectly assigned via one role
+  2               --> Display privileges directly assigned and indirectly assigned via one or two roles
+
+- ROLE_NAME
+
+  Role name
+
+  'ABAP_READ'     --> Role name ABAP_READ
+  '%'             --> Any role
+
+- PRIVILEGE
+
+  Privilege
+
+  'CATALOG READ'  --> Privilege CATALOG READ
+  'AUDIT%'        --> All privileges starting with 'AUDIT'
+  '%'             --> No restriction related to privilege
+
+- PRIVILEGE_DETAILS
+
+  Privilege details (owner, object, column)
+
+  'SAP%'          --> All privilege details starting with 'SAP'
+  '%'             --> No restriction related to privilege details
+
+- OBJECT_NAME
+
+  Object name
+
+  'EDIDC'         --> Specific object name EDIDC
+  'A%'            --> All objects starting with 'A'
+  '%'             --> All objects
+
+- OBJECT_TYPE
+
+  Type of object (e.g. 'TABLE', 'SYNONYM', 'VIEW' or 'INDEX')
+
+  'TABLE'         --> Specific object type TABLE
+  '%'             --> All object types
+
+- EXCLUDE_SYSTEM_USERS
+
+  Possibility to exclude system users as grantees of privileges
+
+  'X'             --> Ignore grants of privileges to system users (SYS, SYSTEM, _SYS_*)
+  ' '             --> No restriction related to system users
+
+- EXCLUDE_DEACTIVATED_USERS
+
+  Possibility to exclude deactivated users as grantees of privileges
+
+  'X'             --> Ignore grants of privileges to deactivated users
+  ' '             --> No restriction related to deactivated users
+
+- ONLY_CURRENT_USER
+
+  Possibility to restrict output to user executing the query
+
+  'X'             --> Only show information for user executing the query
+  ' '             --> No restriction to current user
+
+[OUTPUT PARAMETERS]
+
+- GRANTEE_SCHEMA:    Grantee schema name
+- GRANTEE_TYPE:      Grantee type (role or user)
+- GRANTEE:           Grantee name
+- ROLE_NAME:         Role name
+- PRIVILEGE:         Privilege name
+- OBJECT_TYPE:       Object type
+- PRIVILEGE_DETAILS: Privilege details (owner # object # column)
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------------------------------------------------------------
+|GRANTEE   |GRANTEE_TYPE|ROLE_NAME    |PRIVILEGE                     |OBJECT_TYPE        |PRIVILEGE_DETAILS               |
+---------------------------------------------------------------------------------------------------------------------------
+|ABAP_ADMIN|ROLE        |             |CATALOG READ                  |SYSTEMPRIVILEGE    |                                |
+|ABAP_ADMIN|ROLE        |             |EXECUTE                       |PROCEDURE          |_SYS_REPO#GRANT_ACTIVATED_ROLE# |
+|ABAP_ADMIN|ROLE        |             |EXECUTE                       |PROCEDURE          |_SYS_REPO#REVOKE_ACTIVATED_ROLE#|
+|ABAP_ADMIN|ROLE        |             |ROLE ADMIN                    |SYSTEMPRIVILEGE    |                                |
+|ABAP_ADMIN|ROLE        |             |SELECT                        |SCHEMA             |SAPA9B##                        |
+|ABAP_ADMIN|ROLE        |             |USER ADMIN                    |SYSTEMPRIVILEGE    |                                |
+|ABAP_DEV  |ROLE        |             |CATALOG READ                  |SYSTEMPRIVILEGE    |                                |
+|ABAP_DEV  |ROLE        |             |DEVELOPMENT                   |SYSTEMPRIVILEGE    |                                |
+|ABAP_DEV  |ROLE        |             |SELECT                        |SCHEMA             |SAPA9B##                        |
+|ABAP_DEV  |ROLE        |CONTENT_ADMIN|ALTER                         |SCHEMA             |_SYS_BIC##                      |
+|ABAP_DEV  |ROLE        |CONTENT_ADMIN|CREATE ANY                    |SCHEMA             |_SYS_BIC##                      |
+|ABAP_DEV  |ROLE        |CONTENT_ADMIN|CREATE SCENARIO               |SYSTEMPRIVILEGE    |                                |
+|ABAP_DEV  |ROLE        |CONTENT_ADMIN|CREATE STRUCTURED PRIVILEGE   |SYSTEMPRIVILEGE    |                                |
+|ABAP_DEV  |ROLE        |CONTENT_ADMIN|DELETE                        |SCHEMA             |_SYS_BI##                       |
+|ABAP_DEV  |ROLE        |CONTENT_ADMIN|DELETE                        |SCHEMA             |_SYS_BIC##                      |
+---------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  P.GRANTEE_SCHEMA_NAME GRANTEE_SCHEMA,
+  P.GRANTEE_TYPE,
+  P.GRANTEE,
+  P.ROLE_NAME,
+  P.PRIVILEGE,
+  P.OBJECT_TYPE,
+  P.PRIVILEGE_DETAILS
+FROM
+( SELECT                /* Modification section */
+    '%' GRANTEE_SCHEMA_NAME,
+    '%' GRANTEE,
+    '%' GRANTEE_TYPE,              /* ROLE, USER, % */
+    5 ROLE_RECURSION_DEPTH,        /* 0, 1, 2, 3, 4 or 5, maximum recursion level for role -> role grants */
+    '%' ROLE_NAME,
+    '%' PRIVILEGE,
+    '%' PRIVILEGE_DETAILS,
+    '%' OBJECT_NAME,
+    '%' OBJECT_TYPE,
+    'X' EXCLUDE_SYSTEM_USERS,
+    'X' EXCLUDE_DEACTIVATED_USERS,
+    ' ' ONLY_CURRENT_USER
+  FROM
+    DUMMY
+) BI,
+( SELECT
+    ROLE_RECURSION_DEPTH,
+    IFNULL(GRANTEE_SCHEMA_NAME, '') GRANTEE_SCHEMA_NAME,
+    IFNULL(GRANTEE, '') GRANTEE,
+    IFNULL(GRANTEE_TYPE, '') GRANTEE_TYPE,
+    IFNULL(ROLE_NAME, '') ROLE_NAME,
+    IFNULL(PRIVILEGE, '') PRIVILEGE,
+    IFNULL(OBJECT_NAME, '') OBJECT_NAME,
+    IFNULL(OBJECT_TYPE, '') OBJECT_TYPE,
+    CASE 
+      WHEN SCHEMA_NAME IS NULL AND OBJECT_NAME IS NULL AND COLUMN_NAME IS NULL THEN '' 
+      ELSE IFNULL(SCHEMA_NAME, '') || CHAR(32) || '#' || CHAR(32) || IFNULL(OBJECT_NAME, '') || CHAR(32) || '#' || CHAR(32) || IFNULL(COLUMN_NAME, '')
+    END PRIVILEGE_DETAILS
+  FROM
+  ( SELECT
+      0 ROLE_RECURSION_DEPTH,
+      P.GRANTEE_SCHEMA_NAME,
+      P.GRANTEE,
+      P.GRANTEE_TYPE,
+      '' ROLE_NAME,
+      P.PRIVILEGE,
+      P.OBJECT_TYPE,
+      P.SCHEMA_NAME,
+      P.OBJECT_NAME,
+      P.COLUMN_NAME
+    FROM
+      GRANTED_PRIVILEGES P
+    UNION ALL
+    ( SELECT
+        0 ROLE_RECURSION_DEPTH,
+        GRANTEE_SCHEMA_NAME,
+        GRANTEE,
+        GRANTEE_TYPE,
+        ROLE_NAME,
+        '' PRIVILEGE,
+        '' OBJECT_TYPE,
+        '' SCHEMA_NAME,
+        '' OBJECT_NAME,
+        '' COLUMN_NAME
+      FROM
+        GRANTED_ROLES
+    )
+    UNION ALL
+    ( SELECT
+        1 ROLE_RECURSION_DEPTH,
+        R.GRANTEE_SCHEMA_NAME,
+        R.GRANTEE,
+        R.GRANTEE_TYPE,
+        R.ROLE_NAME,
+        P.PRIVILEGE,
+        P.OBJECT_TYPE,
+        P.SCHEMA_NAME,
+        P.OBJECT_NAME,
+        P.COLUMN_NAME
+      FROM
+        GRANTED_ROLES R LEFT OUTER JOIN
+        GRANTED_PRIVILEGES P ON
+          IFNULL(P.GRANTEE_SCHEMA_NAME, '') = IFNULL(P.GRANTEE_SCHEMA_NAME, '') AND
+          P.GRANTEE = R.ROLE_NAME AND
+          P.GRANTEE_TYPE = 'ROLE'
+    )
+    UNION ALL
+    ( SELECT
+        2 ROLE_RECURSION_DEPTH,
+        R1.GRANTEE_SCHEMA_NAME,
+        R1.GRANTEE,
+        R1.GRANTEE_TYPE,
+        R1.ROLE_NAME || CHAR(32) || '->' || CHAR(32) || R2.ROLE_NAME ROLE_NAME,
+        P.PRIVILEGE,
+        P.OBJECT_TYPE,
+        P.SCHEMA_NAME,
+        P.OBJECT_NAME,
+        P.COLUMN_NAME
+      FROM
+        GRANTED_ROLES R1 INNER JOIN
+        GRANTED_ROLES R2 ON
+          IFNULL(R2.GRANTEE_SCHEMA_NAME, '') = IFNULL(R1.GRANTEE_SCHEMA_NAME, '') AND
+          R2.GRANTEE = R1.ROLE_NAME AND
+          R2.GRANTEE_TYPE = 'ROLE' LEFT OUTER JOIN
+        GRANTED_PRIVILEGES P ON
+          IFNULL(P.GRANTEE_SCHEMA_NAME, '') = IFNULL(R2.GRANTEE_SCHEMA_NAME, '') AND
+          P.GRANTEE = R2.ROLE_NAME AND
+          P.GRANTEE_TYPE = 'ROLE' 
+    )
+    UNION ALL
+    ( SELECT
+        3 ROLE_RECURSION_DEPTH,
+        R1.GRANTEE_SCHEMA_NAME,
+        R1.GRANTEE,
+        R1.GRANTEE_TYPE,
+        R1.ROLE_NAME || CHAR(32) || '->' || CHAR(32) || R2.ROLE_NAME || CHAR(32) || '->' || CHAR(32) || R3.ROLE_NAME ROLE_NAME,
+        P.PRIVILEGE,
+        P.OBJECT_TYPE,
+        P.SCHEMA_NAME,
+        P.OBJECT_NAME,
+        P.COLUMN_NAME
+      FROM
+        GRANTED_ROLES R1 INNER JOIN
+        GRANTED_ROLES R2 ON
+          IFNULL(R2.GRANTEE_SCHEMA_NAME, '') = IFNULL(R1.GRANTEE_SCHEMA_NAME, '') AND
+          R2.GRANTEE = R1.ROLE_NAME AND
+          R2.GRANTEE_TYPE = 'ROLE' INNER JOIN
+        GRANTED_ROLES R3 ON
+          IFNULL(R3.GRANTEE_SCHEMA_NAME, '') = IFNULL(R2.GRANTEE_SCHEMA_NAME, '') AND
+          R3.GRANTEE = R2.ROLE_NAME AND
+          R3.GRANTEE_TYPE = 'ROLE' LEFT OUTER JOIN
+        GRANTED_PRIVILEGES P ON
+          IFNULL(P.GRANTEE_SCHEMA_NAME, '') = IFNULL(R3.GRANTEE_SCHEMA_NAME, '') AND
+          P.GRANTEE = R3.ROLE_NAME AND
+          P.GRANTEE_TYPE = 'ROLE' 
+    )
+    UNION ALL
+    ( SELECT
+        4 ROLE_RECURSION_DEPTH,
+        R1.GRANTEE_SCHEMA_NAME,
+        R1.GRANTEE,
+        R1.GRANTEE_TYPE,
+        R1.ROLE_NAME || CHAR(32) || '->' || CHAR(32) || R2.ROLE_NAME || CHAR(32) || '->' || CHAR(32) || R3.ROLE_NAME || CHAR(32) || '->' || CHAR(32) || R4.ROLE_NAME ROLE_NAME,
+        P.PRIVILEGE,
+        P.OBJECT_TYPE,
+        P.SCHEMA_NAME,
+        P.OBJECT_NAME,
+        P.COLUMN_NAME
+      FROM
+        GRANTED_ROLES R1 INNER JOIN
+        GRANTED_ROLES R2 ON
+          IFNULL(R2.GRANTEE_SCHEMA_NAME, '') = IFNULL(R1.GRANTEE_SCHEMA_NAME, '') AND
+          R2.GRANTEE = R1.ROLE_NAME AND
+          R2.GRANTEE_TYPE = 'ROLE' INNER JOIN
+        GRANTED_ROLES R3 ON
+          IFNULL(R3.GRANTEE_SCHEMA_NAME, '') = IFNULL(R2.GRANTEE_SCHEMA_NAME, '') AND
+          R3.GRANTEE = R2.ROLE_NAME AND
+          R3.GRANTEE_TYPE = 'ROLE' INNER JOIN
+        GRANTED_ROLES R4 ON
+          IFNULL(R4.GRANTEE_SCHEMA_NAME, '') = IFNULL(R3.GRANTEE_SCHEMA_NAME, '') AND
+          R4.GRANTEE = R3.ROLE_NAME AND
+          R4.GRANTEE_TYPE = 'ROLE' LEFT OUTER JOIN
+        GRANTED_PRIVILEGES P ON
+          IFNULL(P.GRANTEE_SCHEMA_NAME, '') = IFNULL(R4.GRANTEE_SCHEMA_NAME, '') AND
+          P.GRANTEE = R4.ROLE_NAME AND
+          P.GRANTEE_TYPE = 'ROLE' 
+    )
+    UNION ALL
+    ( SELECT
+        5 ROLE_RECURSION_DEPTH,
+        R1.GRANTEE_SCHEMA_NAME,
+        R1.GRANTEE,
+        R1.GRANTEE_TYPE,
+        R1.ROLE_NAME || CHAR(32) || '->' || CHAR(32) || R2.ROLE_NAME || CHAR(32) || '->' || CHAR(32) || R3.ROLE_NAME || 
+          CHAR(32) || '->' || CHAR(32) || R4.ROLE_NAME || CHAR(32) || '->' || CHAR(32) || R5.ROLE_NAME ROLE_NAME,
+        P.PRIVILEGE,
+        P.OBJECT_TYPE,
+        P.SCHEMA_NAME,
+        P.OBJECT_NAME,
+        P.COLUMN_NAME
+      FROM
+        GRANTED_ROLES R1 INNER JOIN
+        GRANTED_ROLES R2 ON
+          IFNULL(R2.GRANTEE_SCHEMA_NAME, '') = IFNULL(R1.GRANTEE_SCHEMA_NAME, '') AND
+          R2.GRANTEE = R1.ROLE_NAME AND
+          R2.GRANTEE_TYPE = 'ROLE' INNER JOIN
+        GRANTED_ROLES R3 ON
+          IFNULL(R3.GRANTEE_SCHEMA_NAME, '') = IFNULL(R2.GRANTEE_SCHEMA_NAME, '') AND
+          R3.GRANTEE = R2.ROLE_NAME AND
+          R3.GRANTEE_TYPE = 'ROLE' INNER JOIN
+        GRANTED_ROLES R4 ON
+          IFNULL(R4.GRANTEE_SCHEMA_NAME, '') = IFNULL(R3.GRANTEE_SCHEMA_NAME, '') AND
+          R4.GRANTEE = R3.ROLE_NAME AND
+          R4.GRANTEE_TYPE = 'ROLE' INNER JOIN
+        GRANTED_ROLES R5 ON
+          IFNULL(R5.GRANTEE_SCHEMA_NAME, '') = IFNULL(R4.GRANTEE_SCHEMA_NAME, '') AND
+          R5.GRANTEE = R4.ROLE_NAME AND
+          R5.GRANTEE_TYPE = 'ROLE' LEFT OUTER JOIN
+        GRANTED_PRIVILEGES P ON
+          IFNULL(P.GRANTEE_SCHEMA_NAME, '') = IFNULL(R5.GRANTEE_SCHEMA_NAME, '') AND
+          P.GRANTEE = R5.ROLE_NAME AND
+          P.GRANTEE_TYPE = 'ROLE' 
+    )
+  )
+) P LEFT OUTER JOIN
+  USERS U ON
+    P.GRANTEE_TYPE = 'USER' AND
+    P.GRANTEE = U.USER_NAME
+WHERE
+  P.GRANTEE_SCHEMA_NAME LIKE BI.GRANTEE_SCHEMA_NAME AND
+  P.GRANTEE LIKE BI.GRANTEE AND
+  P.GRANTEE_TYPE LIKE BI.GRANTEE_TYPE AND
+  P.ROLE_RECURSION_DEPTH <= BI.ROLE_RECURSION_DEPTH AND
+  P.ROLE_NAME LIKE BI.ROLE_NAME AND
+  P.PRIVILEGE LIKE BI.PRIVILEGE AND
+  P.PRIVILEGE_DETAILS LIKE BI.PRIVILEGE_DETAILS AND
+  P.OBJECT_NAME LIKE BI.OBJECT_NAME AND
+  P.OBJECT_TYPE LIKE BI.OBJECT_TYPE AND
+  ( BI.ONLY_CURRENT_USER = ' ' OR P.GRANTEE = CURRENT_USER ) AND
+  ( BI.EXCLUDE_SYSTEM_USERS = ' ' OR ( P.GRANTEE NOT IN ('SYS', 'SYSTEM') AND SUBSTR(P.GRANTEE, 1, 5) != '_SYS_' ) ) AND
+  ( BI.EXCLUDE_DEACTIVATED_USERS = ' ' OR P.GRANTEE_TYPE != 'USER' OR
+    U.USER_DEACTIVATED = 'FALSE' AND VALID_FROM <= CURRENT_TIMESTAMP AND ( VALID_UNTIL >= CURRENT_TIMESTAMP OR VALID_UNTIL IS NULL ) )
+ORDER BY
+  P.GRANTEE_SCHEMA_NAME,
+  P.GRANTEE_TYPE,
+  P.GRANTEE,
+  P.ROLE_NAME,
+  P.PRIVILEGE,
+  P.OBJECT_TYPE,
+  P.PRIVILEGE_DETAILS

@@ -1,0 +1,123 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Recovery_Progress_2.00.010+_MDC
+
+[DESCRIPTION]
+
+- Recovery progress
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- M_RECOVERY_PROGRESS available with SAP HANA >= 2.0 SPS 01
+- Has to be run in system database of an MDC system, otherwise it terminates with error "[362]: invalid schema name: SYS_DATABASES"
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.010
+- System type:            MDC system database
+
+[SQL COMMAND VERSION]
+
+- 2024/02/26:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- SYS_DATABASES.M_RECOVERY_PROGRESS
+
+[INPUT PARAMETERS]
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- DB_NAME
+
+  Multitenant database name
+
+  'SYSTEMDB'      --> System database
+  'C11'           --> Tenant C11
+  '%'             --> No restriction to multitenant database
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+[OUTPUT PARAMETERS]
+
+- DB_NAME:          Database name
+- HOST:             Host
+- PORT:             Port
+- START_TIME:       Start time
+- END_TIME:         End time
+- STATE_NAME:       State name
+- PHASE_NAME:       Phase name
+- MAX_PHASE:        Maximum phase
+- CURRENT_PHASE:    Current processing phase
+- MESSAGE:          Message
+- MAX_PROGRESS:     Maximum recovery progress
+- CURRENT_PROGRESS: Current recovery progress
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+|DB_NAME|HOST       |PORT |START_TIME	   |END_TIME|STATE_NAME|PHASE_NAME|MAX_PHASE|CURRENT_PHASE|MESSAGE|MAX_PROGRESS|CURRENT_PROGRESS|
+-----------------------------------------------------------------------------------------------------------------------------------------
+|C11    |saphananode|30040|27/02/2024 16:00|        |running   |data      |        4|            2|       | 26508005376|      4160749568|
+|C11    |saphananode|30043|27/02/2024 16:00|        |running   |data      |        4|            2|       |    83890176|               0|
+|C11    |saphananode|30049|27/02/2024 16:00|        |running   |data      |        4|            2|       |    83890176|               0|
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  RP.DATABASE_NAME DB_NAME,
+  RP.HOST,
+  LPAD(RP.PORT, 5) PORT,
+  TO_VARCHAR(MAP(BI.TIMEZONE, 'SERVER', RP.SYS_START_TIME, RP.UTC_START_TIME), 'YYYY/MM/DD HH24:MI:SS') START_TIME,
+  TO_VARCHAR(MAP(BI.TIMEZONE, 'SERVER', RP.SYS_END_TIME, RP.UTC_END_TIME), 'YYYY/MM/DD HH24:MI:SS') END_TIME,
+  RP.STATE_NAME,
+  RP.PHASE_NAME,
+  LPAD(RP.MAX_PHASE, 9) MAX_PHASE,
+  LPAD(RP.CURRENT_PHASE, 13) CURRENT_PHASE,
+  RP.MESSAGE,
+  LPAD(RP.MAX_PROGRESS, 12) MAX_PROGRESS,
+  LPAD(RP.CURRENT_PROGRESS, 16) CURRENT_PROGRESS
+FROM
+( SELECT                            /* Modification section */
+    'SERVER' TIMEZONE,                              /* SERVER, UTC */
+    '%' DB_NAME,
+    '%' HOST,
+    '%' PORT
+  FROM
+    DUMMY
+) BI,
+  SYS_DATABASES.M_RECOVERY_PROGRESS RP
+WHERE
+  RP.DATABASE_NAME LIKE BI.DB_NAME AND
+  RP.HOST LIKE BI.HOST AND
+  TO_VARCHAR(RP.PORT) LIKE BI.PORT
+ORDER BY
+  RP.DATABASE_NAME,
+  RP.HOST,
+  RP.PORT

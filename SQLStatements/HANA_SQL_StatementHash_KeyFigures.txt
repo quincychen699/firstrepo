@@ -1,0 +1,425 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_SQL_StatementHash_KeyFigures
+
+[DESCRIPTION]
+
+- Show current SQL plan details for specific SQL statement
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- RESET can be performed via:
+
+  ALTER SYSTEM RESET MONITORING VIEW M_SQL_PLAN_CACHE_RESET
+
+[VALID FOR]
+
+- Revisions:              all
+- Statistics server type: all
+
+[SQL COMMAND VERSION]
+
+- 2014/03/06:  1.0 (initial version)
+- 2014/05/26:  1.1 (HOST_SQL_PLAN_CACHE included)
+- 2014/07/11:  1.2 (APPLICATION_SOURCE included)
+- 2014/07/15:  1.3 (PLAN_ID included)
+- 2014/11/25:  1.4 ("Elapsed time" included as sum of execution time, preparation time and table load time)
+- 2015/05/12:  1.5 (M_SQL_PLAN_CACHE_RESET included)
+
+[INVOLVED TABLES]
+
+- M_SQL_PLAN_CACHE
+- M_SQL_PLAN_CACHE_RESET
+- HOST_SQL_PLAN_CACHE
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  TO_TIMESTAMP('2014/06/05 14:05:00', 'YYYY/MM/DD HH24:MI:SS') --> Set begin time to 5th of June 2014, 14:05 
+  ADD_DAYS(CURRENT_TIMESTAMP, -2)                              --> Set begin time to two days before current time 
+
+- END_TIME
+
+  End time
+
+  TO_TIMESTAMP('2014/06/08 14:05:00', 'YYYY/MM/DD HH24:MI:SS') --> Set end time to 8th of June 2014, 14:05 
+  CURRENT_TIMESTAMP                                            --> Set end time to current time 
+
+- STATEMENT_HASH      
+ 
+  Hash of SQL statement to be analyzed (mandatory)
+
+- PLAN_ID
+
+  SQL plan identifier
+
+  12345678       --> SQL plan identifier 12345678
+  -1             --> No restriction based on SQL plan identifier
+
+- SUPPRESS_BLANK_LINES 
+
+  Controls the display of blank lines in the output
+
+  'X' --> no blank lines
+  ' ' --> some blank lines (for better readability)
+
+- SUPPRESS_ZERO_LINES
+
+  Controls the display of lines with zero time values in the output
+
+  'X' --> no lines with zero time values
+  ' ' --> lines with zero time values are included
+
+- SPLIT_HASH_ACROSS_COLUMNS
+
+  Controls the output of the statement hash
+
+  'X'  --> Statement hash is split in two pieces (columns VALUE and VALUE_PER_EXEC)
+  ' '  --> Statement hash is completely shown in one piece (column VALUE)
+
+- TIME_UNIT
+
+  Unit of total times in the output
+
+  'MS' --> milli seconds
+  'S'  --> seconds
+  'M'  --> minutes
+  'H'  --> hours
+  'D'  --> days
+  
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_ tables)
+  'RESET'         --> Data from reset information (*_RESET tables)
+  'HISTORY'       --> Data from persisted history information (HOST_ tables)
+
+[OUTPUT PARAMETERS]
+
+- STAT_NAME:        Name of statistic information
+- VALUE:            (Total) value of statistic information
+- VALUE_PER_EXEC:   Value per execution 
+- MAX_VAL_PER_EXEC: Peak value per execution
+- VALUE_PER_ROW:    Value per record
+
+[EXAMPLE OUTPUT]
+
+--------------------------------------------------------------------------------------------
+|STAT_NAME               |VALUE              |VALUE_PER_EXEC|MAX_VAL_PER_EXEC|VALUE_PER_ROW|
+--------------------------------------------------------------------------------------------
+|Statement Hash          |5ea7341566b8a0675d7|981f4118217e  |                |             |
+|Table type              |COLUMN             |              |                |             |
+|Preparation timestamp   |2014/03/05 21:41:43|              |                |             |
+|Last execution timestamp|2014/03/05 23:42:58|              |                |             |
+|Last connection ID      |200431             |              |                |             |
+|                        |                   |              |                |             |
+|Executions              |              59328|              |                |             |
+|Records                 |            2947143|         49.67|                |             |
+|Preparations            |                  1|          0.00|                |             |
+|Metadata cache misses   |                  0|          0.00|                |             |
+|                        |                   |              |                |             |
+|Cursor duration         |             2.47 h|     150.02 ms|      1754.56 ms|      3.02 ms|
+|Execution time          |             2.38 h|     144.76 ms|       759.55 ms|      2.91 ms|
+|Table load time         |             0.00 h|       0.17 ms|         0.17 ms|      0.00 ms|
+|Preparation time        |             0.00 h|      72.66 ms|        72.66 ms|      0.00 ms|
+|Open time               |             0.00 h|       0.14 ms|         2.46 ms|      0.00 ms|
+|Fetch time              |             2.38 h|     144.59 ms|       759.23 ms|      2.91 ms|
+|Close time              |             0.00 h|       0.01 ms|         0.94 ms|      0.00 ms|
+--------------------------------------------------------------------------------------------
+
+*/
+
+  STAT_NAME,
+  VALUE,
+  VALUE_PER_EXEC,
+  MAX_VAL_PER_EXEC,
+  VALUE_PER_ROW
+FROM
+( SELECT DISTINCT
+    L.LINE_NO,
+    L.STAT_NAME,
+    CASE
+      WHEN L.LINE_NO =  1 AND BI.SPLIT_HASH_ACROSS_COLUMNS = 'X' THEN SUBSTR(C.STATEMENT_HASH, 1, 19)
+      WHEN L.LINE_NO =  1 AND BI.SPLIT_HASH_ACROSS_COLUMNS = ' ' THEN C.STATEMENT_HASH
+      WHEN L.LINE_NO =  2 THEN MAP(MIN(C.PLAN_ID), MAX(C.PLAN_ID), TO_VARCHAR(MIN(C.PLAN_ID)), 'various (' || COUNT(DISTINCT(C.PLAN_ID)) || ')')
+      WHEN L.LINE_NO =  3 THEN MAX(C.TABLE_TYPES)
+      WHEN L.LINE_NO =  4 AND C.DATA_SOURCE = 'HISTORY' THEN TO_VARCHAR(GREATEST(BI.BEGIN_TIME, C.MIN_SERVER_TIMESTAMP),  'YYYY/MM/DD HH24:MI:SS')
+      WHEN L.LINE_NO =  4 AND C.DATA_SOURCE != 'HISTORY' THEN TO_VARCHAR(MIN(C.LAST_PREPARATION_TIMESTAMP), 'YYYY/MM/DD HH24:MI:SS')
+      WHEN L.LINE_NO =  5 AND C.DATA_SOURCE = 'HISTORY' THEN TO_VARCHAR(LEAST(BI.END_TIME, C.MAX_SERVER_TIMESTAMP), 'YYYY/MM/DD HH24:MI:SS')
+      WHEN L.LINE_NO =  5 AND C.DATA_SOURCE != 'HISTORY' THEN TO_VARCHAR(MAX(C.LAST_EXECUTION_TIMESTAMP), 'YYYY/MM/DD HH24:MI:SS')
+      WHEN L.LINE_NO =  6 THEN SUBSTR(MAX(C.APPLICATION_SOURCE), 1, 19)
+      WHEN L.LINE_NO =  7 THEN MAX(C.USER_NAME)
+      WHEN L.LINE_NO =  8 THEN TO_VARCHAR(MAX(C.LAST_CONNECTION_ID))
+      WHEN L.LINE_NO = 10 THEN LPAD(SUM(C.EXECUTION_COUNT), 19)
+      WHEN L.LINE_NO = 11 THEN LPAD(SUM(C.TOTAL_RESULT_RECORD_COUNT), 19)
+      WHEN L.LINE_NO = 12 THEN LPAD(SUM(C.PREPARATION_COUNT), 19)
+      WHEN L.LINE_NO = 13 THEN LPAD(SUM(C.TOTAL_METADATA_CACHE_MISS_COUNT), 19)
+      WHEN L.LINE_NO = 15 AND C.DATA_SOURCE = 'HISTORY' THEN LPAD(TO_DECIMAL(SUM(C.TOTAL_EXECUTION_TIME / 1000000) / ( 1 + SECONDS_BETWEEN(GREATEST(BI.BEGIN_TIME, C.MIN_SERVER_TIMESTAMP), LEAST(BI.END_TIME, C.MAX_SERVER_TIMESTAMP))), 10, 2), 19)
+      WHEN L.LINE_NO = 15 AND C.DATA_SOURCE != 'HISTORY' THEN LPAD(TO_DECIMAL(SUM(C.TOTAL_EXECUTION_TIME / 1000000) / ( 1 + SECONDS_BETWEEN(MIN(C.LAST_PREPARATION_TIMESTAMP), MAX(C.LAST_EXECUTION_TIMESTAMP))), 10, 2), 19)
+      WHEN L.LINE_NO = 20 THEN LPAD(TO_DECIMAL(SUM(C.TOTAL_CURSOR_DURATION)                     / 1000 / BI.TIME_FACTOR, 10, 2) || CHAR(32) || BI.TIME_UNIT, 19)
+      WHEN L.LINE_NO = 21 THEN LPAD(TO_DECIMAL(SUM(C.TOTAL_ELAPSED_TIME)                        / 1000 / BI.TIME_FACTOR, 10, 2) || CHAR(32) || BI.TIME_UNIT, 19)
+      WHEN L.LINE_NO = 22 THEN LPAD(TO_DECIMAL(SUM(C.TOTAL_EXECUTION_TIME)                      / 1000 / BI.TIME_FACTOR, 10, 2) || CHAR(32) || BI.TIME_UNIT, 19)
+      WHEN L.LINE_NO = 23 THEN LPAD(TO_DECIMAL(SUM(C.TOTAL_TABLE_LOAD_TIME_DURING_PREPARATION)  / 1000 / BI.TIME_FACTOR, 10, 2) || CHAR(32) || BI.TIME_UNIT, 19)
+      WHEN L.LINE_NO = 24 THEN LPAD(TO_DECIMAL(SUM(C.TOTAL_PREPARATION_TIME)                    / 1000 / BI.TIME_FACTOR, 10, 2) || CHAR(32) || BI.TIME_UNIT, 19)
+      WHEN L.LINE_NO = 25 THEN LPAD(TO_DECIMAL(SUM(C.TOTAL_EXECUTION_OPEN_TIME)                 / 1000 / BI.TIME_FACTOR, 10, 2) || CHAR(32) || BI.TIME_UNIT, 19)
+      WHEN L.LINE_NO = 26 THEN LPAD(TO_DECIMAL(SUM(C.TOTAL_EXECUTION_FETCH_TIME)                / 1000 / BI.TIME_FACTOR, 10, 2) || CHAR(32) || BI.TIME_UNIT, 19)
+      WHEN L.LINE_NO = 27 THEN LPAD(TO_DECIMAL(SUM(C.TOTAL_EXECUTION_CLOSE_TIME)                / 1000 / BI.TIME_FACTOR, 10, 2) || CHAR(32) || BI.TIME_UNIT, 19)
+      WHEN L.LINE_NO = 28 THEN LPAD(TO_DECIMAL(SUM(C.TOTAL_LOCK_WAIT_DURATION)                  / 1000 / BI.TIME_FACTOR, 10, 2) || CHAR(32) || BI.TIME_UNIT, 19)
+      ELSE ' '
+    END VALUE,
+    CASE
+      WHEN L.LINE_NO =  1 AND BI.SPLIT_HASH_ACROSS_COLUMNS = 'X' THEN SUBSTR(C.STATEMENT_HASH, 20)
+      WHEN L.LINE_NO =  1 AND BI.SPLIT_HASH_ACROSS_COLUMNS = ' ' THEN ''
+      WHEN L.LINE_NO =  6 THEN SUBSTR(MAX(C.APPLICATION_SOURCE), 20, 14)
+      WHEN L.LINE_NO = 11 THEN LPAD(TO_DECIMAL(MAP(SUM(C.EXECUTION_COUNT), 0, 0, SUM(C.TOTAL_RESULT_RECORD_COUNT)                       / SUM(C.EXECUTION_COUNT)), 12, 2), 14)
+      WHEN L.LINE_NO = 12 THEN LPAD(TO_DECIMAL(MAP(SUM(C.EXECUTION_COUNT), 0, 0, SUM(C.PREPARATION_COUNT)                               / SUM(C.EXECUTION_COUNT)), 12, 2), 14)
+      WHEN L.LINE_NO = 13 THEN LPAD(TO_DECIMAL(MAP(SUM(C.EXECUTION_COUNT), 0, 0, SUM(C.TOTAL_METADATA_CACHE_MISS_COUNT)                 / SUM(C.EXECUTION_COUNT)), 12, 2), 14)
+      WHEN L.LINE_NO = 20 THEN LPAD(TO_DECIMAL(MAP(SUM(C.EXECUTION_COUNT), 0, 0, SUM(C.TOTAL_CURSOR_DURATION)                    / 1000 / SUM(C.EXECUTION_COUNT)), 12, 2) || ' ms', 14)
+      WHEN L.LINE_NO = 21 THEN LPAD(TO_DECIMAL(MAP(SUM(C.EXECUTION_COUNT), 0, 0, SUM(C.TOTAL_ELAPSED_TIME)                       / 1000 / SUM(C.EXECUTION_COUNT)), 12, 2) || ' ms', 14)
+      WHEN L.LINE_NO = 22 THEN LPAD(TO_DECIMAL(MAP(SUM(C.EXECUTION_COUNT), 0, 0, SUM(C.TOTAL_EXECUTION_TIME)                     / 1000 / SUM(C.EXECUTION_COUNT)), 12, 2) || ' ms', 14)
+      WHEN L.LINE_NO = 23 THEN LPAD(TO_DECIMAL(MAP(SUM(C.EXECUTION_COUNT), 0, 0, SUM(C.TOTAL_TABLE_LOAD_TIME_DURING_PREPARATION) / 1000 / SUM(C.EXECUTION_COUNT)), 12, 2) || ' ms', 14)
+      WHEN L.LINE_NO = 24 THEN LPAD(TO_DECIMAL(MAP(SUM(C.EXECUTION_COUNT), 0, 0, SUM(C.TOTAL_PREPARATION_TIME)                   / 1000 / SUM(C.EXECUTION_COUNT)), 12, 2) || ' ms', 14)
+      WHEN L.LINE_NO = 25 THEN LPAD(TO_DECIMAL(MAP(SUM(C.EXECUTION_COUNT), 0, 0, SUM(C.TOTAL_EXECUTION_OPEN_TIME)                / 1000 / SUM(C.EXECUTION_COUNT)), 12, 2) || ' ms', 14)
+      WHEN L.LINE_NO = 26 THEN LPAD(TO_DECIMAL(MAP(SUM(C.EXECUTION_COUNT), 0, 0, SUM(C.TOTAL_EXECUTION_FETCH_TIME)               / 1000 / SUM(C.EXECUTION_COUNT)), 12, 2) || ' ms', 14)
+      WHEN L.LINE_NO = 27 THEN LPAD(TO_DECIMAL(MAP(SUM(C.EXECUTION_COUNT), 0, 0, SUM(C.TOTAL_EXECUTION_CLOSE_TIME)               / 1000 / SUM(C.EXECUTION_COUNT)), 12, 2) || ' ms', 14)
+      WHEN L.LINE_NO = 28 THEN LPAD(TO_DECIMAL(MAP(SUM(C.EXECUTION_COUNT), 0, 0, SUM(C.TOTAL_LOCK_WAIT_DURATION)                 / 1000 / SUM(C.EXECUTION_COUNT)), 12, 2) || ' ms', 14)
+      ELSE ' '
+    END VALUE_PER_EXEC,
+    CASE
+      WHEN L.LINE_NO =  6 THEN SUBSTR(MAX(C.APPLICATION_SOURCE), 34)
+      WHEN L.LINE_NO = 20 THEN LPAD(TO_DECIMAL(MAX(C.MAX_CURSOR_DURATION)                    / 1000, 12, 2) || ' ms', 16)
+      WHEN L.LINE_NO = 22 THEN LPAD(TO_DECIMAL(MAX(C.MAX_EXECUTION_TIME)                     / 1000, 12, 2) || ' ms', 16)
+      WHEN L.LINE_NO = 23 THEN LPAD(TO_DECIMAL(MAX(C.MAX_TABLE_LOAD_TIME_DURING_PREPARATION) / 1000, 12, 2) || ' ms', 16)
+      WHEN L.LINE_NO = 24 THEN LPAD(TO_DECIMAL(MAX(C.MAX_PREPARATION_TIME)                   / 1000, 12, 2) || ' ms', 16)
+      WHEN L.LINE_NO = 25 THEN LPAD(TO_DECIMAL(MAX(C.MAX_EXECUTION_OPEN_TIME)                / 1000, 12, 2) || ' ms', 16)
+      WHEN L.LINE_NO = 26 THEN LPAD(TO_DECIMAL(MAX(C.MAX_EXECUTION_FETCH_TIME)               / 1000, 12, 2) || ' ms', 16)
+      WHEN L.LINE_NO = 27 THEN LPAD(TO_DECIMAL(MAX(C.MAX_EXECUTION_CLOSE_TIME)               / 1000, 12, 2) || ' ms', 16)
+      ELSE ' '
+    END MAX_VAL_PER_EXEC,  
+    CASE
+      WHEN L.LINE_NO = 20 THEN LPAD(TO_DECIMAL(MAP(SUM(C.TOTAL_RESULT_RECORD_COUNT), 0, 0, SUM(C.TOTAL_CURSOR_DURATION)                    / 1000 / SUM(C.TOTAL_RESULT_RECORD_COUNT)), 12, 2) || ' ms', 13)
+      WHEN L.LINE_NO = 21 THEN LPAD(TO_DECIMAL(MAP(SUM(C.TOTAL_RESULT_RECORD_COUNT), 0, 0, SUM(C.TOTAL_ELAPSED_TIME)                       / 1000 / SUM(C.TOTAL_RESULT_RECORD_COUNT)), 12, 2) || ' ms', 13)
+      WHEN L.LINE_NO = 22 THEN LPAD(TO_DECIMAL(MAP(SUM(C.TOTAL_RESULT_RECORD_COUNT), 0, 0, SUM(C.TOTAL_EXECUTION_TIME)                     / 1000 / SUM(C.TOTAL_RESULT_RECORD_COUNT)), 12, 2) || ' ms', 13)
+      WHEN L.LINE_NO = 23 THEN LPAD(TO_DECIMAL(MAP(SUM(C.TOTAL_RESULT_RECORD_COUNT), 0, 0, SUM(C.TOTAL_TABLE_LOAD_TIME_DURING_PREPARATION) / 1000 / SUM(C.TOTAL_RESULT_RECORD_COUNT)), 12, 2) || ' ms', 13)
+      WHEN L.LINE_NO = 24 THEN LPAD(TO_DECIMAL(MAP(SUM(C.TOTAL_RESULT_RECORD_COUNT), 0, 0, SUM(C.TOTAL_PREPARATION_TIME)                   / 1000 / SUM(C.TOTAL_RESULT_RECORD_COUNT)), 12, 2) || ' ms', 13)
+      WHEN L.LINE_NO = 25 THEN LPAD(TO_DECIMAL(MAP(SUM(C.TOTAL_RESULT_RECORD_COUNT), 0, 0, SUM(C.TOTAL_EXECUTION_OPEN_TIME)                / 1000 / SUM(C.TOTAL_RESULT_RECORD_COUNT)), 12, 2) || ' ms', 13)
+      WHEN L.LINE_NO = 26 THEN LPAD(TO_DECIMAL(MAP(SUM(C.TOTAL_RESULT_RECORD_COUNT), 0, 0, SUM(C.TOTAL_EXECUTION_FETCH_TIME)               / 1000 / SUM(C.TOTAL_RESULT_RECORD_COUNT)), 12, 2) || ' ms', 13)
+      WHEN L.LINE_NO = 27 THEN LPAD(TO_DECIMAL(MAP(SUM(C.TOTAL_RESULT_RECORD_COUNT), 0, 0, SUM(C.TOTAL_EXECUTION_CLOSE_TIME)               / 1000 / SUM(C.TOTAL_RESULT_RECORD_COUNT)), 12, 2) || ' ms', 13)
+      WHEN L.LINE_NO = 28 THEN LPAD(TO_DECIMAL(MAP(SUM(C.TOTAL_RESULT_RECORD_COUNT), 0, 0, SUM(C.TOTAL_LOCK_WAIT_DURATION)                 / 1000 / SUM(C.TOTAL_RESULT_RECORD_COUNT)), 12, 2) || ' ms', 13)
+      ELSE ' '
+    END VALUE_PER_ROW,
+    SUPPRESS_ZERO_LINES
+  FROM 
+    ( SELECT
+        BEGIN_TIME,
+        END_TIME,
+        STATEMENT_HASH,
+        PLAN_ID,
+        SUPPRESS_BLANK_LINES,
+        SUPPRESS_ZERO_LINES,
+        LOWER(TIME_UNIT) TIME_UNIT,
+        SPLIT_HASH_ACROSS_COLUMNS,
+        MAP(TIME_UNIT, 'MS', 1, 'S', 1000, 'M', 60000, 'H', 3600000, 'D', 86400000) TIME_FACTOR,
+        DATA_SOURCE
+      FROM
+      ( SELECT                                                      /* Modification section */
+          TO_TIMESTAMP('1000/12/22 08:00:00', 'YYYY/MM/DD HH24:MI:SS') BEGIN_TIME,
+          TO_TIMESTAMP('9999/12/22 11:00:00', 'YYYY/MM/DD HH24:MI:SS') END_TIME,
+          '2d8bf9a832359d8b0d41834d95155b74' STATEMENT_HASH,
+          -1 PLAN_ID,
+          ' ' SUPPRESS_BLANK_LINES,
+          'X' SUPPRESS_ZERO_LINES,
+          'X' SPLIT_HASH_ACROSS_COLUMNS,
+          'H' TIME_UNIT,                    /* MS, S, M, H, D */
+          'CURRENT' DATA_SOURCE             /* HISTORY, CURRENT, RESET */
+        FROM
+          DUMMY
+      )
+    ) BI,
+    ( SELECT  1 LINE_NO, 'Statement Hash' STAT_NAME FROM DUMMY UNION ALL
+      SELECT  2, 'Plan ID'                          FROM DUMMY UNION ALL
+      SELECT  3, 'Table type'                       FROM DUMMY UNION ALL
+      SELECT  4, 'Begin time'                       FROM DUMMY UNION ALL
+      SELECT  5, 'End time'                         FROM DUMMY UNION ALL
+      SELECT  6, 'Application source'               FROM DUMMY UNION ALL
+      SELECT  7, 'Database user name'               FROM DUMMY UNION ALL
+      SELECT  8, 'Last connection ID'               FROM DUMMY UNION ALL
+      SELECT  9, ''                                 FROM DUMMY UNION ALL
+      SELECT 10, 'Executions'                       FROM DUMMY UNION ALL
+      SELECT 11, 'Records'                          FROM DUMMY UNION ALL
+      SELECT 12, 'Preparations'                     FROM DUMMY UNION ALL
+      SELECT 13, 'Metadata cache misses'            FROM DUMMY UNION ALL
+      SELECT 15, 'Active sessions'                  FROM DUMMY UNION ALL
+      SELECT 19, ''                                 FROM DUMMY UNION ALL
+      SELECT 20, 'Cursor duration'                  FROM DUMMY UNION ALL
+      SELECT 21, 'Elapsed time'                     FROM DUMMY UNION ALL
+      SELECT 22, 'Execution time'                   FROM DUMMY UNION ALL
+      SELECT 23, 'Table load time'                  FROM DUMMY UNION ALL
+      SELECT 24, 'Preparation time'                 FROM DUMMY UNION ALL
+      SELECT 25, 'Open time'                        FROM DUMMY UNION ALL
+      SELECT 26, 'Fetch time'                       FROM DUMMY UNION ALL
+      SELECT 27, 'Close time'                       FROM DUMMY UNION ALL
+      SELECT 28, 'Lock wait time'                   FROM DUMMY
+    ) L,
+    ( SELECT
+        'CURRENT' DATA_SOURCE,
+        CURRENT_TIMESTAMP SERVER_TIMESTAMP,
+        CURRENT_TIMESTAMP MIN_SERVER_TIMESTAMP,
+        CURRENT_TIMESTAMP MAX_SERVER_TIMESTAMP,
+        STATEMENT_HASH,
+        PLAN_ID,
+        ( SELECT IFNULL(MAX(APPLICATION_SOURCE), '') APPLICATION_SOURCE FROM M_PREPARED_STATEMENTS P WHERE P.PLAN_ID = S.PLAN_ID ) APPLICATION_SOURCE,
+        USER_NAME,
+        TABLE_TYPES,
+        LAST_PREPARATION_TIMESTAMP,
+        LAST_EXECUTION_TIMESTAMP,
+        LAST_CONNECTION_ID,
+        EXECUTION_COUNT,
+        TOTAL_RESULT_RECORD_COUNT,
+        PREPARATION_COUNT,
+        TOTAL_METADATA_CACHE_MISS_COUNT,
+        TOTAL_CURSOR_DURATION,
+        TOTAL_EXECUTION_TIME + TOTAL_PREPARATION_TIME TOTAL_ELAPSED_TIME,
+        TOTAL_EXECUTION_TIME,
+        TOTAL_TABLE_LOAD_TIME_DURING_PREPARATION,
+        TOTAL_PREPARATION_TIME,
+        TOTAL_EXECUTION_OPEN_TIME,
+        TOTAL_EXECUTION_FETCH_TIME,
+        TOTAL_EXECUTION_CLOSE_TIME,
+        TOTAL_LOCK_WAIT_DURATION,
+        AVG_CURSOR_DURATION,
+        AVG_EXECUTION_TIME,
+        AVG_EXECUTION_OPEN_TIME,
+        AVG_EXECUTION_FETCH_TIME,
+        AVG_EXECUTION_CLOSE_TIME,
+        MAX_CURSOR_DURATION,
+        MAX_EXECUTION_TIME,
+        MAX_TABLE_LOAD_TIME_DURING_PREPARATION,
+        MAX_PREPARATION_TIME,
+        MAX_EXECUTION_OPEN_TIME,
+        MAX_EXECUTION_FETCH_TIME,
+        MAX_EXECUTION_CLOSE_TIME
+      FROM 
+        M_SQL_PLAN_CACHE S
+      UNION ALL
+      SELECT
+        'RESET' DATA_SOURCE,
+        CURRENT_TIMESTAMP SERVER_TIMESTAMP,
+        CURRENT_TIMESTAMP MIN_SERVER_TIMESTAMP,
+        CURRENT_TIMESTAMP MAX_SERVER_TIMESTAMP,
+        STATEMENT_HASH,
+        PLAN_ID,
+        ( SELECT IFNULL(MAX(APPLICATION_SOURCE), '') APPLICATION_SOURCE FROM M_PREPARED_STATEMENTS P WHERE P.PLAN_ID = S.PLAN_ID ) APPLICATION_SOURCE,
+        USER_NAME,
+        TABLE_TYPES,
+        LAST_PREPARATION_TIMESTAMP,
+        LAST_EXECUTION_TIMESTAMP,
+        LAST_CONNECTION_ID,
+        EXECUTION_COUNT,
+        TOTAL_RESULT_RECORD_COUNT,
+        PREPARATION_COUNT,
+        TOTAL_METADATA_CACHE_MISS_COUNT,
+        TOTAL_CURSOR_DURATION,
+        TOTAL_EXECUTION_TIME + TOTAL_PREPARATION_TIME TOTAL_ELAPSED_TIME,
+        TOTAL_EXECUTION_TIME,
+        TOTAL_TABLE_LOAD_TIME_DURING_PREPARATION,
+        TOTAL_PREPARATION_TIME,
+        TOTAL_EXECUTION_OPEN_TIME,
+        TOTAL_EXECUTION_FETCH_TIME,
+        TOTAL_EXECUTION_CLOSE_TIME,
+        TOTAL_LOCK_WAIT_DURATION,
+        AVG_CURSOR_DURATION,
+        AVG_EXECUTION_TIME,
+        AVG_EXECUTION_OPEN_TIME,
+        AVG_EXECUTION_FETCH_TIME,
+        AVG_EXECUTION_CLOSE_TIME,
+        MAX_CURSOR_DURATION,
+        MAX_EXECUTION_TIME,
+        MAX_TABLE_LOAD_TIME_DURING_PREPARATION,
+        MAX_PREPARATION_TIME,
+        MAX_EXECUTION_OPEN_TIME,
+        MAX_EXECUTION_FETCH_TIME,
+        MAX_EXECUTION_CLOSE_TIME
+      FROM
+        M_SQL_PLAN_CACHE_RESET S
+      UNION ALL
+      SELECT
+        'HISTORY' DATA_SOURCE,
+        SERVER_TIMESTAMP,
+        MIN(SERVER_TIMESTAMP) OVER (PARTITION BY STATEMENT_HASH) MIN_SERVER_TIMESTAMP,
+        MAX(SERVER_TIMESTAMP) OVER (PARTITION BY STATEMENT_HASH) MAX_SERVER_TIMESTAMP,
+        STATEMENT_HASH,
+        PLAN_ID,
+        ( SELECT IFNULL(MAX(APPLICATION_SOURCE), '') APPLICATION_SOURCE FROM M_PREPARED_STATEMENTS P WHERE P.PLAN_ID = S.PLAN_ID ) APPLICATION_SOURCE,
+        USER_NAME,
+        TABLE_TYPES,
+        LAST_PREPARATION_TIMESTAMP,
+        LAST_EXECUTION_TIMESTAMP,
+        LAST_CONNECTION_ID,
+        EXECUTION_COUNT,
+        TOTAL_RESULT_RECORD_COUNT,
+        PREPARATION_COUNT,
+        TOTAL_METADATA_CACHE_MISS_COUNT,
+        TOTAL_CURSOR_DURATION,
+        TOTAL_EXECUTION_TIME + TOTAL_PREPARATION_TIME TOTAL_ELAPSED_TIME,
+        TOTAL_EXECUTION_TIME,
+        TOTAL_TABLE_LOAD_TIME_DURING_PREPARATION,
+        TOTAL_PREPARATION_TIME,
+        TOTAL_EXECUTION_OPEN_TIME,
+        TOTAL_EXECUTION_FETCH_TIME,
+        TOTAL_EXECUTION_CLOSE_TIME,
+        TOTAL_LOCK_WAIT_DURATION,
+        AVG_CURSOR_DURATION,
+        AVG_EXECUTION_TIME,
+        AVG_EXECUTION_OPEN_TIME,
+        AVG_EXECUTION_FETCH_TIME,
+        AVG_EXECUTION_CLOSE_TIME,
+        MAX_CURSOR_DURATION,
+        MAX_EXECUTION_TIME,
+        MAX_TABLE_LOAD_TIME_DURING_PREPARATION,
+        MAX_PREPARATION_TIME,
+        MAX_EXECUTION_OPEN_TIME,
+        MAX_EXECUTION_FETCH_TIME,
+        MAX_EXECUTION_CLOSE_TIME
+      FROM
+      _SYS_STATISTICS.HOST_SQL_PLAN_CACHE S
+    ) C
+  WHERE
+    BI.DATA_SOURCE = C.DATA_SOURCE AND
+    ( BI.DATA_SOURCE = 'CURRENT' AND C.DATA_SOURCE = 'CURRENT' OR
+      BI.DATA_SOURCE = 'RESET' AND C.DATA_SOURCE = 'RESET' OR
+      BI.DATA_SOURCE = 'HISTORY' AND C.DATA_SOURCE = 'HISTORY' AND C.SERVER_TIMESTAMP BETWEEN BI.BEGIN_TIME AND BI.END_TIME ) AND
+    C.STATEMENT_HASH LIKE BI.STATEMENT_HASH AND
+    ( BI.PLAN_ID = -1 OR C.PLAN_ID = BI.PLAN_ID ) AND
+    ( BI.SUPPRESS_BLANK_LINES = ' ' OR L.STAT_NAME != '' ) 
+  GROUP BY
+    C.STATEMENT_HASH,
+    C.MIN_SERVER_TIMESTAMP,
+    C.MAX_SERVER_TIMESTAMP,
+    C.DATA_SOURCE,
+    L.LINE_NO,
+    L.STAT_NAME,
+    BI.BEGIN_TIME,
+    BI.END_TIME,
+    BI.TIME_FACTOR,
+    BI.TIME_UNIT,
+    BI.SUPPRESS_ZERO_LINES,
+    BI.SPLIT_HASH_ACROSS_COLUMNS
+)
+WHERE
+  ( SUPPRESS_ZERO_LINES = ' ' OR SUBSTR(LTRIM(VALUE), 1, 4) != '0.00' OR SUBSTR(LTRIM(VALUE_PER_EXEC), 1, 4) != '0.00' OR SUBSTR(LTRIM(MAX_VAL_PER_EXEC), 1, 4) NOT IN ('', '0.00') )
+ORDER BY
+  LINE_NO
+
+

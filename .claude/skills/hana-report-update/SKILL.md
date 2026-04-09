@@ -111,6 +111,7 @@ Use the detected revision (e.g. `2.00.059`) to apply the rule:
          r'(<w:t>Database:</w:t></w:r><w:r>(?:<w:rPr>.*?</w:rPr>)?<w:t[^>]*>) …(</w:t>)',
          rf'\g<1> {SID}\2', data, flags=re.DOTALL)
      ```
+   - **Cover page fields** (`SAP System ID`, `DB Type`, `DB System ID`, `Database Name`, `Operating System`): these are in `FPItemNotBold` floating-frame paragraphs containing only `…`. Use `update_cover_field()` (see pitfall #6) targeted by `w14:paraId`. Find the correct paraIds by scanning for `FPItemNotBold` + `cyan` paragraphs and matching to surrounding label paragraphs. Apply to `doc_xml_work` before splitting into the paragraph array.
 
 ### Full SQL File Mapping (version-agnostic)
 
@@ -118,11 +119,12 @@ Always apply the dynamic version selection rule above when choosing the file. Th
 
 | Report Section | SQL Reference in Doc | SQL File to Use | Notes |
 |---|---|---|---|
-| SAP HANA Overview (General Info) | `HANA_Configuration_Overview` | `HANA_Configuration_Overview_2.00.040+.txt` | General config, versions, features, deprecated |
-| Infrastructure Report (section 3.2.1) | `HANA_Configuration_Infrastructure` | `HANA_Configuration_Infrastructure_2.00.040+.txt` | Hosts, CPU, memory, OS, disk, network. Appears **immediately after** the `HANA_Configuration_Overview` table — do NOT over-run the Overview replacement boundary or this block will be deleted. |
-| SAP HANA Workload Information | `HANA_Workload` | `HANA_Workload_1.00.90+_MDC.txt` | Per-day load overview (EXEC_PER_S etc.) — FAILS on tenant DB with `invalid schema name: SYS_DATABASES`; fallback `HANA_Workload.txt` only gives current-moment data, not historical |
-| SAP HANA Load History (per hour) | `HANA_LoadHistory_Services` | `HANA_LoadHistory_Services_2.00.030+.txt` | Copy to `/tmp/hana_loadhistory_hour.txt`, change `'DAY' TIME_AGGREGATE_BY` → `'HOUR' TIME_AGGREGATE_BY`, then execute the temp file |
-| Workload Management Settings | `HANA_Workload_WorkloadClasses` | `HANA_Workload_WorkloadClasses_2.00.040+.txt` | ESS/statistics workload class |
+| SAP HANA Overview (General Info) | `HANA_Configuration_Overview` | `HANA_Configuration_Overview_2.00.040+.txt` | General config, versions, features, deprecated. Use `next_anchor='This following overview contains general information'` to prevent over-run into Infrastructure intro. |
+| Infrastructure Report (section 3.2.1) | `HANA_Configuration_Infrastructure` | `HANA_Configuration_Infrastructure_2.00.040+.txt` | Hosts, CPU, memory, OS, disk, network. Appears **immediately after** the `HANA_Configuration_Overview` table. |
+| SAP HANA Workload Information | `HANA_Workload` | `HANA_Workload_1.00.90+_MDC.txt` | Per-day load overview. Use `next_anchor='SAP HANA workload overview: (per hour for recent working day)'` to prevent over-run. FAILS on tenant DB with `invalid schema name: SYS_DATABASES`; fallback `HANA_Workload.txt` only gives current-moment data, not historical. |
+| SAP HANA Load History (per hour) | `HANA_LoadHistory_Services` | `HANA_LoadHistory_Services_2.00.030+.txt` | Anchor on `'The historic SAP HANA load information is'` for per-day block; use `next_anchor='SAP HANA load history: (per hour for recent working day)'` to prevent over-run into hourly block. Copy to `/tmp/hana_loadhistory_hour.txt`, change `'DAY' TIME_AGGREGATE_BY` → `'HOUR' TIME_AGGREGATE_BY`, then execute the temp file for the hourly block. |
+| Workload Management Settings – Parameters | `HANA_Configuration_Parameters_Values` | `HANA_Configuration_Parameters_Values_2.00.040+.txt` | CPU/memory/thread workload parameters. Immediately follows Thread Samples block — use `next_anchor='SAP HANA Workload Management Settings'` on the Thread Samples replacement to prevent over-run deleting this heading. Column width ≤108: use FILE_NAME(15)\|SECTION(23)\|PARAMETER_NAME(37)\|LAYER(7)\|VALUE(20). |
+| Workload Management Settings – Classes | `HANA_Workload_WorkloadClasses` | `HANA_Workload_WorkloadClasses_2.00.040+.txt` | Configured workload classes and mappings. Empty result → insert `'No workload classes configured (output: empty).'` |
 | Space – Largest Tables | `HANA_Tables_LargestTables` | `HANA_Tables_LargestTables_2.00.040+.txt` | Top tables by size |
 | Space – Table Classes | `HANA_Tables_TableClasses` | `HANA_Tables_TableClasses.txt` | Table class distribution |
 | Space – Partitioning Overview | `HANA_Tables_ColumnStore_PartitionedTables` | `HANA_Tables_ColumnStore_PartitionedTables_2.00.000+.txt` | Partitioned tables |
@@ -131,6 +133,7 @@ Always apply the dynamic version selection rule above when choosing the file. Th
 | System Replication | `HANA_Replication_SystemReplication_Overview` | `HANA_Replication_SystemReplication_Overview_1.00.120+_MDC.txt` | Replication state, lag, backlog |
 | Triggers | `HANA_Configuration_Triggers` | `HANA_Configuration_Triggers.txt` | Configured triggers by scenario |
 | SAP HANA Mini Checks | `HANA_Configuration_MiniChecks` | highest `HANA_Configuration_MiniChecks_<version>.txt` ≤ system revision | Full mini check suite |
+| SAP HANA Thread Samples | `HANA_Threads_ThreadSamples_FilterAndAggregation` | `HANA_Threads_ThreadSamples_FilterAndAggregation_2.00.040+.txt` | Default `AGGREGATE_BY='NONE'` returns per-thread rows. **Must copy to a temp file and set `'THREAD_STATE' AGGREGATE_BY`** before executing for the aggregated thread-state summary the report expects. |
 | SAP HANA Trace File Mini Checks | `HANA_TraceFiles_MiniChecks` | `HANA_TraceFiles_MiniChecks.txt` | Trace file error patterns |
 | SAP HANA Call Stack Mini Checks | `HANA_Threads_Callstacks_MiniChecks` | `HANA_Threads_Callstacks_MiniChecks_2.00.040+.txt` | Call stack anomaly checks |
 | Runtime Tests | `HANA_Tests_Results` | `HANA_Tests_Results.txt` | Arithmetic/memory/string test results |
@@ -178,9 +181,56 @@ Example values from test_case2.docx (for reference only):
 ### 1. Over-running replacement boundary deletes adjacent blocks
 When replacing a cyan block, always determine the **exact end boundary** of that block before replacing. If the boundary is set too wide, paragraphs that follow (e.g. the intro text + cyan block for the *next* SQL section) will be silently deleted.
 
-- **Affected case**: replacing `HANA_Configuration_Overview` (section 3.2.1) with too large a range deleted the `HANA_Configuration_Infrastructure` intro text and template cyan block that immediately follows.
-- **Fix**: after replacement, verify that the paragraph immediately after the new block matches what was in the original document at that position.
-- **Recovery**: if a block is missing from output but present in input, extract it from the input `.bak` file, execute the correct SQL, and re-insert at the correct position.
+- **Affected case**: replacing `HANA_Configuration_Overview` (section 3.2.1) deleted the `HANA_Configuration_Infrastructure` intro paragraph (`"This following overview contains general information…"`) that immediately follows.
+- **Root cause**: `find_cyan_block(..., max_gap=5)` bridged the one-para gap between the overview's closing `---` line and a cyan "Attention:" note two paras later, extending `last` past the intro text. A subsequent boundary scan using `infra_intro - 3` as the loop ceiling stopped *before* the closing separator, so `last_ov` was never corrected.
+- **Correct fix — walk backwards from the next section's anchor**:
+  ```python
+  # Find the non-cyan intro paragraph that opens the next section
+  next_section = find_para(paras, 'This following overview contains general information', first + 1)
+  if next_section is None:
+      next_section = find_para(paras, 'HANA_Configuration_Infrastructure', first + 1)
+  if next_section:
+      # Walk backwards to find the true last cyan para of the current block
+      for i in range(next_section - 1, first, -1):
+          if 'cyan' in paras[i]:
+              last = i   # overwrite whatever find_cyan_block returned
+              break
+  ```
+  This is safe regardless of how many non-cyan gaps appear between the two sections.
+- **`do_replace` helper — use `next_anchor` parameter**: when the section being replaced is immediately followed by another section with a non-cyan intro line, pass `next_anchor='<that intro text>'` to cap the boundary automatically:
+  ```python
+  paras, ok = do_replace(paras, 'Load History (per day)',
+                          'The historic SAP HANA load information is',
+                          day_lines, ...,
+                          next_anchor='SAP HANA load history: (per hour for recent working day)')
+  ```
+  The `do_replace` implementation applies the walk-backwards cap internally:
+  ```python
+  if next_anchor:
+      next_idx = find_para(paras, next_anchor, first + 1)
+      if next_idx is not None:
+          for i in range(next_idx - 1, first, -1):
+              if 'cyan' in paras[i]:
+                  last = i
+                  break
+  ```
+- **Known affected section pairs** (both intro lines were lost without this fix):
+  - `HANA_Configuration_Overview` → `HANA_Configuration_Infrastructure` intro (`"This following overview contains general information…"`)
+  - Workload per-day block → `"SAP HANA workload overview: (per hour for recent working day)"`
+  - Load history per-day block → `"SAP HANA load history: (per hour for recent working day)"`
+  - Thread samples block → `"SAP HANA Workload Management Settings"` heading (entire 3.3.2 section heading deleted)
+- **Verification**: after every replacement, assert `para_text(paras[new_last + 1])` matches the expected opening text of the next section.
+- **Recovery — orphaned cyan rows with missing heading**: if a section heading is missing but its cyan data rows are still present (orphaned), do NOT use `do_replace` — it will find the wrong anchor. Instead:
+  1. Identify the orphaned cyan block by index (rows with no heading paragraph above them)
+  2. Extract the correct heading paragraphs from the `.bak` original document by index
+  3. Execute the correct SQL for that section
+  4. Delete the orphaned cyan block and insert `heading_paras + sql_output_paras` in one operation:
+  ```python
+  new_section = list(heading_paras_from_orig)    # non-cyan, preserved from original
+  new_section += [make_para(l, sz) for l in sql_lines]
+  paras = paras[:orphan_first] + new_section + paras[orphan_last+1:]
+  ```
+  This is safer than `do_replace` because it avoids any anchor-search ambiguity.
 
 ### 2. `Database: …` split-run pattern never matched by simple replace
 `Database:` and ` …` are in **separate `<w:r>` runs** in the XML. A plain `str.replace('Database: …', ...)` will never match. Use a cross-run regex (see step 8).
@@ -191,8 +241,68 @@ Files ending in `_MDC` (e.g. `HANA_Workload_1.00.90+_MDC.txt`) reference `SYS_DA
 ### 4. TIME_AGGREGATE_BY defaults to DAY — change to HOUR for hourly blocks
 `HANA_LoadHistory_Services_2.00.030+.txt` defaults to `'DAY'`. For hourly output, copy to a temp file and change `'DAY' TIME_AGGREGATE_BY` → `'HOUR' TIME_AGGREGATE_BY` before executing.
 
-### 5. Runtime Checks require prerequisite test runs
+### 5. Thread Samples SQL requires AGGREGATE_BY override
+`HANA_Threads_ThreadSamples_FilterAndAggregation_2.00.040+.txt` defaults to `'NONE' AGGREGATE_BY`, which returns one row per individual thread sample — not the aggregated thread-state summary the report expects. Running it as-is returns the current query's own row and appears to have no useful data.
+
+**Fix**: copy to a temp file and override the parameter before executing:
+```python
+import shutil
+shutil.copy('SQLStatements/HANA_Threads_ThreadSamples_FilterAndAggregation_2.00.040+.txt',
+            '/tmp/hana_threadsamples.txt')
+data = open('/tmp/hana_threadsamples.txt').read()
+data = data.replace("'NONE' AGGREGATE_BY", "'THREAD_STATE' AGGREGATE_BY", 1)
+open('/tmp/hana_threadsamples.txt', 'w').write(data)
+# then execute /tmp/hana_threadsamples.txt via MCP
+```
+This produces one row per `THREAD_STATE` with `SAMPLES` and `PCT` columns — matching the template's expected `|SAMPLES|PCT|THREAD_STATE|Q|LOCK_NAME|` layout.
+
+### 6. Runtime Checks require prerequisite test runs
 `HANA_Tests_Results.txt` reads from `M_SQL_PLAN_CACHE_RESET` and returns empty unless the three test SQLs have been executed first (each at least 3×): `HANA_Tests_ArithmeticOperations.txt`, `HANA_Tests_MemoryOperations.txt`, `HANA_Tests_StringOperations.txt`.
+
+### 6. Cover page fields are floating-frame paragraphs — use paraId for targeting
+Cover page system fields (`SAP System ID`, `DB Type`, `DB System ID`, `Database Name`, `Operating System`) use `FPItemNotBold` paragraph style inside `<w:framePr>` floating frames. They cannot be found by text content (all contain only `…`). Target them by `w14:paraId`.
+
+**How to find the correct paraIds** (do once per template version):
+```python
+paras = re.split(r'(?=<w:p[ >])', doc_xml)
+for i, p in enumerate(paras):
+    if 'FPItemNotBold' in p and 'cyan' in p:
+        pid = re.search(r'w14:paraId="([^"]+)"', p)
+        txt = re.sub(r'<[^>]+>', '', p).strip()
+        print(f'Para {i} [{pid.group(1) if pid else "no-pid"}]: {repr(txt[:80])}')
+```
+Identify which paragraph index corresponds to which field from the surrounding label paragraphs (e.g. para 12 = `"SAP System ID"` label → para 13 is the value field).
+
+**Replacement function** (in-place, preserves style and frame):
+```python
+def update_cover_field(xml, para_id, new_value):
+    pat = r'(<w:p [^>]*w14:paraId="' + re.escape(para_id) + r'"[^>]*>)(.*?)(</w:p>)'
+    m = re.search(pat, xml, re.DOTALL)
+    if not m:
+        return xml, False
+    full_para = m.group(0)
+    # Remove cyan from paragraph-level rPr (inside pPr)
+    new_para = re.sub(
+        r'(<w:pPr>.*?<w:rPr>)(.*?)(</w:rPr>)(.*?</w:pPr>)',
+        lambda mm: mm.group(1) + mm.group(2).replace('<w:highlight w:val="cyan"/>', '') + mm.group(3) + mm.group(4),
+        full_para, count=1, flags=re.DOTALL)
+    # Replace the cyan run's text and remove its highlight
+    def replace_cyan_run(m2):
+        val = xml_esc(new_value)
+        space = ' xml:space="preserve"' if new_value.startswith(' ') or '  ' in new_value else ''
+        new_rpr = m2.group(2).replace('<w:highlight w:val="cyan"/>', '')
+        return f'{m2.group(1)}<w:rPr>{new_rpr}</w:rPr><w:t{space}>{val}</w:t></w:r>'
+    new_para = re.sub(
+        r'(<w:r[^>]*>)<w:rPr>(.*?<w:highlight w:val="cyan"/>.*?)</w:rPr>(<w:t[^>]*>)…</w:t></w:r>',
+        replace_cyan_run, new_para, count=1, flags=re.DOTALL)
+    if new_para == full_para:
+        return xml, False
+    return xml[:m.start()] + new_para + xml[m.end():], True
+```
+
+**For DB Type** (e.g. `SAP HANA Database 2.00…`): the cyan run contains only the version suffix `…`. Pass the suffix (e.g. `'.059'`) as `new_value` — it appends after the existing `2.00` runs.
+
+Apply these substitutions to `doc_xml_work` **before** splitting into the paragraph array.
 
 ## What Was Done
 
@@ -281,18 +391,42 @@ def find_para(paras, text, start=0):
         if text in para_text(paras[i]): return i
     return None
 
-def make_para_courier(text, sz):
+def do_replace(paras, section_label, anchor_text, new_lines, sql_file='', log=None,
+               search_start=0, search_end=None, max_gap=5, columns=None, next_anchor=None):
+    """Find cyan block near anchor_text and replace with new_lines.
+
+    next_anchor: text of the non-cyan paragraph that opens the *next* section.
+    When provided, the cyan block boundary is capped by walking backwards from
+    that paragraph — preventing max_gap bridging from swallowing the next
+    section's intro line (see pitfall #1).
+    """
+    idx = find_para(paras, anchor_text, search_start)
+    if idx is None:
+        print(f'  WARNING: anchor not found: {anchor_text!r}')
+        return paras, False
+    blk = find_cyan_block(paras, idx, search_end, max_gap)
+    if blk is None:
+        print(f'  WARNING: no cyan block found after: {anchor_text!r}')
+        return paras, False
+    first, last = blk
+    # Cap boundary at the next section's intro to prevent over-run
+    if next_anchor:
+        next_idx = find_para(paras, next_anchor, first + 1)
+        if next_idx is not None:
+            for i in range(next_idx - 1, first, -1):
+                if 'cyan' in paras[i]:
+                    last = i
+                    break
+    # ... replace_block, log.record, etc.
+
+def make_para(text, sz=14):
     """Courier New paragraph at given half-point size (sz=14→7pt, sz=16→8pt)."""
-    txt = xml_escape(text)
-    space_attr = ' xml:space="preserve"' if text.startswith(' ') or '  ' in text else ''
-    return (
-        '<w:p><w:pPr><w:jc w:val="left"/></w:pPr>'
-        '<w:r>'
-        f'<w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>'
-        f'<w:sz w:val="{sz}"/><w:szCs w:val="{sz}"/></w:rPr>'
-        f'<w:t{space_attr}>{txt}</w:t>'
-        '</w:r></w:p>'
-    )
+    txt = xml_esc(text)
+    space = ' xml:space="preserve"' if text.startswith(' ') or '  ' in text else ''
+    return (f'<w:p><w:pPr><w:jc w:val="left"/></w:pPr><w:r>'
+            f'<w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>'
+            f'<w:sz w:val="{sz}"/><w:szCs w:val="{sz}"/></w:rPr>'
+            f'<w:t{space}>{txt}</w:t></w:r></w:p>')
 ```
 
 ## Change Log

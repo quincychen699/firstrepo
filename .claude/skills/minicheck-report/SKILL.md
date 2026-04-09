@@ -8,6 +8,16 @@ Run a SAP HANA MiniCheck analysis against the on-prem HANA system and generate a
 
 ## Steps
 
+### 0. Clean up existing output files
+Before doing anything else, determine the output path (same logic as step 3: use `$ARGUMENTS` if provided, otherwise `/Users/I321356/Documents/claude_project/MiniCheck_Report.docx`).
+
+Then remove any pre-existing files that could conflict or be confused with the new output:
+- The output file itself (e.g. `MiniCheck_Report.docx`)
+- Any backup copies with the same base name (e.g. `MiniCheck_Report*.docx`, `MiniCheck_Report*.docx.bak`, `MiniCheck_Report_*.docx`)
+- The Word auto-recovery / lock file (e.g. `~$MiniCheck_Report.docx`)
+
+Use the Bash tool with `rm -f` to delete them. Print the list of files removed (or "No existing files found" if none).
+
 ### 1. Execute the MiniCheck
 First, determine the HANA version of the on-prem system by running:
 ```sql
@@ -58,8 +68,20 @@ Remove static ToC entries and insert a `TOC \o "1-3" \h \z \u` field so Word
 auto-generates the table of contents when the file is opened.
 
 **d) Fix the Action Plan table**
-In the Action Plan section, keep only the table rows whose Issue column matches
-one of the critical findings. Renumber the ID column sequentially from 1.
+The Action Plan table in the generated report is already built correctly by
+`generate_minicheck_report.py` — it contains only the rows matching critical
+findings, with columns populated as follows:
+
+- **ID**: sequential number starting from 1
+- **DB**: actual system SID (e.g. `HAN`), replacing the `-` placeholder from the template
+- **P**: priority value copied verbatim from the matching row in the TPO template's Action Plan table
+- **S**: status copied verbatim from the template (typically `O`)
+- **Issue**: issue title copied verbatim from the matching template row, matching the section heading in "Issues and Recommendations"
+- **Recommendation**: recommendation text copied verbatim from the matching template row
+
+For issues that have a Heading 2 section in the template but no row in the template's Action Plan table (e.g. "Short Backup Retention Period"), a fallback row is constructed using the recommendation text from the section body and priority from the section header.
+
+All data rows in the Issue and Recommendation columns use **left alignment**, consistent with the TPO template.
 
 ### 5. Write execution log
 Append a detailed log entry to `/Users/I321356/Documents/claude_project/minicheck_report.log`.
@@ -91,10 +113,21 @@ CRITICAL FINDINGS (C=X)
   M0910   8.50 / <= 1.20              Age of last data backup (days)                  [SAP Note 1642148]
 
 CROSS-CHECK: MiniCheck C=X vs. TPO Template Sections
-  For each critical CHID, indicate whether a matching Issues & Recommendations
-  section was found in the generated report (from generate_minicheck_report.py output):
-  [FOUND]   <CHID>  <section title in report>
-  [MISSING] <CHID>  <description> — no matching section in template
+  Format as an ASCII table with columns:
+    Status | CHID | MiniCheck Description | P | TPO Section Title | Priority | TPO Check IDs
+
+  - Status    : FOUND (matching H2 section exists in template) or MISS (no match)
+  - CHID      : MiniCheck check ID
+  - MiniCheck Description: description text from the MiniCheck results row
+  - P         : Action Plan priority number from the generated report's Action Plan table (2=High, 3=Medium, - if missing)
+  - TPO Section Title: exact H2 heading from the TPO template; if multiple CHIDs map to the same section,
+                       note the shared CHID in parentheses e.g. "(= M0551)"
+  - Priority  : priority label read from the TPO template section body (High / Medium / -)
+  - TPO Check IDs: check IDs (Mxxxx pattern) listed in the body of that TPO template section;
+                   extract these by scanning the section text in TPO_template.docx
+
+  Add a footer line: "N unique TPO sections cover all N critical CHIDs (N CHIDs share a section with a related finding)"
+  And: "N CHIDs with no TPO section: <list>"
 
 CROSS-CHECK: MiniCheck C=X vs. Action Plan Table
   For each critical CHID, indicate whether a matching row exists in the

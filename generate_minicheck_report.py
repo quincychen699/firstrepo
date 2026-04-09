@@ -88,6 +88,26 @@ def _unique_sections():
 
 UNIQUE_SECTIONS = _unique_sections()
 
+# Fallback Action Plan data for issues that exist as template sections
+# but have no row in the template's 677-row Action Plan table.
+# Keys must match the heading text exactly (case-sensitive).
+FALLBACK_ACTION_PLAN = {
+    'Short Backup Retention Period': {
+        'p': '2',
+        'recommendation': (
+            'Define a proper backup strategy including retention time '
+            '(e.g. daily data backup, retention time of 30 days) and delete only catalog '
+            'entries that refer to backups outside of the retention time.\n'
+            'If the entries in the backup catalog reflect the proper state of the available '
+            'backups, consider increasing the retention period of backups and ensure adequate '
+            'procedures, e.g. regular consistency checks, are in place to detect potential '
+            'issues within a backup cycle.\n'
+            'For further information see SAP Note 1642148 and the backup related sections '
+            'in the SAP HANA Administration Guide.'
+        ),
+    },
+}
+
 # Action plan rows: one row per unique heading (mapped from CHID list)
 def _action_plan_rows():
     seen = {}
@@ -287,9 +307,9 @@ def _make_toc_field():
 
 def _find_action_plan_table(doc):
     """
-    Find the Action Plan table in the template: the first table that follows
-    an H2 paragraph containing 'Action Plan'.
-    Returns (table_object, section_elements_including_heading).
+    Find the Action Plan table in the template: the multi-column (>=6) table
+    that follows an H2 paragraph containing 'Action Plan'.
+    Returns (table_object, heading_idx, table_elem_idx).
     """
     body_children = list(doc.element.body)
     elem_to_para = {id(p._element): p for p in doc.paragraphs}
@@ -307,7 +327,11 @@ def _find_action_plan_table(doc):
                     heading_idx = i
         else:
             if id(elem) in tables_map:
-                return tables_map[id(elem)], heading_idx, i
+                tbl = tables_map[id(elem)]
+                # Skip small column-description tables; the real action plan
+                # table has 6 columns (ID, DB, P, S, Issue, Recommendation)
+                if len(tbl.columns) >= 6:
+                    return tbl, heading_idx, i
     return None, -1, -1
 
 
@@ -318,7 +342,10 @@ def _cell_text(cell):
 def _make_action_plan_section(src_doc, rows):
     """
     Copy the Action Plan heading from the template, then rebuild the table
-    keeping only the header row and one row per item in `rows`.
+    keeping only the rows whose Issue matches one of the critical findings.
+    Each matched row is copied verbatim from the template (preserving P, S,
+    Issue text, and Recommendation), with only ID renumbered and DB set to
+    the actual system SID.
     Returns list of lxml elements to append.
     """
     table, heading_idx, table_idx = _find_action_plan_table(src_doc)
@@ -333,10 +360,32 @@ def _make_action_plan_section(src_doc, rows):
     for i in range(heading_idx, table_idx):
         result_elems.append(copy.deepcopy(body_children[i]))
 
-    # Rebuild the table: header row + filtered/renumbered data rows
     src_rows = table.rows
     if not src_rows:
         return result_elems
+
+    # Build a lookup: normalised issue title -> template row element
+    # (use the first matching row for each unique issue title)
+    template_rows_by_issue = {}
+    for src_row in src_rows[1:]:  # skip header
+        issue_text = src_row.cells[4].text.strip()
+        if issue_text and issue_text not in template_rows_by_issue:
+            template_rows_by_issue[issue_text.lower()] = src_row._element
+
+    # The target issue titles come from ACTION_PLAN_ROWS (unique sections only)
+    target_headings = [r['heading'] for r in rows]
+
+    # Match each target heading to a template row (case-insensitive)
+    matched_template_rows = []
+    for heading in target_headings:
+        match = template_rows_by_issue.get(heading.lower())
+        if match is None:
+            # fallback: partial match
+            for key, elem in template_rows_by_issue.items():
+                if heading.lower() in key or key in heading.lower():
+                    match = elem
+                    break
+        matched_template_rows.append((heading, match))
 
     new_table = copy.deepcopy(table._element)
     # Remove all rows from the copy
@@ -348,20 +397,49 @@ def _make_action_plan_section(src_doc, rows):
     header_tr = copy.deepcopy(src_rows[0]._element)
     tbl_elem.append(header_tr)
 
-    # Find a template data row to clone
-    template_data_row = src_rows[1]._element if len(src_rows) > 1 else src_rows[0]._element
+    # Use a generic data row as fallback for missing template rows
+    fallback_row = src_rows[1]._element if len(src_rows) > 1 else src_rows[0]._element
 
-    for seq_num, row_info in enumerate(rows, start=1):
-        new_tr = copy.deepcopy(template_data_row)
+    sid = COVER_INFO.get('system', '-')
+
+    for seq_num, (heading, src_tr) in enumerate(matched_template_rows, start=1):
+        if src_tr is not None:
+            new_tr = copy.deepcopy(src_tr)
+            cells = new_tr.findall(f'.//{{{W_NS}}}tc')
+            if len(cells) >= 6:
+                _set_cell_text(cells[0], str(seq_num))
+                db_val = ''.join(
+                    n.text or '' for n in cells[1].iter(f'{{{W_NS}}}t')
+                ).strip()
+                _set_cell_text(cells[1], sid if db_val in ('-', '') else db_val)
+                # cells[2] P, cells[3] S, cells[4] Issue, cells[5] Recommendation
+                # are preserved verbatim from the template row
+        else:
+            # No matching template row: build from fallback data
+            new_tr = copy.deepcopy(fallback_row)
+            cells = new_tr.findall(f'.//{{{W_NS}}}tc')
+            fallback = FALLBACK_ACTION_PLAN.get(heading, {})
+            if len(cells) >= 6:
+                _set_cell_text(cells[0], str(seq_num))
+                _set_cell_text(cells[1], sid)
+                _set_cell_text(cells[2], fallback.get('p', '-'))
+                _set_cell_text(cells[3], 'O')
+                _set_cell_text(cells[4], heading)
+                _set_cell_text(cells[5], fallback.get('recommendation', '-'))
+        # Enforce left alignment on Issue (col 4) and Recommendation (col 5)
         cells = new_tr.findall(f'.//{{{W_NS}}}tc')
-        if len(cells) >= 4:
-            # Cell 0: ID
-            _set_cell_text(cells[0], str(seq_num))
-            # Cell 1: Issue / heading title
-            _set_cell_text(cells[1], row_info['heading'])
-            # Cell 2: MiniCheck IDs
-            _set_cell_text(cells[2], row_info['chids'])
-            # Cell 3: leave as-is (recommendation placeholder) or blank
+        for col_idx in (4, 5):
+            if col_idx < len(cells):
+                for p_elem in cells[col_idx].findall(f'.//{{{W_NS}}}p'):
+                    pPr = p_elem.find(f'{{{W_NS}}}pPr')
+                    if pPr is None:
+                        pPr = OxmlElement('w:pPr')
+                        p_elem.insert(0, pPr)
+                    jc = pPr.find(f'{{{W_NS}}}jc')
+                    if jc is None:
+                        jc = OxmlElement('w:jc')
+                        pPr.append(jc)
+                    jc.set(f'{{{W_NS}}}val', 'left')
         tbl_elem.append(new_tr)
 
     result_elems.append(tbl_elem)

@@ -8,19 +8,31 @@ version: 2.0.0
 
 This skill covers how to process and update a SAP HANA MiniCheck report `.docx` file by replacing template placeholders with real data from the HANA system.
 
-**Arguments**: `$ARGUMENTS` contains the input and (optionally) output filename, e.g.:
-- `/hana-report-update HAN_report.docx` → input and output are both `HAN_report.docx`
-- `/hana-report-update HAN_report.docx HAN_report_updated.docx` → separate input and output
+**Arguments**: `$ARGUMENTS` contains the input filename, optional output filename, and optional `--overwrite` flag, e.g.:
+- `/hana-report-update HAN_report.docx` → output is `HAN_report_updated.docx` (default)
+- `/hana-report-update HAN_report.docx HAN_report_v2.docx` → explicit output filename
+- `/hana-report-update HAN_report.docx --overwrite` → output overwrites the input file
 
 Parse at the top of the script:
 ```python
-import sys
-args = "$ARGUMENTS".split()
-INPUT  = args[0] if len(args) >= 1 else 'report.docx'
-OUTPUT = args[1] if len(args) >= 2 else INPUT
+import os, shutil
+raw_args = "$ARGUMENTS".split()
+OVERWRITE = '--overwrite' in raw_args
+args = [a for a in raw_args if a != '--overwrite']
+
+INPUT = args[0] if len(args) >= 1 else 'report.docx'
+
+if OVERWRITE:
+    OUTPUT = INPUT
+elif len(args) >= 2:
+    OUTPUT = args[1]
+else:
+    base, ext = os.path.splitext(INPUT)
+    OUTPUT = base + '_updated' + ext   # e.g. HAN_report_updated.docx
+
 shutil.copy(INPUT, INPUT + '.bak')  # always back up the input
 ```
-Use `INPUT` to load the document and `OUTPUT` to save the result. This way the original is never overwritten when a separate output filename is given.
+Use `INPUT` to load the document and `OUTPUT` to save the result.
 
 ## Overview
 
@@ -442,7 +454,7 @@ import os, datetime
 LOG = os.path.splitext(OUTPUT)[0] + '_update_log.txt'
 ```
 
-Example: `HAN_report.docx` → `HAN_report_update_log.txt`
+Example: `HAN_report.docx` → output `HAN_report_updated.docx` → log `HAN_report_updated_update_log.txt`
 
 ### ChangeLog helper class
 

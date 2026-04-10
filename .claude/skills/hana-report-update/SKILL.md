@@ -55,9 +55,10 @@ def make_para(text, sz=14):
 
 ### How to find the right file
 1. `ls SQLStatements/ | grep -i <keyword>` — e.g. `grep -i startup`, `grep -i timezone`, `grep -i backup`
-2. From the matches, pick the file whose version suffix is the **highest that is ≤ the system revision**
-3. Read the file header (`[NAME]`, `[DESCRIPTION]`, `[VALID FOR]`) to confirm it covers what you need
-4. Execute with `mcp__sap-hana-onprem__execute_sql_file` using the full path
+2. **Exclude all files whose name ends in `_MDC` or contains `_MDC_`** — those are for System DB context only and will fail on a tenant DB with `invalid schema name: SYS_DATABASES`
+3. From the remaining matches, pick the file whose version suffix is the **highest that is ≤ the system revision**
+4. Read the file header (`[NAME]`, `[DESCRIPTION]`, `[VALID FOR]`) to confirm it covers what you need
+5. Execute with `mcp__sap-hana-onprem__execute_sql_file` using the full path
 
 ### Version selection — detect dynamically each run
 
@@ -68,7 +69,8 @@ SELECT VALUE FROM M_SYSTEM_OVERVIEW WHERE NAME = 'Version'
 or read it from the document's already-filled `HANA_Configuration_Overview` block (e.g. `|Revision |2.00.059.20...`).
 
 Use the detected revision (e.g. `2.00.059`) to apply the rule:
-- ✓ Use any file whose version suffix is **≤ detected revision** (e.g. `2.00.040+`, `2.00.030+`, `2.00.000+`, `1.00.90+_MDC`, no-suffix)
+- ✓ Use any file whose version suffix is **≤ detected revision** (e.g. `2.00.040+`, `2.00.030+`, `2.00.000+`, no-suffix)
+- ✗ **Never use `_MDC` files** — they target System DB context and will fail on a tenant DB (`invalid schema name: SYS_DATABASES`)
 - ✗ Skip files whose version suffix is **> detected revision** (e.g. if revision is 2.00.059, skip `2.00.060+` and above)
 - When multiple valid versions exist, always pick the **highest** that still qualifies
 - Never assume the version — always detect it fresh for each new document/system
@@ -121,7 +123,7 @@ Always apply the dynamic version selection rule above when choosing the file. Th
 |---|---|---|---|
 | SAP HANA Overview (General Info) | `HANA_Configuration_Overview` | `HANA_Configuration_Overview_2.00.040+.txt` | General config, versions, features, deprecated. Use `next_anchor='This following overview contains general information'` to prevent over-run into Infrastructure intro. |
 | Infrastructure Report (section 3.2.1) | `HANA_Configuration_Infrastructure` | `HANA_Configuration_Infrastructure_2.00.040+.txt` | Hosts, CPU, memory, OS, disk, network. Appears **immediately after** the `HANA_Configuration_Overview` table. |
-| SAP HANA Workload Information | `HANA_Workload` | `HANA_Workload_1.00.90+_MDC.txt` | Per-day load overview. Use `next_anchor='SAP HANA workload overview: (per hour for recent working day)'` to prevent over-run. FAILS on tenant DB with `invalid schema name: SYS_DATABASES`; fallback `HANA_Workload.txt` only gives current-moment data, not historical. |
+| SAP HANA Workload Information | `HANA_Workload` | `HANA_Workload.txt` | Per-day load overview. Use `next_anchor='SAP HANA workload overview: (per hour for recent working day)'` to prevent over-run. Note: no-suffix version returns current-moment data only, not full historical per-day rows. |
 | SAP HANA Load History (per hour) | `HANA_LoadHistory_Services` | `HANA_LoadHistory_Services_2.00.030+.txt` | Anchor on `'The historic SAP HANA load information is'` for per-day block; use `next_anchor='SAP HANA load history: (per hour for recent working day)'` to prevent over-run into hourly block. Copy to `/tmp/hana_loadhistory_hour.txt`, change `'DAY' TIME_AGGREGATE_BY` → `'HOUR' TIME_AGGREGATE_BY`, then execute the temp file for the hourly block. |
 | Workload Management Settings – Parameters | `HANA_Configuration_Parameters_Values` | `HANA_Configuration_Parameters_Values_2.00.040+.txt` | CPU/memory/thread workload parameters. Immediately follows Thread Samples block — use `next_anchor='SAP HANA Workload Management Settings'` on the Thread Samples replacement to prevent over-run deleting this heading. Column width ≤108: use FILE_NAME(15)\|SECTION(23)\|PARAMETER_NAME(37)\|LAYER(7)\|VALUE(20). |
 | Workload Management Settings – Classes | `HANA_Workload_WorkloadClasses` | `HANA_Workload_WorkloadClasses_2.00.040+.txt` | Configured workload classes and mappings. Empty result → insert `'No workload classes configured (output: empty).'` |
@@ -130,7 +132,7 @@ Always apply the dynamic version selection rule above when choosing the file. Th
 | Space – Partitioning Overview | `HANA_Tables_ColumnStore_PartitionedTables` | `HANA_Tables_ColumnStore_PartitionedTables_2.00.000+.txt` | Partitioned tables |
 | Memory Overview | `HANA_Memory_Overview` | `HANA_Memory_Overview_2.00.040+.txt` | Physical/HANA/global alloc memory |
 | Audit Policies | `HANA_Security_AuditPolicies` | `HANA_Security_AuditPolicies_1.00.80+.txt` | Configured audit policies |
-| System Replication | `HANA_Replication_SystemReplication_Overview` | `HANA_Replication_SystemReplication_Overview_1.00.120+_MDC.txt` | Replication state, lag, backlog |
+| System Replication | `HANA_Replication_SystemReplication_Overview` | `HANA_Replication_SystemReplication_Overview_1.00.120+.txt` | Replication state, lag, backlog |
 | Triggers | `HANA_Configuration_Triggers` | `HANA_Configuration_Triggers.txt` | Configured triggers by scenario |
 | SAP HANA Mini Checks | `HANA_Configuration_MiniChecks` | highest `HANA_Configuration_MiniChecks_<version>.txt` ≤ system revision | Full mini check suite |
 | SAP HANA Thread Samples | `HANA_Threads_ThreadSamples_FilterAndAggregation` | `HANA_Threads_ThreadSamples_FilterAndAggregation_2.00.040+.txt` | Default `AGGREGATE_BY='NONE'` returns per-thread rows. **Must copy to a temp file and set `'THREAD_STATE' AGGREGATE_BY`** before executing for the aggregated thread-state summary the report expects. |
@@ -144,7 +146,7 @@ Always apply the dynamic version selection rule above when choosing the file. Th
 | SQL Cache – Statistics Server | `HANA_SQL_SQLCache` | `HANA_SQL_SQLCache_2.00.053+.txt` | Aggregated by schema/category |
 | SQL Cache – Specific Tables | `HANA_SQL_SQLCache` | `HANA_SQL_SQLCache_2.00.053+.txt` | Same file, filter by table |
 | Data Retention (Statistics Server) | `HANA_StatisticsServer_Histories_RetentionTime` | `HANA_StatisticsServer_Histories_RetentionTime_2.00.040+.txt` | DEF_DAYS, CUR_DAYS, OLDEST_DAYS |
-| Backup Runs | `HANA_Backups_BackupRuns` | `HANA_Backups_BackupRuns_1.00.90+_MDC.txt` | DATA_BACKUP entries (use no-suffix if MDC version errors) |
+| Backup Runs | `HANA_Backups_BackupRuns` | `HANA_Backups_BackupRuns.txt` | DATA_BACKUP entries |
 | License | `HANA_License_Overview` | `HANA_License_Overview.txt` | Limit, usage, expiry |
 | Consistency Checks | `HANA_Consistency_CheckTableConsistency_Executions` | `HANA_Consistency_CheckTableConsistency_Executions_2.00.040+.txt` | Scheduled check runs |
 | Deprecated Features | `HANA_Configuration_Overview` | `HANA_Configuration_Overview_2.00.040+.txt` | DEPRECATED_FEATURES section |
@@ -154,10 +156,10 @@ Always apply the dynamic version selection rule above when choosing the file. Th
 
 ### Version Selection Rules
 - Always detect the system revision first (see Step 0 above) — do NOT hardcode
-- Use any file whose version suffix is ≤ detected revision
+- **Never use files with `_MDC` in the name** — these target System DB context and will fail on a tenant DB
+- Use any non-MDC file whose version suffix is ≤ detected revision
 - Use no-version-suffix files ✓ (valid for all revisions)
 - When multiple valid versions exist, always pick the **highest** that still qualifies
-- If a MDC-specific file (`1.00.90+_MDC`) throws `invalid schema name: SYS_DATABASES`, fall back to the plain no-suffix version of the same SQL
 
 ## HANA System Info
 
@@ -235,8 +237,8 @@ When replacing a cyan block, always determine the **exact end boundary** of that
 ### 2. `Database: …` split-run pattern never matched by simple replace
 `Database:` and ` …` are in **separate `<w:r>` runs** in the XML. A plain `str.replace('Database: …', ...)` will never match. Use a cross-run regex (see step 8).
 
-### 3. MDC SQL files fail on tenant DB
-Files ending in `_MDC` (e.g. `HANA_Workload_1.00.90+_MDC.txt`) reference `SYS_DATABASES` which does not exist in a tenant DB context. Fall back to the no-suffix version, but note it may only return current-moment data (not historical).
+### 3. Never use `_MDC` SQL files — they target System DB, not tenant DB
+Files containing `_MDC` in their name (e.g. `HANA_Workload_1.00.90+_MDC.txt`, `HANA_Backups_BackupRuns_1.00.90+_MDC.txt`, `HANA_Replication_SystemReplication_Overview_1.00.120+_MDC.txt`) reference `SYS_DATABASES` which does not exist in a tenant DB context. They will fail with `invalid schema name: SYS_DATABASES`. Always use the non-MDC version of the same SQL file.
 
 ### 4. TIME_AGGREGATE_BY defaults to DAY — change to HOUR for hourly blocks
 `HANA_LoadHistory_Services_2.00.030+.txt` defaults to `'DAY'`. For hourly output, copy to a temp file and change `'DAY' TIME_AGGREGATE_BY` → `'HOUR' TIME_AGGREGATE_BY` before executing.

@@ -41,7 +41,7 @@ For HANA Cloud, use `"HANA_TYPE": "cloud"` and set `"HANA_PORT": "443"`.
 
 ### 3. Place required files
 
-- `HANA_Configuration_MiniChecks.txt` — MiniCheck SQL script (SAP Note 1969700)
+- `SQLStatements` — Folder that contains all the SQL script (SAP Note 1969700)
 - `TPO_template.docx` — TPO template document (from your SAP engagement)
 
 Update the file paths in `generate_minicheck_report.py` if needed:

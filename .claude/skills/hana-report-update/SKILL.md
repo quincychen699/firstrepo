@@ -15,7 +15,7 @@ This skill covers how to process and update a SAP HANA MiniCheck report `.docx` 
 
 Parse at the top of the script:
 ```python
-import os, shutil
+import os, shutil, glob
 raw_args = "$ARGUMENTS".split()
 OVERWRITE = '--overwrite' in raw_args
 args = [a for a in raw_args if a != '--overwrite']
@@ -29,6 +29,13 @@ elif len(args) >= 2:
 else:
     base, ext = os.path.splitext(INPUT)
     OUTPUT = base + '_updated' + ext   # e.g. HAN_report_updated.docx
+
+# Clean up any previous output files (skip in overwrite mode to protect the input)
+if not OVERWRITE:
+    out_base = os.path.splitext(OUTPUT)[0]
+    for f in glob.glob(out_base + '*'):
+        os.remove(f)
+        print(f'Removed previous file: {f}')
 
 shutil.copy(INPUT, INPUT + '.bak')  # always back up the input
 ```

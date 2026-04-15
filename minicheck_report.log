@@ -1,179 +1,626 @@
 ================================================================================
-MiniCheck Run: 2026-04-08 04:46:14 UTC
+MiniCheck Run: 2026-04-15 02:57:56 UTC
 ================================================================================
 SYSTEM INFO
-  System ID     : HAN / HAN
-  HANA Version  : 2.00.059.20.1762280519
-  MiniCheck file: HANA_Configuration_MiniChecks_2.00.059.01+.txt
-  Analysis date : 2026/04/08 04:46:14 (UTC)
+  System ID     : COE / S4H
+  HANA Version  : 2.00.073.00.1695288802
+  MiniCheck file: HANA_Configuration_MiniChecks_2.00.073+.txt
+  Analysis date : 2026/04/15 02:50:18 (UTC)
 
 EXECUTION SUMMARY
-  Total checks  : 545
-  Critical (C=X): 24
-  Output report : /Users/I321356/Documents/claude_project/MiniCheck_Report.docx
+  Total checks  : 552
+  Critical (C=X): 39
+  Output report : /Users/I321356/Documents/claude_project/COE_TPO_report_template.docx
 
 CRITICAL FINDINGS (C=X)
-  CHID    VALUE                          EXPECTED        DESCRIPTION                                         [SAP Note]
-  ------  -----------------------------  --------------  --------------------------------------------------  ----------
-  M0115   2304                           <= 600          Service startup time variation (s)                  [2177064]
-  M0209   no (4.12.14-122.212-default)   yes             Recommended operating system kernel version         [2235581]
-  M0221   82                             <= 80           Peak CPU utilization (%, short-term)                [2100040]
-  M0411   1                              20 to 50        Current service alloc. limit used by tables (%)     [1999997]
-  M0418   80.92                          0.00            Host memory overallocation (GB)                     [1999997]
-  M0471   53                             >= 75           IPMM memory vs. actually used memory (%)            [1999997]
-  M0551   no                             yes             Proper setup of timezone table TTZZ                 [1791342]
-  M0552   2                              0               Number of current timezone alerts                   [1791342]
-  M0710   1                              0               Open alerts (high priority)                         [2445867]
-  M0744   65.47                          <= 20.00        Total SQL cache share of statistics server (%)      [2124112]
-  M0752   300                            299             Historic thread call stacks interval (s)            [2147247]
-  M0753   42                             >= 365          Retention time of table disk sizes (days)           [2147247]
-  M0754   60                             300             Historic long running statements interval (s)       [2147247]
-  M0766   no                             yes             Workload class for statistics server in place       [2970921]
-  M0910   8.52                           <= 1.20         Age of last data backup (days)                      [1642148]
-  M0942   9.17                           <= 5.00         Catalog size share (%, mid-term)                    [2505218]
-  M0945   8                              28 to 150       Age of oldest backup in catalog (days)              [2505218]
-  M1142   SYS.DUMMY(1) (17 %)            none            Tables with high SQL cache utilization              [2124112]
-  M1165   54.41                          <= 20.00        Internal executions (%)                             [2000002]
-  M1168   no                             yes             Delivered statement hints implemented               [2700051]
-  M1415   6                              >= 100          License expiration (days)                           [1644792]
-  M1420   no                             yes             Permanent license                                   [1644792]
-  M2113   n/a                            <= 32           Last global table consistency check (days)          [2116157]
-  M2340   REPOSITORY - API               none            Deprecated features used (long-term)                [2425002]
+  M0012    73.00                                  >= 74.00                   Revision level                                          [SAP Note 2378962]
+  M0110    no                                     yes                        Everything started                                      [SAP Note 2177064]
+  M0208    no (SLES 12.5)                         yes                        Supported operating system                              [SAP Note 2235581]
+  M0209    no (4.12.14-122.212-default)           yes                        Recommended operating system kernel version             [SAP Note 2235581]
+  M0371    7.68                                   <= 7.00                    Unused space in packed LOBs vs. data (%)                [SAP Note 2220627]
+  M0411    8                                      20 to 50                   Current service alloc. limit used by tables (%)         [SAP Note 1999997]
+  M0418    42.23                                  0.00                       Host memory overallocation (GB)                         [SAP Note 1999997]
+  M0422    Pool/RowEngine/QueryExecution/SearchAlloc (13 GB) none                       Large heap allocators (long-term)                       [SAP Note 1999997]
+  M0435    411267                                 <= 1000                    Number of shrink unloads (short-term)                   [SAP Note 2127458]
+  M0471    71                                     >= 75                      IPMM memory vs. actually used memory (%)                [SAP Note 1999997]
+  M0547    4                                      0                          Non BW tables with disabled auto merge                  [SAP Note 2057046]
+  M0549    3                                      0                          Non BW tables with disabled auto compression            [SAP Note 2112604]
+  M0551    no                                     yes                        Proper setup of timezone table TTZZ                     [SAP Note 1791342]
+  M0552    2                                      0                          Number of current timezone alerts                       [SAP Note 1791342]
+  M0577    2                                      0                          Tables with special unload priority                     [SAP Note 2127458]
+  M0640    1401                                   <= 200                     Number of trace files (total)                           [SAP Note 2119087]
+  M0644    150.81                                 <= 70.00                   Size of largest trace file (MB)                         [SAP Note 2119087]
+  M0710    4                                      0                          Open alerts (high priority)                             [SAP Note 2445867]
+  M0744    48.19                                  <= 20.00                   Total SQL cache share of statistics server (%)          [SAP Note 2124112]
+  M0750    1                                      0                          Stat. server tables with retention < 42 days            [SAP Note 2147247]
+  M0754    60                                     300                        Historic long running statements interval (s)           [SAP Note 2147247]
+  M0868    3                                      0                          Currently queueing connections                          [SAP Note 2222250]
+  M0889    yes (20 > 8)                           no                         Workload class thread limit > max_concurrency           [SAP Note 2222250]
+  M0909    98.74                                  <= 30.00                   Age of last traditional data backup (days)              [SAP Note 2039883]
+  M0910    98.74                                  <= 1.20                    Age of last data backup (days)                          [SAP Note 1642148]
+  M0920    2369.67                                <= 1.00                    Age of last log backup (hours)                          [SAP Note 1642148]
+  M0945    354                                    28 to 150                  Age of oldest backup in catalog (days)                  [SAP Note 2505218]
+  M1142    SYS.RS_TABLES_(10), SYS.RS_CO...TISTICS_PROPERTIES(18) (13 %) none                       Tables with high SQL cache utilization                  [SAP Note 2124112]
+  M1168    no                                     yes                        Delivered statement hints implemented                   [SAP Note 2700051]
+  M1940    28                                     0                          Sequences with insufficient caching                     [SAP Note 2600095]
+  M2113    n/a                                    <= 32                      Last global table consistency check (days)              [SAP Note 2116157]
+  M2118    yes                                    no                         Table container check with load configured              [SAP Note 2116157]
+  M2130    3                                      0                          Inconsistencies between topology and daemon             [SAP Note 2222249]
+  M2260    yes                                    no                         Orphan dpserver service                                 [SAP Note 3014471]
+  M2334    global_allocation_limit = 122465       none                       Unsupported parameter settings                          [SAP Note 2186744]
+  M2336    dynamic_range_check_time_interval_sec (12 / month) none                       Parameters with many changes                            [SAP Note 2186744]
+  M2340    REPOSITORY - API                       none                       Deprecated features used (long-term)                    [SAP Note 2425002]
+  M2810    yes                                    no                         Orphan docstore service                                 [SAP Note 3014471]
 
 CROSS-CHECK: MiniCheck C=X vs. TPO Template Sections
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | Status   | CHID    | MiniCheck Description                                      | Priority | TPO Section Title / Check IDs         |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M0115   | Service startup time variation (s)                         | Medium   | Significant Variation in SAP HANA     |
-  |          |         |                                                            |          | Service Startup Times                 |
-  |          |         |                                                            |          | Check IDs: M0115                      |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M0209   | Recommended operating system kernel version                | Medium   | Outdated Linux Kernel Version         |
-  |          |         |                                                            |          | Check IDs: M0209, M0228, L0011        |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M0221   | Peak CPU utilization (%, short-term)                       | Medium   | CPU Spikes due to Optimize            |
-  |          |         |                                                            |          | Compression                           |
-  |          |         |                                                            |          | Check IDs: M0221, M0222               |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M0411   | Current service alloc. limit used by tables (%)            | Medium   | Indications for oversized Memory      |
-  |          |         |                                                            |          | Check IDs: M0411                      |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M0418   | Host memory overallocation (GB)                            | High     | Host Memory Overallocation            |
-  |          |         |                                                            |          | Check IDs: M0418                      |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M0471   | IPMM memory vs. actually used memory (%)                   | Medium   | IPMM Memory Size reported as too      |
-  |          |         |                                                            |          | small                                 |
-  |          |         |                                                            |          | Check IDs: M0471                      |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M0551   | Proper setup of timezone table TTZZ                        | Medium   | Inadequate SAP HANA Timezone          |
-  |          |         |                                                            |          | Configuration                         |
-  |          |         |                                                            |          | Check IDs: M0551, M0552, Q0420,       |
-  |          |         |                                                            |          | T0865, T0866, T3257                   |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M0552   | Number of current timezone alerts                          | Medium   | Inadequate SAP HANA Timezone          |
-  |          |         |                                                            |          | Configuration                         |
-  |          |         |                                                            |          | Check IDs: M0551, M0552, Q0420,       |
-  |          |         |                                                            |          | T0865, T0866, T3257                   |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M0710   | Open alerts (high priority)                                | Medium   | Statistics Server Alert for Table     |
-  |          |         |                                                            |          | Size Growth                           |
-  |          |         |                                                            |          | Check IDs: M0710                      |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M0744   | Total SQL cache share of statistics server (%)             | Medium   | High SQL Cache Utilization caused by  |
-  |          |         |                                                            |          | Statistics Server                     |
-  |          |         |                                                            |          | Check IDs: M0744                      |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M0752   | Historic thread call stacks interval (s)                   | Medium   | Inactive Thread Call Stacks Collector |
-  |          |         |                                                            |          | Check IDs: M0721, M0752               |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M0753   | Retention time of table disk sizes (days)                  | Low      | Limited Table Disk Size History       |
-  |          |         |                                                            |          | Retention Time                        |
-  |          |         |                                                            |          | Check IDs: M0753                      |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M0754   | Historic long running statements interval (s)              | Medium   | Overhead due to granular Long Running |
-  |          |         |                                                            |          | Statements History                    |
-  |          |         |                                                            |          | Check IDs: M0754                      |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M0766   | Workload class for statistics server in place              | Medium   | No Statistics Server Related Workload |
-  |          |         |                                                            |          | Class Active                          |
-  |          |         |                                                            |          | Check IDs: M0766                      |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M0910   | Age of last data backup (days)                             | High     | No recent Data Backup available       |
-  |          |         |                                                            |          | Check IDs: M0910                      |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M0942   | Catalog size share (%, mid-term)                           | High     | Large Backup Catalog Size             |
-  |          |         |                                                            |          | Check IDs: M0940, M0942, M0945        |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M0945   | Age of oldest backup in catalog (days)                     | High     | Short Backup Retention Period         |
-  |          |         |                                                            |          | Check IDs: M0945                      |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M1142   | Tables with high SQL cache utilization                     | High     | Bind Variables not being used by      |
-  |          |         |                                                            |          | MicroStrategy                         |
-  |          |         |                                                            |          | Check IDs: M0890, M1129, M1130,       |
-  |          |         |                                                            |          | M1131, M1140, M1142                   |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M1165   | Internal executions (%)                                    | Medium   | High Amount of Internal Executions    |
-  |          |         |                                                            |          | Check IDs: M1165                      |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M1168   | Delivered statement hints implemented                      | Medium   | Delivered Statement Hints not         |
-  |          |         |                                                            |          | implemented                           |
-  |          |         |                                                            |          | Check IDs: M1168                      |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M1415   | License expiration (days)                                  | Medium   | License Restrictions                  |
-  |          |         |                                                            |          | Check IDs: M1415, M1420               |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M1420   | Permanent license                                          | Medium   | License Restrictions                  |
-  |          |         |                                                            |          | Check IDs: M1415, M1420               |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M2113   | Last global table consistency check (days)                 | Medium   | No regular detailed SAP HANA          |
-  |          |         |                                                            |          | Consistency Checks in Place           |
-  |          |         |                                                            |          | Check IDs: M2112, M2113, M2115, Q2400 |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  | [FOUND]  | M2340   | Deprecated features used (long-term)                       | Medium   | Utilization of deprecated SAP HANA    |
-  |          |         |                                                            |          | Features                              |
-  |          |         |                                                            |          | Check IDs: M2340                      |
-  +----------+---------+------------------------------------------------------------+----------+---------------------------------------+
-  Summary: 24 FOUND, 0 MISSING
+  Status  CHID     MiniCheck Description                                P   TPO Section Title                                    Priority   TPO Check IDs
+  ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+  MISS    M0012    Revision level                                       -   -                                                    -          -
+  MISS    M0110    Everything started                                   -   -                                                    -          -
+  MISS    M0208    Supported operating system                           -   -                                                    -          -
+  FOUND   M0209    Recommended operating system kernel version          3   Outdated Linux Kernel Version                        Medium     M0209, M0228
+  MISS    M0371    Unused space in packed LOBs vs. data (%)             -   -                                                    -          -
+  FOUND   M0411    Current service alloc. limit used by tables (%)      2   Host Memory Overallocation (=M0418)                  High       M0418
+  FOUND   M0418    Host memory overallocation (GB)                      2   Host Memory Overallocation (=M0411)                  High       M0418
+  MISS    M0422    Large heap allocators (long-term)                    -   -                                                    -          -
+  MISS    M0435    Number of shrink unloads (short-term)                -   -                                                    -          -
+  FOUND   M0471    IPMM memory vs. actually used memory (%)             3   IPMM Memory Size reported as too small               Medium     M0471
+  MISS    M0547    Non BW tables with disabled auto merge               -   -                                                    -          -
+  MISS    M0549    Non BW tables with disabled auto compression         -   -                                                    -          -
+  FOUND   M0551    Proper setup of timezone table TTZZ                  3   Inadequate SAP HANA Timezone Configuration (=M0552)  Medium     M0551, M0552
+  FOUND   M0552    Number of current timezone alerts                    3   Inadequate SAP HANA Timezone Configuration (=M0551)  Medium     M0551, M0552
+  MISS    M0577    Tables with special unload priority                  -   -                                                    -          -
+  MISS    M0640    Number of trace files (total)                        -   -                                                    -          -
+  MISS    M0644    Size of largest trace file (MB)                      -   -                                                    -          -
+  MISS    M0710    Open alerts (high priority)                          -   -                                                    -          -
+  FOUND   M0744    Total SQL cache share of statistics server (%)       3   High SQL Cache Utilization caused by Statistics S    Medium     M0744
+  MISS    M0750    Stat. server tables with retention < 42 days         -   -                                                    -          -
+  FOUND   M0754    Historic long running statements interval (s)        3   Data Retention of Statistics Server Histories        Medium     M0750, M0753
+  MISS    M0868    Currently queueing connections                       -   -                                                    -          -
+  MISS    M0889    Workload class thread limit > max_concurrency        -   -                                                    -          -
+  MISS    M0909    Age of last traditional data backup (days)           -   -                                                    -          -
+  FOUND   M0910    Age of last data backup (days)                       2   No recent Data Backup available                      High       M0910
+  MISS    M0920    Age of last log backup (hours)                       -   -                                                    -          -
+  FOUND   M0945    Age of oldest backup in catalog (days)               2   Short Backup Retention Period                        High       M0945
+  FOUND   M1142    Tables with high SQL cache utilization               2   High SQL Cache Utilization caused by specific Tab    High       M1142
+  FOUND   M1168    Delivered statement hints implemented                3   Delivered Statement Hints not implemented            Medium     M1168
+  MISS    M1940    Sequences with insufficient caching                  -   -                                                    -          -
+  FOUND   M2113    Last global table consistency check (days)           3   No regular detailed SAP HANA Consistency Checks i    Medium     M2112, M2113, M2115
+  MISS    M2118    Table container check with load configured           -   -                                                    -          -
+  MISS    M2130    Inconsistencies between topology and daemon          -   -                                                    -          -
+  MISS    M2260    Orphan dpserver service                              -   -                                                    -          -
+  MISS    M2334    Unsupported parameter settings                       -   -                                                    -          -
+  MISS    M2336    Parameters with many changes                         -   -                                                    -          -
+  FOUND   M2340    Deprecated features used (long-term)                 3   Utilization of deprecated SAP HANA Features          Medium     M2340
+  MISS    M2810    Orphan docstore service                              -   -                                                    -          -
+
+  12 unique TPO sections cover 14 critical CHIDs (4 CHIDs share a section with a related finding)
+  24 CHIDs with no TPO section: M0012, M0110, M0208, M0371, M0422, M0435, M0547, M0549, M0577, M0640, M0644, M0710, M0750, M0868, M0889, M0909, M0920, M1940, M2118, M2130, M2260, M2334, M2336, M2810
 
 CROSS-CHECK: MiniCheck C=X vs. Action Plan Table
-  [FOUND]   M0115  -> AP Row  7: 'Significant Variation in SAP HANA Service Startup Times'
-  [FOUND]   M0209  -> AP Row 11: 'Outdated Linux Kernel Version'
-  [FOUND]   M0221  -> AP Row  1: 'Temporary CPU Bottlenecks'
-  [FOUND]   M0411  -> AP Row  9: 'Global Allocation Limit Setting'
-  [FOUND]   M0418  -> AP Row 31: 'Host Memory Overallocation'
-  [FOUND]   M0471  -> AP Row 30: 'IPMM Memory Size reported as too small'
-  [FOUND]   M0551  -> AP Row 13: 'Inadequate SAP HANA Timezone Configuration'
-  [FOUND]   M0552  -> AP Row 13: 'Inadequate SAP HANA Timezone Configuration'
-  [MISSING] M0710  'Open alerts (high priority)'                   -> no matching AP row
-  [FOUND]   M0744  -> AP Row 17: 'High SQL Cache Utilization caused by Statistics Server'
-  [FOUND]   M0752  -> AP Row 25: 'Non-representative Historic Call Stacks'
-  [FOUND]   M0753  -> AP Row 28: 'Limited Table Disk Size History Retention Time'
-  [FOUND]   M0754  -> AP Row 33: 'Overhead due to granular Long Running Statements History'
-  [FOUND]   M0766  -> AP Row 23: 'No Statistics Server Related Workload Class Active'
-  [FOUND]   M0910  -> AP Row  8: 'No recent Data Backup available'
-  [FOUND]   M0942  -> AP Row  3: 'Large Backup Catalog Size'
-  [FOUND]   M0945  -> AP Row  3: 'Large Backup Catalog Size'
-  [FOUND]   M1142  -> AP Row 10: 'High SQL Cache Utilization caused by specific Tables'
-  [FOUND]   M1165  -> AP Row 20: 'High Amount of Internal Executions'
-  [FOUND]   M1168  -> AP Row 21: 'Delivered Statement Hints not implemented'
-  [FOUND]   M1415  -> AP Row  2: 'License Restrictions'
-  [FOUND]   M1420  -> AP Row  2: 'License Restrictions'
-  [MISSING] M2113  'Last global table consistency check (days)'    -> no matching AP row
-  [FOUND]   M2340  -> AP Row 22: 'Utilization of deprecated SAP HANA Features'
-  Summary   : 22 FOUND, 2 MISSING from Action Plan table (33 data rows total)
+  [MISSING] M0012  Revision level — no TPO section mapped
+  [MISSING] M0110  Everything started — no TPO section mapped
+  [MISSING] M0208  Supported operating system — no TPO section mapped
+  [FOUND]   M0209  row #2  "Outdated Linux Kernel Version"
+  [MISSING] M0371  Unused space in packed LOBs vs. data (%) — no TPO section mapped
+  [FOUND]   M0411  row #3  "Host Memory Overallocation"
+  [FOUND]   M0418  row #3  "Host Memory Overallocation"
+  [MISSING] M0422  Large heap allocators (long-term) — no TPO section mapped
+  [MISSING] M0435  Number of shrink unloads (short-term) — no TPO section mapped
+  [FOUND]   M0471  row #4  "IPMM Memory Size reported as too small"
+  [MISSING] M0547  Non BW tables with disabled auto merge — no TPO section mapped
+  [MISSING] M0549  Non BW tables with disabled auto compression — no TPO section mapped
+  [FOUND]   M0551  row #5  "Inadequate SAP HANA Timezone Configuration"
+  [FOUND]   M0552  row #5  "Inadequate SAP HANA Timezone Configuration"
+  [MISSING] M0577  Tables with special unload priority — no TPO section mapped
+  [MISSING] M0640  Number of trace files (total) — no TPO section mapped
+  [MISSING] M0644  Size of largest trace file (MB) — no TPO section mapped
+  [MISSING] M0710  Open alerts (high priority) — no TPO section mapped
+  [FOUND]   M0744  row #6  "High SQL Cache Utilization caused by Statistics Server"
+  [MISSING] M0750  Stat. server tables with retention < 42 days — no TPO section mapped
+  [FOUND]   M0754  row #7  "Data Retention of Statistics Server Histories"
+  [MISSING] M0868  Currently queueing connections — no TPO section mapped
+  [MISSING] M0889  Workload class thread limit > max_concurrency — no TPO section mapped
+  [MISSING] M0909  Age of last traditional data backup (days) — no TPO section mapped
+  [FOUND]   M0910  row #9  "No recent Data Backup available"
+  [MISSING] M0920  Age of last log backup (hours) — no TPO section mapped
+  [FOUND]   M0945  row #10  "Short Backup Retention Period"
+  [FOUND]   M1142  row #11  "High SQL Cache Utilization caused by specific Tables"
+  [FOUND]   M1168  row #12  "Delivered Statement Hints not implemented"
+  [MISSING] M1940  Sequences with insufficient caching — no TPO section mapped
+  [FOUND]   M2113  row #14  "No regular detailed SAP HANA Consistency Checks in place"
+  [MISSING] M2118  Table container check with load configured — no TPO section mapped
+  [MISSING] M2130  Inconsistencies between topology and daemon — no TPO section mapped
+  [MISSING] M2260  Orphan dpserver service — no TPO section mapped
+  [MISSING] M2334  Unsupported parameter settings — no TPO section mapped
+  [MISSING] M2336  Parameters with many changes — no TPO section mapped
+  [FOUND]   M2340  row #15  "Utilization of deprecated SAP HANA Features"
+  [MISSING] M2810  Orphan docstore service — no TPO section mapped
 
 ISSUES / WARNINGS
-  [WARN]  M0710 (1 high-priority open alert): No Action Plan row exists -- requires manual
-          investigation of the open alert via SAP Note 2445867.
-  [WARN]  M2113 (No table consistency check ever run): No Action Plan row present -- manually
-          add action item to schedule HANA_Table_Consistency_Checks per SAP Note 2116157.
-  [WARN]  M1415 (License expires in 6 days): CRITICAL -- license expiry imminent; action
-          required immediately per SAP Note 1644792.
-  [WARN]  M0910 (Last backup 8.52 days ago, threshold <= 1.20 days): Severely overdue backup --
-          high data loss risk; immediate action required per SAP Note 1642148.
-  [WARN]  M0418 (Host memory overallocation 80.92 GB): 80.92 GB overallocated -- OOM risk.
-  [INFO]  TPO template cross-check: 24 FOUND, 0 MISSING.
-  [INFO]  Action Plan cross-check: 22 FOUND, 2 MISSING (M0710, M2113).
-  [INFO]  Action Plan table written with 33 data rows (header + 33 = 34 total rows in docx).
+  - 24 CHIDs with no TPO template section: M0012, M0110, M0208, M0371, M0422, M0435, M0547, M0549, M0577, M0640, M0644, M0710, M0750, M0868, M0889, M0909, M0920, M1940, M2118, M2130, M2260, M2334, M2336, M2810
+  - 24 CHIDs missing from Action Plan table: M0012, M0110, M0208, M0371, M0422, M0435, M0547, M0549, M0577, M0640, M0644, M0710, M0750, M0868, M0889, M0909, M0920, M1940, M2118, M2130, M2260, M2334, M2336, M2810
+================================================================================
+================================================================================
+MiniCheck Run: 2026-04-15 03:43:06 UTC
+================================================================================
+SYSTEM INFO
+  System ID     : COE / S4H
+  HANA Version  : 2.00.073.00.1695288802
+  MiniCheck file: HANA_Configuration_MiniChecks_2.00.073+.txt
+  Analysis date : 2026/04/15 03:26:05 (UTC)
 
+EXECUTION SUMMARY
+  Total checks  : 552
+  Critical (C=X): 38
+  Output report : /Users/I321356/Documents/claude_project/COE_TPO_report_template.docx
+
+CRITICAL FINDINGS (C=X)
+  M0012   73.00                                    / >= 74.00         Revision level  [SAP Note 2378962]
+  M0110   no                                       / yes              Everything started  [SAP Note 2177064]
+  M0208   no (SLES 12.5)                           / yes              Supported operating system  [SAP Note 2235581]
+  M0209   no (4.12.14-122.212-default)             / yes              Recommended operating system kernel version  [SAP Note 2235581]
+  M0371   7.68                                     / <= 7.00          Unused space in packed LOBs vs. data (%)  [SAP Note 2220627]
+  M0411   7                                        / 20 to 50         Current service alloc. limit used by tables (%)  [SAP Note 1999997]
+  M0418   42.24                                    / 0.00             Host memory overallocation (GB)  [SAP Note 1999997]
+  M0420   Pool/RowEngine/QueryExecution/SearchAlloc (4 GB) / none             Large heap allocators (current)  [SAP Note 1999997]
+  M0422   Pool/RowEngine/QueryExecution/SearchAlloc (13 GB) / none             Large heap allocators (long-term)  [SAP Note 1999997]
+  M0435   423640                                   / <= 1000          Number of shrink unloads (short-term)  [SAP Note 2127458]
+  M0471   72                                       / >= 75            IPMM memory vs. actually used memory (%)  [SAP Note 1999997]
+  M0547   4                                        / 0                Non BW tables with disabled auto merge  [SAP Note 2057046]
+  M0549   3                                        / 0                Non BW tables with disabled auto compression  [SAP Note 2112604]
+  M0551   no                                       / yes              Proper setup of timezone table TTZZ  [SAP Note 1791342]
+  M0552   2                                        / 0                Number of current timezone alerts  [SAP Note 1791342]
+  M0577   2                                        / 0                Tables with special unload priority  [SAP Note 2127458]
+  M0640   1401                                     / <= 200           Number of trace files (total)  [SAP Note 2119087]
+  M0644   150.81                                   / <= 70.00         Size of largest trace file (MB)  [SAP Note 2119087]
+  M0710   4                                        / 0                Open alerts (high priority)  [SAP Note 2445867]
+  M0744   48.19                                    / <= 20.00         Total SQL cache share of statistics server (%)  [SAP Note 2124112]
+  M0750   1                                        / 0                Stat. server tables with retention < 42 days  [SAP Note 2147247]
+  M0754   60                                       / 300              Historic long running statements interval (s)  [SAP Note 2147247]
+  M0889   yes (20 > 8)                             / no               Workload class thread limit > max_concurrency  [SAP Note 2222250]
+  M0909   98.76                                    / <= 30.00         Age of last traditional data backup (days)  [SAP Note 2039883]
+  M0910   98.76                                    / <= 1.20          Age of last data backup (days)  [SAP Note 1642148]
+  M0920   2370.27                                  / <= 1.00          Age of last log backup (hours)  [SAP Note 1642148]
+  M0945   354                                      / 28 to 150        Age of oldest backup in catalog (days)  [SAP Note 2505218]
+  M1142   SYS.RS_TABLES_(10), SYS.RS_CO...TISTICS_PROPERTIES(18) (13 %) / none             Tables with high SQL cache utilization  [SAP Note 2124112]
+  M1168   no                                       / yes              Delivered statement hints implemented  [SAP Note 2700051]
+  M1940   28                                       / 0                Sequences with insufficient caching  [SAP Note 2600095]
+  M2113   n/a                                      / <= 32            Last global table consistency check (days)  [SAP Note 2116157]
+  M2118   yes                                      / no               Table container check with load configured  [SAP Note 2116157]
+  M2130   3                                        / 0                Inconsistencies between topology and daemon  [SAP Note 2222249]
+  M2260   yes                                      / no               Orphan dpserver service  [SAP Note 3014471]
+  M2334   global_allocation_limit = 122465         / none             Unsupported parameter settings  [SAP Note 2186744]
+  M2336   dynamic_range_check_time_interval_sec (12 / month) / none             Parameters with many changes  [SAP Note 2186744]
+  M2340   REPOSITORY - API                         / none             Deprecated features used (long-term)  [SAP Note 2425002]
+  M2810   yes                                      / no               Orphan docstore service  [SAP Note 3014471]
+
+CROSS-CHECK: MiniCheck C=X vs. TPO Template Sections
+  Status | CHID   | MiniCheck Description                              | P  | TPO Section Title                                                 | Priority | TPO Check IDs
+  ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  FOUND  | M0012  | Revision level                                     | -  | SAP HANA Mini Checks                                              | High     | M0006, M0007, M0010, M0011, M0250, M0450, M0644, M0762, M1031, M1140, M1144, M2340, M0009, M0012, M0110, M0111, M2310, M2315, M2320, M2410
+  FOUND  | M0110  | Everything started                                 | -  | SAP HANA Mini Checks (= M0012)                                    | High     | M0006, M0007, M0010, M0011, M0250, M0450, M0644, M0762, M1031, M1140, M1144, M2340, M0009, M0012, M0110, M0111, M2310, M2315, M2320, M2410
+  FOUND  | M0208  | Supported operating system                         | 2  | Unsupported Operating System Release                              | High     | M0208
+  FOUND  | M0209  | Recommended operating system kernel version        | 3  | Outdated Linux Kernel Version                                     | Medium   | M0209, M0228
+  FOUND  | M0371  | Unused space in packed LOBs vs. data (%)           | 2  | Large Technical Tables                                            | High     | M0371, M0372, M0373, M0374, M0537, M0890, M0892, M0530, M0420, M0421
+  FOUND  | M0411  | Current service alloc. limit used by tables (%)    | 2  | Memory Bottlenecks                                                | High     | M0230, M0231, M0317, M0410, M0411, M0413, M0415, M0417, M0420, M0421, M0422, M0423, M0425, M0426, M0430, M0431, M0435, M0437, M0645, M0646, M0409, M0438, M0439, M1052, M1055, M0641, M0226, M0643, M0655, M0658, M0541, M0871
+  FOUND  | M0418  | Host memory overallocation (GB)                    | 2  | Host Memory Overallocation                                        | High     | M0418
+  FOUND  | M0420  | Large heap allocators (current)                    | 2  | Large Technical Tables (= M0371)                                  | High     | M0371, M0372, M0373, M0374, M0537, M0890, M0892, M0530, M0420, M0421
+  FOUND  | M0422  | Large heap allocators (long-term)                  | 2  | Memory Bottlenecks (= M0411)                                      | High     | M0230, M0231, M0317, M0410, M0411, M0413, M0415, M0417, M0420, M0421, M0422, M0423, M0425, M0426, M0430, M0431, M0435, M0437, M0645, M0646, M0409, M0438, M0439, M1052, M1055, M0641, M0226, M0643, M0655, M0658, M0541, M0871
+  FOUND  | M0435  | Number of shrink unloads (short-term)              | 2  | Memory Bottlenecks (= M0411)                                      | High     | M0230, M0231, M0317, M0410, M0411, M0413, M0415, M0417, M0420, M0421, M0422, M0423, M0425, M0426, M0430, M0431, M0435, M0437, M0645, M0646, M0409, M0438, M0439, M1052, M1055, M0641, M0226, M0643, M0655, M0658, M0541, M0871
+  FOUND  | M0471  | IPMM memory vs. actually used memory (%)           | 3  | IPMM Memory Size reported as too small                            | Medium   | M0471
+  FOUND  | M0547  | Non BW tables with disabled auto merge             | 3  | Tables with disabled Auto Merge                                   | Medium   | M0547
+  FOUND  | M0549  | Non BW tables with disabled auto compression       | 3  | Tables with disabled Auto Compression                             | Medium   | M0549
+  FOUND  | M0551  | Proper setup of timezone table TTZZ                | 3  | Inadequate SAP HANA Timezone Configuration                        | Medium   | M0551, M0552
+  FOUND  | M0552  | Number of current timezone alerts                  | 3  | Inadequate SAP HANA Timezone Configuration (= M0551)              | Medium   | M0551, M0552
+  FOUND  | M0577  | Tables with special unload priority                | 3  | Tables with special Unload Priorities                             | Medium   | M0577
+  FOUND  | M0640  | Number of trace files (total)                      | 3  | Significant Amount of Trace Files                                 | Medium   | M0640, M0641
+  FOUND  | M0644  | Size of largest trace file (MB)                    | -  | SAP HANA Mini Checks (= M0012)                                    | High     | M0006, M0007, M0010, M0011, M0250, M0450, M0644, M0762, M1031, M1140, M1144, M2340, M0009, M0012, M0110, M0111, M2310, M2315, M2320, M2410
+  FOUND  | M0710  | Open alerts (high priority)                        | 3  | SAP HANA Alerts due to Number of Table Records                    | Medium   | M0710
+  FOUND  | M0744  | Total SQL cache share of statistics server (%)     | 3  | High SQL Cache Utilization caused by Statistics Server            | Medium   | M0744
+  FOUND  | M0750  | Stat. server tables with retention < 42 days       | 3  | Data Retention of Statistics Server Histories                     | Medium   | M0750, M0753
+  FOUND  | M0754  | Historic long running statements interval (s)      | 3  | Overhead due to granular Long Running Statements History          | Medium   | M0754
+  FOUND  | M0889  | Workload class thread limit > max_concurrency      | -  | Workload Class Thread Limit higher than max_concurrency           | Medium   | M0889
+  FOUND  | M0909  | Age of last traditional data backup (days)         | 3  | No Regular Creation of Traditional Data Backups                   | Medium   | M0909
+  FOUND  | M0910  | Age of last data backup (days)                     | 2  | No recent Data Backup available                                   | High     | M0910
+  MISS   | M0920  | Age of last log backup (hours)                     | -  | —                                                                 | —        | —
+  FOUND  | M0945  | Age of oldest backup in catalog (days)             | 2  | Large Backup Catalog Size                                         | High     | M0940, M0942, M0945
+  FOUND  | M1142  | Tables with high SQL cache utilization             | 2  | High SQL Cache Utilization caused by specific Tables              | High     | M1142
+  FOUND  | M1168  | Delivered statement hints implemented              | 3  | Delivered Statement Hints not implemented                         | Medium   | M1168
+  FOUND  | M1940  | Sequences with insufficient caching                | 3  | Caching not used for DDLOG Sequence                               | Medium   | M1210, M1940
+  FOUND  | M2113  | Last global table consistency check (days)         | 3  | No regular detailed SAP HANA Consistency Checks in Place          | Medium   | M2112, M2113, M2115
+  FOUND  | M2118  | Table container check with load configured         | -  | Unnecessary Container Loads during lightweight Consistency Checks | Medium   | M2118, M1055, M0437
+  MISS   | M2130  | Inconsistencies between topology and daemon        | -  | —                                                                 | —        | —
+  FOUND  | M2260  | Orphan dpserver service                            | 3  | Unused SAP HANA Services Active                                   | Medium   | M2260, M2810, M0644, M0942, M0409
+  FOUND  | M2334  | Unsupported parameter settings                     | 3  | Parameters violating Value or Layer Restrictions                  | Medium   | M2334
+  FOUND  | M2336  | Parameters with many changes                       | 3  | Repeated Adjustments of same SAP HANA Parameters                  | Medium   | M2336
+  FOUND  | M2340  | Deprecated features used (long-term)               | -  | SAP HANA Mini Checks (= M0012)                                    | High     | M0006, M0007, M0010, M0011, M0250, M0450, M0644, M0762, M1031, M1140, M1144, M2340, M0009, M0012, M0110, M0111, M2310, M2315, M2320, M2410
+  FOUND  | M2810  | Orphan docstore service                            | 3  | Unused SAP HANA Services Active (= M2260)                         | Medium   | M2260, M2810, M0644, M0942, M0409
+
+  28 unique TPO sections cover 38 critical CHIDs (8 CHIDs share a section with a related finding)
+  2 CHIDs with no TPO section: M0920, M2130
+
+CROSS-CHECK: MiniCheck C=X vs. Action Plan Table
+  [FOUND]   M0012  row #1  "SAP HANA Mini Checks"
+  [FOUND]   M0110  row #1  "SAP HANA Mini Checks"
+  [FOUND]   M0208  row #2  "Unsupported Operating System Release"
+  [FOUND]   M0209  row #3  "Outdated Linux Kernel Version"
+  [FOUND]   M0371  row #4  "Large Technical Tables"
+  [FOUND]   M0411  row #5  "Memory Bottlenecks"
+  [FOUND]   M0418  row #6  "Host Memory Overallocation"
+  [FOUND]   M0420  row #4  "Large Technical Tables"
+  [FOUND]   M0422  row #5  "Memory Bottlenecks"
+  [FOUND]   M0435  row #5  "Memory Bottlenecks"
+  [FOUND]   M0471  row #7  "IPMM Memory Size reported as too small"
+  [FOUND]   M0547  row #8  "Tables with disabled Auto Merge"
+  [FOUND]   M0549  row #9  "Tables with disabled Auto Compression"
+  [FOUND]   M0551  row #10  "Inadequate SAP HANA Timezone Configuration"
+  [FOUND]   M0552  row #10  "Inadequate SAP HANA Timezone Configuration"
+  [FOUND]   M0577  row #11  "Tables with special Unload Priorities"
+  [FOUND]   M0640  row #12  "Significant Amount of Trace Files"
+  [FOUND]   M0644  row #1  "SAP HANA Mini Checks"
+  [FOUND]   M0710  row #13  "SAP HANA Alerts due to Number of Table Records"
+  [FOUND]   M0744  row #14  "High SQL Cache Utilization caused by Statistics Server"
+  [FOUND]   M0750  row #15  "Data Retention of Statistics Server Histories"
+  [FOUND]   M0754  row #16  "Overhead due to granular Long Running Statements History"
+  [FOUND]   M0889  row #17  "Workload Class Thread Limit higher than max_concurrency"
+  [FOUND]   M0909  row #18  "No regular Creation of Traditional Data Backups"
+  [FOUND]   M0910  row #19  "No recent Data Backup available"
+  [MISSING] M0920  Age of last log backup (hours) — no matching row in Action Plan table
+  [FOUND]   M0945  row #20  "Large Backup Catalog Size"
+  [FOUND]   M1142  row #21  "High SQL Cache Utilization caused by specific Tables"
+  [FOUND]   M1168  row #22  "Delivered Statement Hints not implemented"
+  [FOUND]   M1940  row #23  "Caching not used for DDLOG Sequence"
+  [FOUND]   M2113  row #24  "No regular detailed SAP HANA Consistency Checks in place"
+  [MISSING] M2118  Table container check with load configured — no matching row in Action Plan table
+  [MISSING] M2130  Inconsistencies between topology and daemon — no matching row in Action Plan table
+  [FOUND]   M2260  row #26  "Unused SAP HANA Services Active"
+  [FOUND]   M2334  row #27  "Parameters violating Value or Layer Restrictions"
+  [FOUND]   M2336  row #28  "Repeated Adjustments of same SAP HANA Parameters"
+  [FOUND]   M2340  row #1  "SAP HANA Mini Checks"
+  [FOUND]   M2810  row #26  "Unused SAP HANA Services Active"
+
+ISSUES / WARNINGS
+  - M0920: no TPO H2 section found in template — placeholder added to report
+  - M2130: no TPO H2 section found in template — placeholder added to report
+  - M2118 (Unnecessary Container Loads during lightweight Consistency Checks): section added to report but no matching Action Plan row found
+================================================================================
+================================================================================
+MiniCheck Run: 2026-04-15 04:12:54 UTC
+================================================================================
+SYSTEM INFO
+  System ID     : COE / S4H
+  HANA Version  : 2.00.073.00.1695288802
+  MiniCheck file: HANA_Configuration_MiniChecks_2.00.073+.txt
+  Analysis date : 2026/04/15 03:26:05 (UTC)
+
+EXECUTION SUMMARY
+  Total checks  : 552
+  Critical (C=X): 38
+  Output report : /Users/I321356/Documents/claude_project/COE_TPO_report_template.docx
+
+CRITICAL FINDINGS (C=X)
+  M0012   73.00                                    / >= 74.00         Revision level  [SAP Note 2378962]
+  M0110   no                                       / yes              Everything started  [SAP Note 2177064]
+  M0208   no (SLES 12.5)                           / yes              Supported operating system  [SAP Note 2235581]
+  M0209   no (4.12.14-122.212-default)             / yes              Recommended operating system kernel version  [SAP Note 2235581]
+  M0371   7.68                                     / <= 7.00          Unused space in packed LOBs vs. data (%)  [SAP Note 2220627]
+  M0411   7                                        / 20 to 50         Current service alloc. limit used by tables (%)  [SAP Note 1999997]
+  M0418   42.24                                    / 0.00             Host memory overallocation (GB)  [SAP Note 1999997]
+  M0420   Pool/RowEngine/QueryExecution/SearchAlloc (4 GB) / none             Large heap allocators (current)  [SAP Note 1999997]
+  M0422   Pool/RowEngine/QueryExecution/SearchAlloc (13 GB) / none             Large heap allocators (long-term)  [SAP Note 1999997]
+  M0435   423640                                   / <= 1000          Number of shrink unloads (short-term)  [SAP Note 2127458]
+  M0471   72                                       / >= 75            IPMM memory vs. actually used memory (%)  [SAP Note 1999997]
+  M0547   4                                        / 0                Non BW tables with disabled auto merge  [SAP Note 2057046]
+  M0549   3                                        / 0                Non BW tables with disabled auto compression  [SAP Note 2112604]
+  M0551   no                                       / yes              Proper setup of timezone table TTZZ  [SAP Note 1791342]
+  M0552   2                                        / 0                Number of current timezone alerts  [SAP Note 1791342]
+  M0577   2                                        / 0                Tables with special unload priority  [SAP Note 2127458]
+  M0640   1401                                     / <= 200           Number of trace files (total)  [SAP Note 2119087]
+  M0644   150.81                                   / <= 70.00         Size of largest trace file (MB)  [SAP Note 2119087]
+  M0710   4                                        / 0                Open alerts (high priority)  [SAP Note 2445867]
+  M0744   48.19                                    / <= 20.00         Total SQL cache share of statistics server (%)  [SAP Note 2124112]
+  M0750   1                                        / 0                Stat. server tables with retention < 42 days  [SAP Note 2147247]
+  M0754   60                                       / 300              Historic long running statements interval (s)  [SAP Note 2147247]
+  M0889   yes (20 > 8)                             / no               Workload class thread limit > max_concurrency  [SAP Note 2222250]
+  M0909   98.76                                    / <= 30.00         Age of last traditional data backup (days)  [SAP Note 2039883]
+  M0910   98.76                                    / <= 1.20          Age of last data backup (days)  [SAP Note 1642148]
+  M0920   2370.27                                  / <= 1.00          Age of last log backup (hours)  [SAP Note 1642148]
+  M0945   354                                      / 28 to 150        Age of oldest backup in catalog (days)  [SAP Note 2505218]
+  M1142   SYS.RS_TABLES_(10), SYS.RS_CO...TISTICS_PROPERTIES(18) (13 %) / none             Tables with high SQL cache utilization  [SAP Note 2124112]
+  M1168   no                                       / yes              Delivered statement hints implemented  [SAP Note 2700051]
+  M1940   28                                       / 0                Sequences with insufficient caching  [SAP Note 2600095]
+  M2113   n/a                                      / <= 32            Last global table consistency check (days)  [SAP Note 2116157]
+  M2118   yes                                      / no               Table container check with load configured  [SAP Note 2116157]
+  M2130   3                                        / 0                Inconsistencies between topology and daemon  [SAP Note 2222249]
+  M2260   yes                                      / no               Orphan dpserver service  [SAP Note 3014471]
+  M2334   global_allocation_limit = 122465         / none             Unsupported parameter settings  [SAP Note 2186744]
+  M2336   dynamic_range_check_time_interval_sec (12 / month) / none             Parameters with many changes  [SAP Note 2186744]
+  M2340   REPOSITORY - API                         / none             Deprecated features used (long-term)  [SAP Note 2425002]
+  M2810   yes                                      / no               Orphan docstore service  [SAP Note 3014471]
+
+CROSS-CHECK: MiniCheck C=X vs. TPO Template Sections
+  Status | CHID   | MiniCheck Description                              | P  | TPO Section Title                                                 | Priority | TPO Check IDs
+  ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  FOUND  | M0012  | Revision level                                     | 2  | Outdated SAP HANA Patch Level                                     | High     | M0012
+  FOUND  | M0110  | Everything started                                 | 3  | SAP HANA Services not properly started                            | Medium   | M0110
+  FOUND  | M0208  | Supported operating system                         | 2  | Unsupported Operating System Release                              | High     | M0208
+  FOUND  | M0209  | Recommended operating system kernel version        | 3  | Outdated Linux Kernel Version                                     | Medium   | M0209, M0228
+  FOUND  | M0371  | Unused space in packed LOBs vs. data (%)           | -  | Significant Packed LOB Fragmentation                              | Medium   | M0371
+  FOUND  | M0411  | Current service alloc. limit used by tables (%)    | 2  | Memory Bottlenecks                                                | High     | M0230, M0231, M0317, M0410, M0411, M0413, M0415, M0417, M0420, M0421, M0422, M0423, M0425, M0426, M0430, M0431, M0435, M0437, M0645, M0646
+  FOUND  | M0418  | Host memory overallocation (GB)                    | 2  | Host Memory Overallocation                                        | High     | M0418
+  FOUND  | M0420  | Large heap allocators (current)                    | 2  | Memory Bottlenecks (= M0411)                                      | High     | M0230, M0231, M0317, M0410, M0411, M0413, M0415, M0417, M0420, M0421, M0422, M0423, M0425, M0426, M0430, M0431, M0435, M0437, M0645, M0646
+  FOUND  | M0422  | Large heap allocators (long-term)                  | 2  | Memory Bottlenecks (= M0411)                                      | High     | M0230, M0231, M0317, M0410, M0411, M0413, M0415, M0417, M0420, M0421, M0422, M0423, M0425, M0426, M0430, M0431, M0435, M0437, M0645, M0646
+  FOUND  | M0435  | Number of shrink unloads (short-term)              | 2  | Memory Bottlenecks (= M0411)                                      | High     | M0230, M0231, M0317, M0410, M0411, M0413, M0415, M0417, M0420, M0421, M0422, M0423, M0425, M0426, M0430, M0431, M0435, M0437, M0645, M0646
+  FOUND  | M0471  | IPMM memory vs. actually used memory (%)           | 3  | IPMM Memory Size reported as too small                            | Medium   | M0471
+  FOUND  | M0547  | Non BW tables with disabled auto merge             | 3  | Tables with disabled Auto Merge                                   | Medium   | M0547
+  FOUND  | M0549  | Non BW tables with disabled auto compression       | 3  | Tables with disabled Auto Compression                             | Medium   | M0549
+  FOUND  | M0551  | Proper setup of timezone table TTZZ                | 3  | Inadequate SAP HANA Timezone Configuration                        | Medium   | M0551, M0552
+  FOUND  | M0552  | Number of current timezone alerts                  | 3  | Inadequate SAP HANA Timezone Configuration (= M0551)              | Medium   | M0551, M0552
+  FOUND  | M0577  | Tables with special unload priority                | 3  | Tables with special Unload Priorities                             | High     | M0577
+  FOUND  | M0640  | Number of trace files (total)                      | 3  | Significant Amount of Trace Files                                 | Medium   | M0640, M0641
+  FOUND  | M0644  | Size of largest trace file (MB)                    | 3  | Large Trace Files                                                 | Medium   | M0642, M0643, M0644
+  FOUND  | M0710  | Open alerts (high priority)                        | 3  | SAP HANA Alerts due to Number of Table Records                    | Medium   | M0710
+  FOUND  | M0744  | Total SQL cache share of statistics server (%)     | 3  | High SQL Cache Utilization caused by Statistics Server            | Medium   | M0744
+  FOUND  | M0750  | Stat. server tables with retention < 42 days       | 3  | Data Retention of Statistics Server Histories                     | Medium   | M0750
+  FOUND  | M0754  | Historic long running statements interval (s)      | 3  | Overhead due to granular Long Running Statements History          | Medium   | M0754
+  FOUND  | M0889  | Workload class thread limit > max_concurrency      | -  | Workload Class Thread Limit higher than max_concurrency           | Medium   | M0889
+  FOUND  | M0909  | Age of last traditional data backup (days)         | 3  | No Regular Creation of Traditional Data Backups                   | Medium   | M0909
+  FOUND  | M0910  | Age of last data backup (days)                     | 2  | No recent Data Backup available                                   | High     | M0910
+  MISS   | M0920  | Age of last log backup (hours)                     | -  | —                                                                 | —        | —
+  FOUND  | M0945  | Age of oldest backup in catalog (days)             | 2  | Large Backup Catalog Size                                         | High     | M0940, M0942, M0945
+  FOUND  | M1142  | Tables with high SQL cache utilization             | 2  | High SQL Cache Utilization caused by specific Tables              | High     | M1142
+  FOUND  | M1168  | Delivered statement hints implemented              | 3  | Delivered Statement Hints not implemented                         | Medium   | M1168
+  FOUND  | M1940  | Sequences with insufficient caching                | 3  | Caching not used for DDLOG Sequence                               | Medium   | M1210, M1940
+  FOUND  | M2113  | Last global table consistency check (days)         | 3  | No regular detailed SAP HANA Consistency Checks in Place          | Medium   | M2112, M2113, M2115
+  FOUND  | M2118  | Table container check with load configured         | -  | Unnecessary Container Loads during lightweight Consistency Checks | Medium   | M2118
+  MISS   | M2130  | Inconsistencies between topology and daemon        | -  | —                                                                 | —        | —
+  FOUND  | M2260  | Orphan dpserver service                            | 3  | Unused SAP HANA Services Active                                   | Medium   | M2260, M2810
+  FOUND  | M2334  | Unsupported parameter settings                     | 3  | Parameters violating Value or Layer Restrictions                  | Medium   | M2334
+  FOUND  | M2336  | Parameters with many changes                       | 3  | Repeated Adjustments of same SAP HANA Parameters                  | Medium   | M2336
+  FOUND  | M2340  | Deprecated features used (long-term)               | 3  | Utilization of deprecated SAP HANA Features                       | Medium   | M2340
+  FOUND  | M2810  | Orphan docstore service                            | 3  | Unused SAP HANA Services Active (= M2260)                         | Medium   | M2260, M2810
+
+  31 unique TPO sections cover 38 critical CHIDs (5 CHIDs share a section with a related finding)
+  2 CHIDs with no TPO section: M0920, M2130
+
+CROSS-CHECK: MiniCheck C=X vs. Action Plan Table
+  [FOUND]   M0012  row #1  "Outdated SAP HANA Patch Level"
+  [FOUND]   M0110  row #2  "SAP HANA Services not properly started"
+  [FOUND]   M0208  row #3  "Unsupported Operating System Release"
+  [FOUND]   M0209  row #4  "Outdated Linux Kernel Version"
+  [FOUND]   M0371  row #5  "Significant Packed LOB Fragmentation"
+  [FOUND]   M0411  row #6  "Memory Bottlenecks"
+  [FOUND]   M0418  row #7  "Host Memory Overallocation"
+  [FOUND]   M0420  row #6  "Memory Bottlenecks"
+  [FOUND]   M0422  row #6  "Memory Bottlenecks"
+  [FOUND]   M0435  row #6  "Memory Bottlenecks"
+  [FOUND]   M0471  row #8  "IPMM Memory Size reported as too small"
+  [FOUND]   M0547  row #9  "Tables with disabled Auto Merge"
+  [FOUND]   M0549  row #10  "Tables with disabled Auto Compression"
+  [FOUND]   M0551  row #11  "Inadequate SAP HANA Timezone Configuration"
+  [FOUND]   M0552  row #11  "Inadequate SAP HANA Timezone Configuration"
+  [FOUND]   M0577  row #12  "Tables with special Unload Priorities"
+  [FOUND]   M0640  row #13  "Significant Amount of Trace Files"
+  [FOUND]   M0644  row #14  "Large Trace Files"
+  [FOUND]   M0710  row #15  "SAP HANA Alerts due to Number of Table Records"
+  [FOUND]   M0744  row #16  "High SQL Cache Utilization caused by Statistics Server"
+  [FOUND]   M0750  row #17  "Data Retention of Statistics Server Histories"
+  [FOUND]   M0754  row #18  "Overhead due to granular Long Running Statements History"
+  [FOUND]   M0889  row #19  "Workload Class Thread Limit higher than max_concurrency"
+  [FOUND]   M0909  row #20  "No regular Creation of Traditional Data Backups"
+  [FOUND]   M0910  row #21  "No recent Data Backup available"
+  [MISSING] M0920  Age of last log backup (hours) — no matching row in Action Plan table
+  [FOUND]   M0945  row #22  "Large Backup Catalog Size"
+  [FOUND]   M1142  row #23  "High SQL Cache Utilization caused by specific Tables"
+  [FOUND]   M1168  row #24  "Delivered Statement Hints not implemented"
+  [FOUND]   M1940  row #25  "Caching not used for DDLOG Sequence"
+  [FOUND]   M2113  row #26  "No regular detailed SAP HANA Consistency Checks in place"
+  [MISSING] M2118  Table container check with load configured — no matching row in Action Plan table
+  [MISSING] M2130  Inconsistencies between topology and daemon — no matching row in Action Plan table
+  [FOUND]   M2260  row #28  "Unused SAP HANA Services Active"
+  [FOUND]   M2334  row #29  "Parameters violating Value or Layer Restrictions"
+  [FOUND]   M2336  row #30  "Repeated Adjustments of same SAP HANA Parameters"
+  [FOUND]   M2340  row #31  "Utilization of deprecated SAP HANA Features"
+  [FOUND]   M2810  row #28  "Unused SAP HANA Services Active"
+
+ISSUES / WARNINGS
+  - M0920: no TPO H2 section found in template — placeholder added to report
+  - M2130: no TPO H2 section found in template — placeholder added to report
+  - M2118 (Unnecessary Container Loads during lightweight Consistency Checks): section added to report but no matching Action Plan row found
+================================================================================
+================================================================================
+MiniCheck Run: 2026-04-15 04:21:13 UTC
+================================================================================
+SYSTEM INFO
+  System ID     : COE / S4H
+  HANA Version  : 2.00.073.00.1695288802
+  MiniCheck file: HANA_Configuration_MiniChecks_2.00.073+.txt
+  Analysis date : 2026/04/15 03:26:05 (UTC)
+
+EXECUTION SUMMARY
+  Total checks  : 552
+  Critical (C=X): 38
+  Output report : /Users/I321356/Documents/claude_project/COE_TPO_report_template.docx
+
+CRITICAL FINDINGS (C=X)
+  M0012   73.00                                    / >= 74.00         Revision level  [SAP Note 2378962]
+  M0110   no                                       / yes              Everything started  [SAP Note 2177064]
+  M0208   no (SLES 12.5)                           / yes              Supported operating system  [SAP Note 2235581]
+  M0209   no (4.12.14-122.212-default)             / yes              Recommended operating system kernel version  [SAP Note 2235581]
+  M0371   7.68                                     / <= 7.00          Unused space in packed LOBs vs. data (%)  [SAP Note 2220627]
+  M0411   7                                        / 20 to 50         Current service alloc. limit used by tables (%)  [SAP Note 1999997]
+  M0418   42.24                                    / 0.00             Host memory overallocation (GB)  [SAP Note 1999997]
+  M0420   Pool/RowEngine/QueryExecution/SearchAlloc (4 GB) / none             Large heap allocators (current)  [SAP Note 1999997]
+  M0422   Pool/RowEngine/QueryExecution/SearchAlloc (13 GB) / none             Large heap allocators (long-term)  [SAP Note 1999997]
+  M0435   423640                                   / <= 1000          Number of shrink unloads (short-term)  [SAP Note 2127458]
+  M0471   72                                       / >= 75            IPMM memory vs. actually used memory (%)  [SAP Note 1999997]
+  M0547   4                                        / 0                Non BW tables with disabled auto merge  [SAP Note 2057046]
+  M0549   3                                        / 0                Non BW tables with disabled auto compression  [SAP Note 2112604]
+  M0551   no                                       / yes              Proper setup of timezone table TTZZ  [SAP Note 1791342]
+  M0552   2                                        / 0                Number of current timezone alerts  [SAP Note 1791342]
+  M0577   2                                        / 0                Tables with special unload priority  [SAP Note 2127458]
+  M0640   1401                                     / <= 200           Number of trace files (total)  [SAP Note 2119087]
+  M0644   150.81                                   / <= 70.00         Size of largest trace file (MB)  [SAP Note 2119087]
+  M0710   4                                        / 0                Open alerts (high priority)  [SAP Note 2445867]
+  M0744   48.19                                    / <= 20.00         Total SQL cache share of statistics server (%)  [SAP Note 2124112]
+  M0750   1                                        / 0                Stat. server tables with retention < 42 days  [SAP Note 2147247]
+  M0754   60                                       / 300              Historic long running statements interval (s)  [SAP Note 2147247]
+  M0889   yes (20 > 8)                             / no               Workload class thread limit > max_concurrency  [SAP Note 2222250]
+  M0909   98.76                                    / <= 30.00         Age of last traditional data backup (days)  [SAP Note 2039883]
+  M0910   98.76                                    / <= 1.20          Age of last data backup (days)  [SAP Note 1642148]
+  M0920   2370.27                                  / <= 1.00          Age of last log backup (hours)  [SAP Note 1642148]
+  M0945   354                                      / 28 to 150        Age of oldest backup in catalog (days)  [SAP Note 2505218]
+  M1142   SYS.RS_TABLES_(10), SYS.RS_CO...TISTICS_PROPERTIES(18) (13 %) / none             Tables with high SQL cache utilization  [SAP Note 2124112]
+  M1168   no                                       / yes              Delivered statement hints implemented  [SAP Note 2700051]
+  M1940   28                                       / 0                Sequences with insufficient caching  [SAP Note 2600095]
+  M2113   n/a                                      / <= 32            Last global table consistency check (days)  [SAP Note 2116157]
+  M2118   yes                                      / no               Table container check with load configured  [SAP Note 2116157]
+  M2130   3                                        / 0                Inconsistencies between topology and daemon  [SAP Note 2222249]
+  M2260   yes                                      / no               Orphan dpserver service  [SAP Note 3014471]
+  M2334   global_allocation_limit = 122465         / none             Unsupported parameter settings  [SAP Note 2186744]
+  M2336   dynamic_range_check_time_interval_sec (12 / month) / none             Parameters with many changes  [SAP Note 2186744]
+  M2340   REPOSITORY - API                         / none             Deprecated features used (long-term)  [SAP Note 2425002]
+  M2810   yes                                      / no               Orphan docstore service  [SAP Note 3014471]
+
+CROSS-CHECK: MiniCheck C=X vs. TPO Template Sections
+  Status | CHID   | MiniCheck Description                              | P  | TPO Section Title                                                 | Prio   | TPO Check IDs
+  ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  PICKED | M0012  | Revision level                                     | 2  | Outdated SAP HANA Patch Level                                     | High   | M0012
+  ALT    |        |                                                    |    | Risk of Column Store Corruptions and Crashes                      | High   | M0012
+  PICKED | M0110  | Everything started                                 | 3  | SAP HANA Services not properly started                            | Medium | M0110
+  PICKED | M0208  | Supported operating system                         | 2  | Unsupported Operating System Release                              | High   | M0208
+  PICKED | M0209  | Recommended operating system kernel version        | 3  | Outdated Linux Kernel Version                                     | Medium | M0209, M0228
+  PICKED | M0371  | Unused space in packed LOBs vs. data (%)           | -  | Significant Packed LOB Fragmentation                              | Medium | M0371
+  PICKED | M0411  | Current service alloc. limit used by tables (%)    | 2  | Memory Bottlenecks                                                | High   | M0230, M0231, M0317, M0410, M0411, M0413, M0415, M0417, M0420, M0421, M0422, M0423, M0425, M0426, M0430, M0431, M0435, M0437, M0645, M0646
+  ALT    |        |                                                    |    | High Memory Utilization during BW Loads                           | High   | M0410, M0411, M0413, M0415, M0417, M0420, M0421, M0422, M0430, M0431
+  ALT    |        |                                                    |    | Global Allocation Limit Setting                                   | Medium | M0410, M0411, M0413, M0415, M0417
+  ALT    |        |                                                    |    | High Load due to CHECK_TABLE_CONSISTENCY                          | High   | M0410, M0411, M0413, M0415, M0417, M0421, M0422, M0430, M0431
+  ALT    |        |                                                    |    | Significant Memory Utilization by Tables                          | Medium | M0411
+  ALT    |        |                                                    |    | Indications for oversized Memory                                  | Medium | M0411
+  PICKED | M0418  | Host memory overallocation (GB)                    | 2  | Host Memory Overallocation                                        | High   | M0418
+  PICKED | M0420  | Large heap allocators (current)                    | 2  | Memory Bottlenecks                                                | High   | M0230, M0231, M0317, M0410, M0411, M0413, M0415, M0417, M0420, M0421, M0422, M0423, M0425, M0426, M0430, M0431, M0435, M0437, M0645, M0646
+  ALT    |        |                                                    |    | High Memory Utilization during BW Loads                           | High   | M0410, M0411, M0413, M0415, M0417, M0420, M0421, M0422, M0430, M0431
+  ALT    |        |                                                    |    | Statement Memory Limit reached                                    | Medium | M0420, M0421, M0422
+  ALT    |        |                                                    |    | Increasing Memory Consumption in Pool/malloc/libhdbrskernel.so    | Medium | M0420, M0421, M0422, M0423
+  ALT    |        |                                                    |    | High Memory Consumption related to Data Processing                | High   | M0420, M0421, M0422, M0445, M0646, M0658
+  ALT    |        |                                                    |    | Increasing Memory Utilization in Pool/PlanningEngine/LookupDict   | Medium | M0420, M0421, M0422, M0423
+  ALT    |        |                                                    |    | Sporadic Large Size of Pool/malloc/libhdbcsapi.so                 | High   | M0420, M0421, M0422
+  ALT    |        |                                                    |    | Memory Leak in Pool/malloc/libhdbcsstore.so                       | High   | M0420, M0421, M0422, M0423
+  ALT    |        |                                                    |    | Memory Leak in Pool/RowStoreTables/LockTable                      | High   | M0420, M0421, M0422, M0423
+  ALT    |        |                                                    |    | Large Size of Allocator Pool/RowEngine/QueryCompilation           | High   | M0420, M0421, M0422, M0423
+  ALT    |        |                                                    |    | High Load caused by BW F4 Search Help with posted Values          | Medium | M0420, M0421, M0422
+  ALT    |        |                                                    |    | Overhead related to Translation Tables                            | High   | M0420, M0421, M0422, M0462, M0573, M1055
+  ALT    |        |                                                    |    | Increased Size of Heap Allocator Pool/Metadata/MetadataCache/MetadataGlobalCacheSlot | High   | M0420, M0421, M0422
+  ALT    |        |                                                    |    | High Memory Consumption of Pool/FRSWLockAllocator                 | Medium | M0420, M0421, M0422
+  ALT    |        |                                                    |    | Increasing Size of Pool/malloc/libhdbcs.so                        | Medium | M0420, M0421, M0423
+  ALT    |        |                                                    |    | High Memory Consumption of Pool/Statistics                        | Medium | M0420, M0421, M0422, M0423
+  ALT    |        |                                                    |    | Memory Leak in Pool/SQLParserGlobal/SQLParserParse                | High   | M0420, M0421, M0422, M0423
+  ALT    |        |                                                    |    | Large TREX_EXT_AGGREGATE Hash Tables                              | High   | M0420, M0421, M0422
+  ALT    |        |                                                    |    | Increased Memory Consumption due to liveCache Data                | Medium | M0420, M0421, M0422
+  PICKED | M0422  | Large heap allocators (long-term)                  | 2  | Memory Bottlenecks                                                | High   | M0230, M0231, M0317, M0410, M0411, M0413, M0415, M0417, M0420, M0421, M0422, M0423, M0425, M0426, M0430, M0431, M0435, M0437, M0645, M0646
+  ALT    |        |                                                    |    | High Memory Utilization during BW Loads                           | High   | M0410, M0411, M0413, M0415, M0417, M0420, M0421, M0422, M0430, M0431
+  ALT    |        |                                                    |    | Statement Memory Limit reached                                    | Medium | M0420, M0421, M0422
+  ALT    |        |                                                    |    | Increasing Memory Consumption in Pool/malloc/libhdbrskernel.so    | Medium | M0420, M0421, M0422, M0423
+  ALT    |        |                                                    |    | High Memory Consumption related to Data Processing                | High   | M0420, M0421, M0422, M0445, M0646, M0658
+  ALT    |        |                                                    |    | Increasing Memory Utilization in Pool/PlanningEngine/LookupDict   | Medium | M0420, M0421, M0422, M0423
+  ALT    |        |                                                    |    | High Load due to CHECK_TABLE_CONSISTENCY                          | High   | M0410, M0411, M0413, M0415, M0417, M0421, M0422, M0430, M0431
+  ALT    |        |                                                    |    | Sporadic Large Size of Pool/malloc/libhdbcsapi.so                 | High   | M0420, M0421, M0422
+  ALT    |        |                                                    |    | Memory Leak in Pool/malloc/libhdbcsstore.so                       | High   | M0420, M0421, M0422, M0423
+  ALT    |        |                                                    |    | Memory Leak in Pool/RowStoreTables/LockTable                      | High   | M0420, M0421, M0422, M0423
+  ALT    |        |                                                    |    | Large Size of Allocator Pool/RowEngine/QueryCompilation           | High   | M0420, M0421, M0422, M0423
+  ALT    |        |                                                    |    | High Load caused by BW F4 Search Help with posted Values          | Medium | M0420, M0421, M0422
+  ALT    |        |                                                    |    | Overhead related to Translation Tables                            | High   | M0420, M0421, M0422, M0462, M0573, M1055
+  ALT    |        |                                                    |    | Increased Size of Heap Allocator Pool/Metadata/MetadataCache/MetadataGlobalCacheSlot | High   | M0420, M0421, M0422
+  ALT    |        |                                                    |    | High Memory Consumption of Pool/FRSWLockAllocator                 | Medium | M0420, M0421, M0422
+  ALT    |        |                                                    |    | Tables with many Disk LOBs                                        | High   | M0373, M0374, M0421, M0422
+  ALT    |        |                                                    |    | High Memory Consumption of Pool/Statistics                        | Medium | M0420, M0421, M0422, M0423
+  ALT    |        |                                                    |    | Memory Leak in Pool/SQLParserGlobal/SQLParserParse                | High   | M0420, M0421, M0422, M0423
+  ALT    |        |                                                    |    | Large TREX_EXT_AGGREGATE Hash Tables                              | High   | M0420, M0421, M0422
+  ALT    |        |                                                    |    | Increased Memory Consumption due to liveCache Data                | Medium | M0420, M0421, M0422
+  PICKED | M0435  | Number of shrink unloads (short-term)              | 2  | Memory Bottlenecks                                                | High   | M0230, M0231, M0317, M0410, M0411, M0413, M0415, M0417, M0420, M0421, M0422, M0423, M0425, M0426, M0430, M0431, M0435, M0437, M0645, M0646
+  PICKED | M0471  | IPMM memory vs. actually used memory (%)           | 3  | IPMM Memory Size reported as too small                            | Medium | M0471
+  PICKED | M0547  | Non BW tables with disabled auto merge             | 3  | Tables with disabled Auto Merge                                   | Medium | M0547
+  PICKED | M0549  | Non BW tables with disabled auto compression       | 3  | Tables with disabled Auto Compression                             | Medium | M0549
+  PICKED | M0551  | Proper setup of timezone table TTZZ                | 3  | Inadequate SAP HANA Timezone Configuration                        | Medium | M0551, M0552
+  PICKED | M0552  | Number of current timezone alerts                  | 3  | Inadequate SAP HANA Timezone Configuration                        | Medium | M0551, M0552
+  PICKED | M0577  | Tables with special unload priority                | 3  | Tables with special Unload Priorities                             | High   | M0577
+  PICKED | M0640  | Number of trace files (total)                      | 3  | Significant Amount of Trace Files                                 | Medium | M0640, M0641
+  ALT    |        |                                                    |    | Existence of modified Trace Settings                              | High   | M0610, M0612, M0613, M0614, M0616, M0617, M0618, M0620, M0623, M0624, M0630, M0635, M0637, M0639, M0640, M0641, M0660
+  PICKED | M0644  | Size of largest trace file (MB)                    | 3  | Large Trace Files                                                 | Medium | M0642, M0643, M0644
+  PICKED | M0710  | Open alerts (high priority)                        | 3  | SAP HANA Alerts due to Number of Table Records                    | Medium | M0710
+  ALT    |        |                                                    |    | Alert Threshold for Disk Utilization set too low                  | Medium | M0710
+  ALT    |        |                                                    |    | HDBLCM Installation Alert                                         | Medium | M0710
+  ALT    |        |                                                    |    | Internal Communication configured too openly                      | Medium | M0710
+  ALT    |        |                                                    |    | Statistics Server Alert for Table Size Growth                     | Medium | M0710
+  PICKED | M0744  | Total SQL cache share of statistics server (%)     | 3  | High SQL Cache Utilization caused by Statistics Server            | Medium | M0744
+  PICKED | M0750  | Stat. server tables with retention < 42 days       | 3  | Data Retention of Statistics Server Histories                     | Medium | M0750
+  PICKED | M0754  | Historic long running statements interval (s)      | 3  | Overhead due to granular Long Running Statements History          | Medium | M0754
+  PICKED | M0889  | Workload class thread limit > max_concurrency      | -  | Workload Class Thread Limit higher than max_concurrency           | Medium | M0889
+  PICKED | M0909  | Age of last traditional data backup (days)         | 3  | No Regular Creation of Traditional Data Backups                   | Medium | M0909
+  PICKED | M0910  | Age of last data backup (days)                     | 2  | No recent Data Backup available                                   | High   | M0910
+  MISS   | M0920  | Age of last log backup (hours)                     | -  | —                                                                 | —      | —
+  PICKED | M0945  | Age of oldest backup in catalog (days)             | 2  | Large Backup Catalog Size                                         | High   | M0940, M0942, M0945
+  ALT    |        |                                                    |    | Short Backup Retention Period                                     | High   | M0945
+  PICKED | M1142  | Tables with high SQL cache utilization             | 2  | High SQL Cache Utilization caused by specific Tables              | High   | M1142
+  ALT    |        |                                                    |    | Bind Variables not being used by MicroStrategy                    | High   | M0890, M1129, M1130, M1131, M1140, M1142
+  PICKED | M1168  | Delivered statement hints implemented              | 3  | Delivered Statement Hints not implemented                         | Medium | M1168
+  PICKED | M1940  | Sequences with insufficient caching                | 3  | Caching not used for DDLOG Sequence                               | Medium | M1210, M1940
+  ALT    |        |                                                    |    | Sequences with insufficient Caching                               | Medium | M1940
+  PICKED | M2113  | Last global table consistency check (days)         | 3  | No regular detailed SAP HANA Consistency Checks in Place          | Medium | M2112, M2113, M2115
+  PICKED | M2118  | Table container check with load configured         | -  | Unnecessary Container Loads during lightweight Consistency Checks | Medium | M2118
+  MISS   | M2130  | Inconsistencies between topology and daemon        | -  | —                                                                 | —      | —
+  PICKED | M2260  | Orphan dpserver service                            | 3  | Unused SAP HANA Services Active                                   | Medium | M2260, M2810
+  PICKED | M2334  | Unsupported parameter settings                     | 3  | Parameters violating Value or Layer Restrictions                  | Medium | M2334
+  PICKED | M2336  | Parameters with many changes                       | 3  | Repeated Adjustments of same SAP HANA Parameters                  | Medium | M2336
+  PICKED | M2340  | Deprecated features used (long-term)               | 3  | Utilization of deprecated SAP HANA Features                       | Medium | M2340
+  PICKED | M2810  | Orphan docstore service                            | 3  | Unused SAP HANA Services Active                                   | Medium | M2260, M2810
+
+  31 unique TPO sections cover 38 critical CHIDs (5 CHIDs share a section with a related finding)
+  2 CHIDs with no TPO section: M0920, M2130
+
+CROSS-CHECK: MiniCheck C=X vs. Action Plan Table
+  [FOUND]   M0012  row #1  "Outdated SAP HANA Patch Level"
+  [FOUND]   M0110  row #2  "SAP HANA Services not properly started"
+  [FOUND]   M0208  row #3  "Unsupported Operating System Release"
+  [FOUND]   M0209  row #4  "Outdated Linux Kernel Version"
+  [FOUND]   M0371  row #5  "Significant Packed LOB Fragmentation"
+  [FOUND]   M0411  row #6  "Memory Bottlenecks"
+  [FOUND]   M0418  row #7  "Host Memory Overallocation"
+  [FOUND]   M0420  row #6  "Memory Bottlenecks"
+  [FOUND]   M0422  row #6  "Memory Bottlenecks"
+  [FOUND]   M0435  row #6  "Memory Bottlenecks"
+  [FOUND]   M0471  row #8  "IPMM Memory Size reported as too small"
+  [FOUND]   M0547  row #9  "Tables with disabled Auto Merge"
+  [FOUND]   M0549  row #10  "Tables with disabled Auto Compression"
+  [FOUND]   M0551  row #11  "Inadequate SAP HANA Timezone Configuration"
+  [FOUND]   M0552  row #11  "Inadequate SAP HANA Timezone Configuration"
+  [FOUND]   M0577  row #12  "Tables with special Unload Priorities"
+  [FOUND]   M0640  row #13  "Significant Amount of Trace Files"
+  [FOUND]   M0644  row #14  "Large Trace Files"
+  [FOUND]   M0710  row #15  "SAP HANA Alerts due to Number of Table Records"
+  [FOUND]   M0744  row #16  "High SQL Cache Utilization caused by Statistics Server"
+  [FOUND]   M0750  row #17  "Data Retention of Statistics Server Histories"
+  [FOUND]   M0754  row #18  "Overhead due to granular Long Running Statements History"
+  [FOUND]   M0889  row #19  "Workload Class Thread Limit higher than max_concurrency"
+  [FOUND]   M0909  row #20  "No regular Creation of Traditional Data Backups"
+  [FOUND]   M0910  row #21  "No recent Data Backup available"
+  [MISSING] M0920  Age of last log backup (hours) — no matching row in Action Plan table
+  [FOUND]   M0945  row #22  "Large Backup Catalog Size"
+  [FOUND]   M1142  row #23  "High SQL Cache Utilization caused by specific Tables"
+  [FOUND]   M1168  row #24  "Delivered Statement Hints not implemented"
+  [FOUND]   M1940  row #25  "Caching not used for DDLOG Sequence"
+  [FOUND]   M2113  row #26  "No regular detailed SAP HANA Consistency Checks in place"
+  [MISSING] M2118  Table container check with load configured — no matching row in Action Plan table
+  [MISSING] M2130  Inconsistencies between topology and daemon — no matching row in Action Plan table
+  [FOUND]   M2260  row #28  "Unused SAP HANA Services Active"
+  [FOUND]   M2334  row #29  "Parameters violating Value or Layer Restrictions"
+  [FOUND]   M2336  row #30  "Repeated Adjustments of same SAP HANA Parameters"
+  [FOUND]   M2340  row #31  "Utilization of deprecated SAP HANA Features"
+  [FOUND]   M2810  row #28  "Unused SAP HANA Services Active"
+
+ISSUES / WARNINGS
+  - M0920: no TPO H2 section found in template — placeholder added to report
+  - M2130: no TPO H2 section found in template — placeholder added to report
+  - M2118 (Unnecessary Container Loads during lightweight Consistency Checks): section added to report but no matching Action Plan row found
 ================================================================================

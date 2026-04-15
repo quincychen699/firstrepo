@@ -15,6 +15,7 @@ Then remove any pre-existing files that could conflict or be confused with the n
 - The output file itself (e.g. `MiniCheck_Report.docx`)
 - Any backup copies with the same base name (e.g. `MiniCheck_Report*.docx`, `MiniCheck_Report*.docx.bak`, `MiniCheck_Report_*.docx`)
 - The Word auto-recovery / lock file (e.g. `~$MiniCheck_Report.docx`)
+- `/Users/I321356/Documents/claude_project/minicheck_results.json` (previous run's cached results)
 
 Use the Bash tool with `rm -f` to delete them. Print the list of files removed (or "No existing files found" if none).
 
@@ -34,54 +35,37 @@ Run the selected MiniCheck SQL file against the on-prem HANA system:
 From the results, extract all rows where `C = 'X'` (potentially critical).
 Present a summary table with columns: CHID | Description | Value | Expected | SAP Note.
 
+**Save the full MiniCheck results to `minicheck_results.json`** in the project directory so the report generator can read them:
+
+```python
+import json, os
+results = [...]  # all rows from the MiniCheck SQL output as list of dicts with keys: CHID, C, DESCRIPTION, VALUE, EXPECTED_VALUE, SAP_NOTE, etc.
+with open('/Users/I321356/Documents/claude_project/minicheck_results.json', 'w') as f:
+    json.dump(results, f, indent=2)
+```
+
+Each row dict must contain at minimum: `CHID`, `C`, `DESCRIPTION`, `VALUE`, `EXPECTED_VALUE`, `SAP_NOTE`.
+
 ### 3. Generate the Word report
 Determine the output filename:
 - If `$ARGUMENTS` is provided, use it as the output filename (resolve relative to `/Users/I321356/Documents/claude_project/` if not absolute)
 - Otherwise default to `/Users/I321356/Documents/claude_project/MiniCheck_Report.docx`
 
-Run the report generator:
+Run the report generator (it reads critical CHIDs from `minicheck_results.json` automatically):
 ```
 /Users/I321356/Documents/claude_project/sap-hana-mcp/.venv/bin/python \
   /Users/I321356/Documents/claude_project/generate_minicheck_report.py \
   <output_path>
 ```
 
-### 4. Post-process the report
-After generation, apply these fixes to the output .docx file using python-docx
-(python at `/Users/I321356/Documents/claude_project/sap-hana-mcp/.venv/bin/python`):
+The script handles everything: TPO template indexing, section selection, cover page, ToC field, Service Summary with Action Plan table, General Overview, Check Lists, and Issues & Recommendations sections. No post-processing is needed.
 
-**a) Filter to only the sections matching critical findings (C=X)**
-Keep only Heading 2 sections whose title matches one of the critical findings.
-Order them by MiniCheck CHID ascending.
+### 4. Verify the report
+Check the script output for any warnings:
+- Lines starting with `[--]` indicate a CHID has no matching TPO template section (a placeholder is added)
+- Lines starting with `[OK]` confirm sections were found and copied
 
-**b) Prepend document structure from TPO template**
-Copy these sections verbatim from `/Users/I321356/Documents/claude_project/TPO_template.docx`:
-- Cover page (everything before Table of Contents heading)
-- Table of Contents heading
-- Service Summary (H1) with Executive Summary and Action Plan subsections
-- General Overview (H1) with all subsections
-- Check Lists (H1) with all subsections
-- Issues and Recommendations (H1) heading
-
-**c) Replace static ToC with Word automatic TOC field**
-Remove static ToC entries and insert a `TOC \o "1-3" \h \z \u` field so Word
-auto-generates the table of contents when the file is opened.
-
-**d) Fix the Action Plan table**
-The Action Plan table in the generated report is already built correctly by
-`generate_minicheck_report.py` — it contains only the rows matching critical
-findings, with columns populated as follows:
-
-- **ID**: sequential number starting from 1
-- **DB**: actual system SID (e.g. `HAN`), replacing the `-` placeholder from the template
-- **P**: priority value copied verbatim from the matching row in the TPO template's Action Plan table
-- **S**: status copied verbatim from the template (typically `O`)
-- **Issue**: issue title copied verbatim from the matching template row, matching the section heading in "Issues and Recommendations"
-- **Recommendation**: recommendation text copied verbatim from the matching template row
-
-For issues that have a Heading 2 section in the template but no row in the template's Action Plan table (e.g. "Short Backup Retention Period"), a fallback row is constructed using the recommendation text from the section body and priority from the section header.
-
-All data rows in the Issue and Recommendation columns use **left alignment**, consistent with the TPO template.
+Report any `[--]` warnings to the user in the final summary.
 
 ### 5. Write execution log
 Append a detailed log entry to `/Users/I321356/Documents/claude_project/minicheck_report.log`.
@@ -116,15 +100,18 @@ CROSS-CHECK: MiniCheck C=X vs. TPO Template Sections
   Format as an ASCII table with columns:
     Status | CHID | MiniCheck Description | P | TPO Section Title | Priority | TPO Check IDs
 
-  - Status    : FOUND (matching H2 section exists in template) or MISS (no match)
-  - CHID      : MiniCheck check ID
-  - MiniCheck Description: description text from the MiniCheck results row
-  - P         : Action Plan priority number from the generated report's Action Plan table (2=High, 3=Medium, - if missing)
+  - Status    : PICKED (the section used in the report), ALT (alternate section also containing this CHID), or MISS (no match)
+  - CHID      : MiniCheck check ID — shown only on the PICKED row; blank on ALT rows
+  - MiniCheck Description: description text — shown only on the PICKED row; blank on ALT rows
+  - P         : Action Plan priority number from the generated report's Action Plan table (2=High, 3=Medium, - if missing) — PICKED row only
   - TPO Section Title: exact H2 heading from the TPO template; if multiple CHIDs map to the same section,
                        note the shared CHID in parentheses e.g. "(= M0551)"
   - Priority  : priority label read from the TPO template section body (High / Medium / -)
-  - TPO Check IDs: check IDs (Mxxxx pattern) listed in the body of that TPO template section;
-                   extract these by scanning the section text in TPO_template.docx
+  - TPO Check IDs: check IDs (Mxxxx pattern) listed on the "Check IDs:" line of that TPO template section
+
+  For each CHID, print one PICKED row (the section selected for the report) followed by one ALT row per
+  additional section that also lists the CHID in its "Check IDs:" line. This allows manual review of
+  alternate sections that could be used instead.
 
   Add a footer line: "N unique TPO sections cover all N critical CHIDs (N CHIDs share a section with a related finding)"
   And: "N CHIDs with no TPO section: <list>"

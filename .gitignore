@@ -18,3 +18,5 @@ __pycache__/
 
 # Temp / local files
 ~$*
+minicheck_report.log
+minicheck_results.json
